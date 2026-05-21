@@ -1,0 +1,29 @@
+{
+  "sync_dir": "~/models",
+  "repos": [
+    {
+      "repo_id": "unsloth/Qwen3.6-35B-A3B-MTP-GGUF",
+      "branch": "main",
+      "files": [
+        "unsloth.Q4_K_M.gguf",
+        "unsloth.Q5_K_M.gguf"
+      ]
+    },
+    {
+      "repo_id": "mistralai/Mistral-7B-Instruct-v0.2",
+      "branch": "main",
+      "files": [
+        "Mistral-7B-Instruct-v0.2-GGUF-Q4_K_M.gguf",
+        "Mistral-7B-Instruct-v0.2-GGUF-Q5_K_M.gguf"
+      ]
+    },
+    {
+      "repo_id": "meta-llama/Llama-2-7b-chat-hf",
+      "branch": "main",
+      "files": [
+        "model-00001-of-00002.safetensors",
+        "model-00002-of-00002.safetensors"
+      ]
+    }
+  ]
+}
