@@ -1,28 +1,19 @@
 #' Stream an entire file from Xet storage into memory
 #'
 #' Downloads a complete file from Xet storage directly into memory without
-#' writing to disk. Uses background streaming with bounded backpressure to
-#' prevent memory exhaustion. Ideal for in-memory analytics on large files.
+#' writing to disk. Ideal for in-memory analytics on large files.
 #'
 #' @param handle Character string handle from [xet_client_new()]
 #' @param file_hash Character string, the content hash of the file
 #' @param file_size Numeric scalar, total file size in bytes
 #'
-#' @return A list containing:
-#'   - `file_hash`: The file hash
-#'   - `file_size`: The file size in bytes
-#'   - `stream_status`: Current status of the stream
-#'   - `controller_active`: Boolean indicating if StreamController is active
-#'   - `note`: Implementation status note
+#' @return A `raw()` vector containing the complete file contents
 #'
 #' @details
-#' This function streams a file using a background StreamController that manages
-#' chunks through a bounded crossbeam channel. The bounded channel (128 chunks)
-#' provides backpressure, preventing the R main thread from being blocked or
-#' overwhelmed by network speed differences.
-#'
-#' **Note:** Current implementation (Phase 5) returns metadata about the stream.
-#' Full byte-range assembly into Raw vectors comes later in Phase 5.
+#' Streams the file via xet-core's download stream API and returns the
+#' bytes as a raw vector. This vector can be passed to [xet_open_connection()]
+#' to create an R connection, or used directly with downstream functions
+#' like `arrow::read_parquet()` via a temporary file (see [read_xet_parquet_stream()]).
 #'
 #' @seealso [xet_stream_range()] for partial downloads
 #' @export
@@ -39,12 +30,12 @@
 #' )
 #' }
 xet_stream_raw <- function(handle, file_hash, file_size) {
-  stopifnot(is.character(handle), length(handle) == 1)
+  stopifnot(is.character(handle), length(handle) == 1, nchar(handle) > 0)
   stopifnot(is.character(file_hash), length(file_hash) == 1, nchar(file_hash) > 0)
   stopifnot(is.numeric(file_size), length(file_size) == 1, file_size >= 0)
 
   .Call(
-    "_rxet_xet_stream_raw",
+    "wrap__xet_stream_raw",
     handle,
     file_hash,
     as.double(file_size),
@@ -64,22 +55,12 @@ xet_stream_raw <- function(handle, file_hash, file_size) {
 #' @param start_byte Numeric scalar, starting byte offset (0-indexed, inclusive)
 #' @param end_byte Numeric scalar, ending byte offset (exclusive)
 #'
-#' @return A list containing:
-#'   - `range_start`: Starting byte offset requested
-#'   - `range_end`: Ending byte offset requested
-#'   - `range_size`: Number of bytes in the range
-#'   - `chunks_needed`: Character vector of chunk hashes needed to reconstruct range
-#'   - `status`: Status message (currently placeholder for Phase 5)
+#' @return A `raw()` vector containing the requested byte range.
 #'
 #' @details
-#' This function uses the file's metadata shard (obtained via [xet_get_file_metadata()])
-#' to determine which chunks are needed to reconstruct the requested byte range.
-#' It then downloads only those chunks, assembling them into the final result.
-#'
-#' **Note:** Current implementation (Phase 4) returns metadata about chunks needed.
-#' Phase 5 will implement actual byte-range downloading and assembly into raw vectors.
-#'
-#' @seealso [xet_get_file_metadata()] for understanding file chunk structure
+#' This function uses xet-core's download stream API with byte-range support to
+#' efficiently fetch only the chunks needed to reconstruct the requested byte range.
+#' It downloads only those chunks and assembles them into the final result.
 #' @export
 #' @examples
 #' \dontrun{
@@ -99,7 +80,7 @@ xet_stream_raw <- function(handle, file_hash, file_size) {
 #' result$chunks_needed
 #' }
 xet_stream_range <- function(handle, file_hash, file_size, start_byte, end_byte) {
-  stopifnot(is.character(handle), length(handle) == 1)
+  stopifnot(is.character(handle), length(handle) == 1, nchar(handle) > 0)
   stopifnot(is.character(file_hash), length(file_hash) == 1, nchar(file_hash) > 0)
   stopifnot(is.numeric(file_size), length(file_size) == 1, file_size >= 0)
   stopifnot(is.numeric(start_byte), length(start_byte) == 1, start_byte >= 0)
@@ -107,7 +88,7 @@ xet_stream_range <- function(handle, file_hash, file_size, start_byte, end_byte)
   stopifnot(end_byte <= file_size)
 
   .Call(
-    "_rxet_xet_stream_range",
+    "wrap__xet_stream_range",
     handle,
     file_hash,
     as.double(file_size),

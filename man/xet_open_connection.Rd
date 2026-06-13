@@ -14,19 +14,22 @@ xet_open_connection(handle, file_hash, file_size)
 \item{file_size}{Numeric scalar, total file size in bytes}
 }
 \value{
-An R connection object that can be passed to \code{\link[=readBin]{readBin()}}, \code{\link[=readLines]{readLines()}},
-and other connection-aware functions.
+An R connection object created via \code{\link[=rawConnection]{rawConnection()}}, which can be
+passed to \code{\link[=readBin]{readBin()}}, \code{\link[=readLines]{readLines()}}, and other connection-aware functions.
 }
 \description{
-Creates an R connection object that can be used with standard R connection
-functions like \code{\link[=readBin]{readBin()}}, \code{\link[=readLines]{readLines()}}, etc. This enables seamless
-integration with packages like Arrow, GDAL, and spatial tools that expect
-R connection objects.
+Streams a Xet file into memory and returns a standard R connection object
+that can be used with standard R connection functions and ecosystem packages
+like Arrow, terra, and sf.
 }
 \details{
-An R connection provides a standard interface for reading data streams.
-By exposing Xet downloads as connections, downstream packages can
-consume Xet files without intermediate temporary files.
+This function:
+\enumerate{
+\item Calls \code{\link[=xet_stream_raw]{xet_stream_raw()}} to download the file into memory as a \code{raw()} vector
+\item Wraps it with \code{\link[=rawConnection]{rawConnection()}}, which returns a real R connection object
+\item The connection supports \code{readBin()}, \code{seek()}, \code{close()}, and integration
+with Arrow, terra, sf/GDAL, and other packages that read from connections
+}
 
 \strong{Example use cases:}
 \itemize{
@@ -34,10 +37,6 @@ consume Xet files without intermediate temporary files.
 \item GDAL/terra: \code{terra::rast(xet_open_connection(...))}
 \item CSV: \code{read.csv(xet_open_connection(...))}
 }
-
-\strong{Note:} Current implementation (Phase 5) provides the connection structure.
-Full R connection API integration with readBin/readLines callbacks comes
-with final Phase 5 completion.
 }
 \examples{
 \dontrun{
@@ -46,15 +45,13 @@ on.exit(xet_client_close(client))
 
 # Open connection to a Parquet file
 conn <- xet_open_connection(client, "parquet-hash", 1e9)
+on.exit(close(conn), add = TRUE)
 
 # Read directly with Arrow
 df <- arrow::read_parquet(conn)
-
-# Clean up
-close(conn)
 }
 }
 \seealso{
-\code{\link[=xet_stream_raw]{xet_stream_raw()}} for in-memory loading, \code{\link[=xet_stream_range]{xet_stream_range()}}
-for partial downloads
+\code{\link[=rawConnection]{rawConnection()}} (base R), \code{\link[=xet_stream_raw]{xet_stream_raw()}} for direct byte access,
+\code{\link[=xet_stream_range]{xet_stream_range()}} for partial downloads
 }

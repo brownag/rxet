@@ -18,14 +18,7 @@ xet_stream_range(handle, file_hash, file_size, start_byte, end_byte)
 \item{end_byte}{Numeric scalar, ending byte offset (exclusive)}
 }
 \value{
-A list containing:
-\itemize{
-\item \code{range_start}: Starting byte offset requested
-\item \code{range_end}: Ending byte offset requested
-\item \code{range_size}: Number of bytes in the range
-\item \code{chunks_needed}: Character vector of chunk hashes needed to reconstruct range
-\item \code{status}: Status message (currently placeholder for Phase 5)
-}
+A \code{raw()} vector containing the requested byte range.
 }
 \description{
 Retrieves a specific byte range of a file from Xet storage without downloading
@@ -33,12 +26,9 @@ the entire file. This enables efficient partial downloads, such as reading
 Parquet metadata footers or spatial windows from remote GeoTIFFs.
 }
 \details{
-This function uses the file's metadata shard (obtained via \code{\link[=xet_get_file_metadata]{xet_get_file_metadata()}})
-to determine which chunks are needed to reconstruct the requested byte range.
-It then downloads only those chunks, assembling them into the final result.
-
-\strong{Note:} Current implementation (Phase 4) returns metadata about chunks needed.
-Phase 5 will implement actual byte-range downloading and assembly into raw vectors.
+This function uses xet-core's download stream API with byte-range support to
+efficiently fetch only the chunks needed to reconstruct the requested byte range.
+It downloads only those chunks and assembles them into the final result.
 }
 \examples{
 \dontrun{
@@ -57,7 +47,4 @@ result <- xet_stream_range(
 # See which chunks are needed
 result$chunks_needed
 }
-}
-\seealso{
-\code{\link[=xet_get_file_metadata]{xet_get_file_metadata()}} for understanding file chunk structure
 }

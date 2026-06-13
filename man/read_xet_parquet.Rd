@@ -25,23 +25,18 @@ Supports Arrow's push-down filtering and column selection for efficient
 loading of large datasets.
 }
 \details{
-This is a convenience wrapper that:
+This function:
 \enumerate{
-\item Opens a Xet connection to the file
-\item Streams it through Arrow's Parquet reader
-\item Supports all Arrow read_parquet options (filters, columns, etc.)
+\item Opens a Xet connection to the file via \code{\link[=xet_open_connection]{xet_open_connection()}}
+\item Passes it to \code{arrow::read_parquet()} which reads from the connection
+\item Supports all Arrow read_parquet options (col_select, filters, schema, etc.)
 \item Automatically closes the connection when done
 }
 
-\strong{Requirements:}
-\itemize{
-\item The \code{arrow} package must be installed: \code{install.packages("arrow")}
-\item File must be a valid Parquet file
-}
-
-\strong{Performance:}
 Arrow can apply filters and select specific columns while reading,
 avoiding unnecessary data transfer from Xet storage.
+
+\strong{Requirements:} The \code{arrow} package must be installed.
 }
 \examples{
 \dontrun{
@@ -63,15 +58,6 @@ df <- read_xet_parquet(
   file_hash = "parquet-hash-abc123...",
   file_size = 5e9,
   col_select = c("user_id", "timestamp", "value")
-)
-
-# Apply filters while reading (push-down)
-df <- read_xet_parquet(
-  client,
-  file_hash = "parquet-hash-abc123...",
-  file_size = 5e9,
-  filters = expression(user_id > 1000 & region == "US"),
-  as_data_frame = TRUE
 )
 }
 

@@ -16,18 +16,19 @@ test_that("stream_range correctly identifies overlapping chunks", {
   file_size <- file_info$file_size
   num_chunks <- length(file_info$chunks)
 
-  # Request middle 100MB (chunks 4-5)
-  start_byte <- 350e6  # Start of chunk 4
-  end_byte <- 550e6    # End of chunk 5
+  # Request range [350MB, 550MB) overlaps with chunks 4, 5, 6
+  start_byte <- 350e6  # Within chunk 4 (300-400MB)
+  end_byte <- 550e6    # Within chunk 6 (500-600MB)
 
   # Manually find overlapping chunks
   overlapping <- Filter(function(chunk) {
     chunk$offset_end > start_byte && chunk$offset_start < end_byte
   }, file_info$chunks)
 
-  expect_equal(length(overlapping), 2, info = "Should find 2 overlapping chunks")
+  # Should find 3 overlapping chunks (4, 5, 6)
+  expect_equal(length(overlapping), 3, info = "Should find 3 overlapping chunks")
   expect_equal(overlapping[[1]]$offset_start, 300e6, info = "First chunk starts at 300MB")
-  expect_equal(overlapping[[2]]$offset_end, 500e6, info = "Second chunk ends at 500MB")
+  expect_equal(overlapping[[3]]$offset_end, 600e6, info = "Last chunk ends at 600MB")
 })
 
 test_that("stream_range handles boundary-aligned requests", {

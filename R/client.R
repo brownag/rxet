@@ -32,8 +32,11 @@ NULL
 #' }
 xet_client_new <- function(endpoint, token) {
   stopifnot(is.character(endpoint), length(endpoint) == 1, nchar(endpoint) > 0)
-  stopifnot(is.character(token), length(token) == 1)
-  .Call("_rxet_xet_init_client", endpoint, token, PACKAGE = "rxet")
+  if (!grepl("^https?://", endpoint, ignore.case = TRUE)) {
+    stop("endpoint must start with http:// or https://")
+  }
+  stopifnot(is.character(token), length(token) == 1, nchar(token) > 0)
+  .Call("wrap__xet_init_client", endpoint, token, PACKAGE = "rxet")
 }
 
 #' Close and free a Xet client session
@@ -46,7 +49,7 @@ xet_client_new <- function(endpoint, token) {
 #' @export
 xet_client_close <- function(handle) {
   stopifnot(is.character(handle), length(handle) == 1)
-  .Call("_rxet_xet_close_client", handle, PACKAGE = "rxet")
+  .Call("wrap__xet_close_client", handle, PACKAGE = "rxet")
   invisible(NULL)
 }
 
@@ -99,8 +102,8 @@ xet_config_environment <- function(timeout_sec = 300, cache_bytes = 10e9, high_p
   stopifnot(is.numeric(cache_bytes), length(cache_bytes) == 1, cache_bytes >= 0)
   stopifnot(is.logical(high_perf), length(high_perf) == 1)
 
-  Sys.setenv(HF_XET_CLIENT_READ_TIMEOUT = as.integer(timeout_sec))
-  Sys.setenv(HF_XET_CHUNK_CACHE_SIZE_BYTES = as.integer(cache_bytes))
+  Sys.setenv(HF_XET_CLIENT_READ_TIMEOUT = as.character(as.integer(timeout_sec)))
+  Sys.setenv(HF_XET_CHUNK_CACHE_SIZE_BYTES = sprintf("%.0f", cache_bytes))
   if (high_perf) {
     Sys.setenv(HF_XET_HIGH_PERFORMANCE = "1")
   } else {

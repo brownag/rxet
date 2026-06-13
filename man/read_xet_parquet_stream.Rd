@@ -16,22 +16,43 @@ read_xet_parquet_stream(handle, file_hash, file_size, ...)
 \item{...}{Additional arguments passed to \code{arrow::read_parquet()}}
 }
 \value{
-An Arrow Table or R data frame
+An Arrow Table or R data frame (depending on \code{as_data_frame} argument in ...)
 }
 \description{
-For use when the R connection API isn't fully integrated yet.
-Streams the entire file into memory and then reads it with Arrow.
+Streams the entire Parquet file into memory and then reads it with Arrow.
+This is the recommended workaround until \code{\link[=xet_open_connection]{xet_open_connection()}} supports
+the full R connection API.
 }
 \details{
-This is a workaround for when xet_open_connection() isn't fully integrated
-with Arrow's connection API. Instead:
+This function:
 \enumerate{
-\item Streams the entire file into memory via xet_stream_raw()
+\item Streams the entire file into memory via \code{\link[=xet_stream_raw]{xet_stream_raw()}}
 \item Writes to a temporary file
-\item Reads with arrow::read_parquet()
+\item Reads with \code{arrow::read_parquet()}
 \item Deletes the temporary file
 }
 
-\strong{Memory requirement:} File must fit in available RAM
+\strong{Memory requirement:} File must fit in available RAM.
+\strong{Performance:} Not suitable for very large files (>10GB); consider
+partial reads with \code{\link[=xet_stream_range]{xet_stream_range()}} once fully integrated.
+}
+\examples{
+\dontrun{
+library(arrow)
+
+client <- xet_client_new("https://cas-cf.huggingface.co", "token")
+on.exit(xet_client_close(client))
+
+# Read entire Parquet file into memory
+df <- read_xet_parquet_stream(
+  client,
+  file_hash = "parquet-hash-abc123...",
+  file_size = 2.5e9
+)
+}
+
+}
+\seealso{
+\code{\link[=read_xet_parquet]{read_xet_parquet()}} (requires full R connection API in Phase 5)
 }
 \keyword{internal}

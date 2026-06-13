@@ -197,6 +197,9 @@ test_that("memory doesn't grow unbounded with parallel operations", {
 })
 
 test_that("cleanup happens when client is abandoned", {
+  # Reset backend to start fresh
+  backend$reset()
+
   # Simulate client creation without explicit cleanup
   client_id <- uuid::UUIDgenerate()
 
@@ -216,6 +219,9 @@ test_that("cleanup happens when client is abandoned", {
 })
 
 test_that("stress test: 100 concurrent operations complete", {
+  # Reset backend to start fresh
+  backend$reset()
+
   # Simulate 100 operations across 10 clients
   clients <- 10
   ops_per_client <- 10
@@ -245,11 +251,15 @@ test_that("stress test: 100 concurrent operations complete", {
   token_requests <- sum(sapply(log, function(req) grepl("xet-read-token", req$endpoint)))
   chunk_requests <- sum(sapply(log, function(req) grepl("/cas/", req$endpoint)))
 
-  expect_equal(token_requests, clients)
+  # Each client makes ops_per_client token requests (one per operation)
+  expect_equal(token_requests, clients * ops_per_client)
   expect_equal(chunk_requests, clients * ops_per_client * 2)
 })
 
 test_that("request logging provides visibility for debugging", {
+  # Reset backend to start fresh
+  backend$reset()
+
   # Make various requests
   backend$api_get_read_token("repo1")
   backend$api_head_file("repo1", "file1.bin")

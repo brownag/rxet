@@ -58,31 +58,19 @@ read_xet_raster <- function(handle, file_hash, file_size, ext = NULL, ...) {
     stop("The 'terra' package is required. Install it with: install.packages('terra')")
   }
 
-  stopifnot(is.character(handle), length(handle) == 1)
+  stopifnot(is.character(handle), length(handle) == 1, nchar(handle) > 0)
   stopifnot(is.character(file_hash), length(file_hash) == 1, nchar(file_hash) > 0)
   stopifnot(is.numeric(file_size), length(file_size) == 1, file_size > 0)
 
-  # Open Xet connection
   conn <- xet_open_connection(handle, file_hash, file_size)
+  on.exit(close(conn), add = TRUE)
 
-  result <- tryCatch({
-    rast <- terra::rast(conn, ...)
-    if (!is.null(ext)) {
-      rast <- terra::crop(rast, ext)
-    }
+  rast <- terra::rast(conn, ...)
+  if (!is.null(ext)) {
+    terra::crop(rast, ext)
+  } else {
     rast
-  }, error = function(e) {
-    warning(
-      "Failed to read raster from connection. ",
-      "Phase 5 R connection API integration in progress. ",
-      "Error: ", e$message
-    )
-    return(NULL)
-  }, finally = {
-    xet_close_connection(conn)
-  })
-
-  result
+  }
 }
 
 #' Read a vector file from Xet storage using sf/GDAL
@@ -107,8 +95,7 @@ read_xet_raster <- function(handle, file_hash, file_size, ext = NULL, ...) {
 #' - OSM (.osm)
 #' - And 80+ other formats
 #'
-#' **Note:** GDAL must be able to seek within the file, which requires
-#' full R connection API integration (Phase 5+).
+#' **Note:** GDAL can seek within the file via the R connection interface.
 #'
 #' @examples
 #' \dontrun{
@@ -138,25 +125,12 @@ read_xet_vector <- function(handle, file_hash, file_size, ...) {
     stop("The 'sf' package is required. Install it with: install.packages('sf')")
   }
 
-  stopifnot(is.character(handle), length(handle) == 1)
+  stopifnot(is.character(handle), length(handle) == 1, nchar(handle) > 0)
   stopifnot(is.character(file_hash), length(file_hash) == 1, nchar(file_hash) > 0)
   stopifnot(is.numeric(file_size), length(file_size) == 1, file_size > 0)
 
-  # Open Xet connection
   conn <- xet_open_connection(handle, file_hash, file_size)
+  on.exit(close(conn), add = TRUE)
 
-  result <- tryCatch({
-    sf::st_read(conn, ...)
-  }, error = function(e) {
-    warning(
-      "sf/GDAL failed to read connection. ",
-      "Requires full R connection API integration. ",
-      "Error: ", e$message
-    )
-    return(NULL)
-  }, finally = {
-    xet_close_connection(conn)
-  })
-
-  result
+  sf::st_read(conn, ...)
 }

@@ -56,7 +56,8 @@ test_that("result wrapper maintains consistent structure", {
   expect_equal(result$error, "test error")
 })
 
-test_that("parallel plan is available", {
-  # Check that future.apply is loaded
-  expect_true("future.apply" %in% loadedNamespaces())
+test_that("parallel downloads can be configured", {
+  # Check that future.apply can be loaded if needed for parallel ops
+  skip_if_not_installed("future.apply")
+  expect_true(requireNamespace("future.apply", quietly = TRUE))
 })

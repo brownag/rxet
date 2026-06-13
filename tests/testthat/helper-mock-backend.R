@@ -1,6 +1,48 @@
 # Mock Xet backend for testing
 # Provides in-process HTTP mocking without external dependencies
 
+#' Check if package is compiled with Rust extension
+#'
+#' Attempts to call a basic Rust function to determine compilation status.
+#'
+#' @return Logical; TRUE if Rust extension is available
+#' @keywords internal
+is_compiled <- function() {
+  tryCatch({
+    # Try to call a safe Rust function that requires no setup
+    result <- .Call("wrap__xet_init_client", "https://test", "test", PACKAGE = "rxet")
+    # If we get here and got a handle, close it
+    if (is.character(result)) {
+      .Call("wrap__xet_close_client", result, PACKAGE = "rxet")
+      return(TRUE)
+    }
+    FALSE
+  }, error = function(e) {
+    FALSE
+  })
+}
+
+#' Create a test client and run code, ensuring cleanup
+#'
+#' Helper to reduce boilerplate in tests that need a client.
+#'
+#' @param expr Expression to evaluate with client available
+#' @param endpoint Character string, endpoint URL (default: dummy)
+#' @param token Character string, token (default: dummy)
+#'
+#' @return Result of expr
+#' @keywords internal
+with_test_client <- function(expr, endpoint = "https://cas-cf.huggingface.co", token = "test_token") {
+  client <- xet_client_new(endpoint, token)
+  on.exit(xet_client_close(client), add = TRUE)
+  # Pass client into the parent environment so expressions can reference it
+  # This is a workaround for testthat's quosure handling
+  parent_env <- parent.frame()
+  parent_env$client <- client
+  on.exit(rm("client", envir = parent_env), add = TRUE)
+  eval(substitute(expr), envir = parent_env)
+}
+
 #' Create a mock CAS endpoint response
 #'
 #' @param hash Character string, the content hash

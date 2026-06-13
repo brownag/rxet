@@ -14,4 +14,10 @@ xet_close_connection(conn)
 }
 \description{
 Closes the connection and releases resources.
+Since \code{\link[=xet_open_connection]{xet_open_connection()}} returns a standard R connection created
+via \code{\link[=rawConnection]{rawConnection()}}, you can use base R's \code{close()} function directly.
+This function is provided for convenience and compatibility.
+}
+\seealso{
+\code{\link[=close]{close()}}, \code{\link[=xet_open_connection]{xet_open_connection()}}
 }
