@@ -107,6 +107,7 @@ test_that("result wrapper handles NULL values", {
 })
 
 test_that("concurrent handle generation doesn't collide", {
+  skip_if_not_installed("uuid")
   # Note: Real concurrent test requires future package
   # This is a basic structure test
   handles <- character(10)

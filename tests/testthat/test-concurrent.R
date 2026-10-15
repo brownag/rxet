@@ -2,6 +2,7 @@ context("Concurrent client operations and stress testing")
 
 # Initialize mock backend for this test suite
 setup({
+  skip_if_not_installed("uuid")
   backend <<- create_mock_backend()
   fixtures <<- create_test_fixtures()
 })
