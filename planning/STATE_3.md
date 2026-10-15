@@ -37,7 +37,7 @@ Resume from this file. The user approved this plan on 2026-10-15. Approval cover
 | 1 | `3.1.3.windows-template` | done | none |
 | 1 | `3.1.4.ci-matrix` | done | none |
 | 1 | `3.1.5.online-build-docs` | done | none |
-| 2 | `3.2.1.env-var-check` | pending | 3.1.1 |
+| 2 | `3.2.1.env-var-check` | done | 3.1.1 |
 | 3 | `3.3.1.build-verify` | pending | 3.1.1–3.1.5, 3.2.1 |
 
 ## Task reports
@@ -94,7 +94,15 @@ Gotchas: docs describe the post-`3.1.1` state; re-render `.Rmd` for any later do
 
 ### 3.2.1.env-var-check
 
-Status: pending.
+Status: done. Result: **no mismatch — all three `HF_XET_*` variables `xet_config_environment()` sets are honored** by pinned `hf-xet 1.7.0`.
+Method: `cargo fetch` in `src/rust`; registry root `/home/andrew/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/`. The env-override machinery lives in the sibling crate **`xet-runtime-1.7.0`** (re-exported by `hf-xet`); the spec's grep of `hf-xet-1.7.0/src` alone finds only incidental refs (`HF_XET_CACHE` `src/xet_session/session.rs:149`; `HF_XET_LOG_FILE` `src/lib.rs:79`), so the sibling was grepped (orchestrator-approved extension).
+Contract: `xet-runtime-1.7.0/src/config/xet_config.rs:33–34` (`with_env_overrides`, pattern `HF_XET_{GROUP_NAME}_{FIELD_NAME}`); `xet-runtime-1.7.0/src/config/macros.rs:97–106` builds `HF_XET_{UPPER(group)}_{UPPER(field)}` via `const_str::concat!` from `module_path!()`.
+1. `HF_XET_CLIENT_READ_TIMEOUT` → `client.read_timeout` — **HONORED**: `xet-runtime-1.7.0/src/config/groups/client.rs:62` (doc names the var), `:63` (`ref read_timeout: Duration = Duration::from_secs(300)`).
+2. `HF_XET_CHUNK_CACHE_SIZE_BYTES` → `chunk_cache.size_bytes` — **HONORED**: `xet-runtime-1.7.0/src/config/groups/chunk_cache.rs:9` (doc names the var), `:10` (`ref size_bytes: u64 = DEFAULT_CHUNK_CACHE_CAPACITY`).
+3. `HF_XET_HIGH_PERFORMANCE` (alias `HF_XET_HP`) — **HONORED**: `xet-runtime-1.7.0/src/utils/configuration_utils.rs:329`/`:331`/`:341` (`get_high_performance_flag`/`HIGH_PERFORMANCE`); applied in `xet-runtime-1.7.0/src/config/xet_config.rs:149–150` (`XetConfig::new`, method `:175`).
+Path check: `rxet` calls `XetConfig::new()` (`src/rust/src/lib.rs:75`) → `XetSessionBuilder::new_with_config` (`:77`); `XetConfig::new()` applies the HP preset then `with_env_overrides()` (`xet_config.rs:147–153`), env overrides beating the preset (`:144–146`).
+Targeted command (spec): `cd src/rust && cargo fetch && REG=… && ls "$REG"/*/hf-xet-1.7.0 >/dev/null && grep -rEn … | head -40` → **exit 0** (only the two incidental hf-xet refs; contract confirmed in sibling `xet-runtime-1.7.0`).
+Validation: read-only; no package/source/test/doc/config file modified. Deviations: sibling-crate grep extension (approved). Findings: none — no downstream Phase 7 / README correction needed.
 
 ### 3.3.1.build-verify
 
