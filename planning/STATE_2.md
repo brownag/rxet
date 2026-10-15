@@ -23,6 +23,7 @@ Resume from this file. The user approved this plan on 2026-10-15. Approval cover
 - D4: Add `tests/testthat.R` in Phase 2, with clean skips when `uuid`/`arrow`/`future.apply` are absent.
 - D5: Wave 1 = 4 file-disjoint parallel tasks; Wave 2 = verification. (Docs + DESCRIPTION metadata merged into `2.1.1` because roxygen writes `DESCRIPTION`.)
 - Keep all 13 exports; no removal or rename.
+- D6 (2026-10-15, supersedes D2's license string): adopt the LICENSE.md model — `License: Apache License (>= 2)`, full Apache text ships as `LICENSE.md`, delete the `LICENSE` stanza, update README. Triggered by release-check finding F1 (R rejects `Apache License (>= 2) + file LICENSE` with a NOTE).
 
 ## Wave board
 
@@ -32,7 +33,8 @@ Resume from this file. The user approved this plan on 2026-10-15. Approval cover
 | 1 | `2.1.2.readme` | done | none |
 | 1 | `2.1.3.agents-doc` | done | none |
 | 1 | `2.1.4.test-harness` | done | none |
-| 2 | `2.2.1.release-check` | blocked (1 license NOTE, F1) | `2.1.1`, `2.1.2`, `2.1.3`, `2.1.4` |
+| 2 | `2.1.5.license-model` | done | 2.2.1 finding F1 |
+| 2 | `2.2.1.release-check` | done (PASS, 0 NOTE) | `2.1.1`, `2.1.2`, `2.1.3`, `2.1.4`, `2.1.5` |
 
 ## Task reports
 
@@ -85,9 +87,21 @@ Gotchas: `devtools::test()` uses `pkgload::load_all`, so it loads `R/` from sour
 - Extra commit `docs(api): label remaining experimental APIs in help pages`: D3 requires the 10 experimental APIs labeled in user-facing docs; 2.1.1's help pages initially labeled only 6, so the remaining 4 (`xet_download_file`, `xet_upload_file`, `xet_stream_raw`, `xet_stream_range`) were labeled and their Rd pages regenerated. All 10 experimental Rd pages now carry "Experimental pending live evidence".
 - Residual finding (non-blocking, deferred): `AGENTS.md:172` "4 core Rust bindings" vs 6 registered (task 2.1.3 discovered).
 
+### 2.1.5.license-model
+
+Status: done.
+Files changed: `DESCRIPTION:10` → `License: Apache License (>= 2)`; `.Rbuildignore` → removed `^LICENSE\.md$`; `LICENSE` **deleted** via `git rm`; `README.Rmd:291` + regenerated `README.md:325` → "See the LICENSE.md file."; `LICENSE.md` unchanged; `planning/tasks/2.1.5.license-model.todo.md` checkboxes flipped.
+Commands: `git rm LICENSE` → `rm 'LICENSE'`. `Rscript -e 'rmarkdown::render("README.Rmd", quiet=TRUE)'` → exit 0, `rm -f README.html`. `Rscript -e 'roxygen2::roxygenise()'` → exit 0, no `R/`, `man/`, or `NAMESPACE` drift (`git status` shows only the 5 intended paths).
+Validation: `grep -n "License: Apache License (>= 2)$" DESCRIPTION && ! grep LICENSE .Rbuildignore && test ! -e LICENSE && test -e LICENSE.md && ! grep -rn "See LICENSE file" README.md README.Rmd && grep -n "LICENSE.md" README.md` → exit 0 (`VALIDATION-OK`).
+Deviations: none. No `R CMD check` run (2.2.1 gate); scratch only; no commit.
+
 ### 2.2.1.release-check
 
-Status: BLOCKED — 1 phase-attributable NOTE (license). Executed by the orchestrator (serial gate).
+Status: PASS (after D6 license fix). Executed by the orchestrator (serial gate).
+
+**Final pass (post-D6, scratch `/tmp/opencode/rxet-check2/src`):** `R CMD build .` → rc 0; `_R_CHECK_FORCE_SUGGESTS_=false R CMD check --no-manual rxet_0.1.0.tar.gz` → rc 0, **Status: OK** (0 ERROR, 0 WARNING, 0 NOTE). `checking DESCRIPTION meta-information ... OK`, `checking top-level files ... OK`, `code/documentation mismatches ... OK`, `Rd cross-references ... OK`, `unstated dependencies in 'tests' ... OK`, `tests ... OK`. Suite inside check: `[ FAIL 0 | WARN 0 | SKIP 11 | PASS 111 ]`. Tarball: `LICENSE` absent, `LICENSE.md` present, `README.md` present; `planning/` ships (17 entries, deferred). All Phase 2 acceptance criteria met.
+
+**First pass (pre-D6) — found F1:** below, retained as the triage record.
 
 Evidence (scratch copy `/tmp/opencode/rxet-check/src`, protecting the user's `rxet.Rcheck/`/`rxet_0.1.0.tar.gz`):
 - Roxygen sync: `roxygen2::roxygenise()` then `git diff --exit-code -- man NAMESPACE DESCRIPTION` → clean (exit 0).
@@ -103,4 +117,4 @@ Finding F1 (blocking, needs triage; 2.2.1 does not fix per plan): R's license mo
 - `Apache License (>= 2) | file LICENSE` (stanza LICENSE) → clean.
 - `Apache License (>= 2)` + `LICENSE.md` full text, no `LICENSE` → clean.
 - `file LICENSE` with full Apache text → clean.
-D2's rationale ("clears the LICENSE NOTE") was mistaken. User's verbatim constraint (`+ file LICENSE`) conflicts with the phase exit gate (0 phase-attributable NOTE). Orchestrator escalated to the user for a decision.
+D2's rationale ("clears the LICENSE NOTE") was mistaken. User's verbatim constraint (`+ file LICENSE`) conflicts with the phase exit gate (0 phase-attributable NOTE). Orchestrator escalated to the user; user chose the LICENSE.md model (D6), executed as task 2.1.5, and the final pass above is clean.
