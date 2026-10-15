@@ -10,7 +10,7 @@ Status: **plan drafted; awaiting user approval** (2026-10-15). No task has start
 - [x] Prior phases read: `planning/STATE_1.md`, `STATE_2.md`, `STATE_3.md`; ADRs `docs/decisions/0001`, `0002`, `0003`.
 - [x] Phase 3 dependency satisfied: clean-archive `R CMD check` → `Status: OK` (`planning/STATE_3.md` 3.3.1).
 - [x] Last recorded test suite: `FAIL 0 | WARN 0 | SKIP 11 | PASS 111` (Phase 3 evidence; under `R CMD check`).
-- [ ] **Pre-wave-1 step (to run):** `cd src/rust && cargo check` → exit 0; `Rscript -e 'devtools::test(reporter = "summary", stop_on_failure = TRUE)'` → exit 0. Record counts here before wave 1 begins.
+- [x] Pre-wave-1 baseline (2026-10-15): `cargo check` → Finished (exit 0). `devtools::test()` → `failed: 0  skipped: 9  passed: 111  errors: 0` (skips: HF_TOKEN and optional-package guards; differs from Phase 3's `SKIP 11` under `R CMD check` only by environment).
 - [x] Recon of `src/rust/src/lib.rs` (335 lines): registry lock held across blocking I/O (lines 129, 196, 252, 287); unchecked `round() as u64` and `Vec::with_capacity` on user sizes (136, 155, 203–208, 226, 259); `Drop` placeholder and `get_rt` (15, 57).
 - [x] Recon of R wrappers: endpoint accepts any `http(s)://`; `xet_stream_raw` does not reject `Inf`; `xet_download_file` writes directly to `dest_path`.
 - [x] Tooling present: `devtools`, `testthat`, `roxygen2`, `callr`, `processx`, `future`. Absent: `uuid`, `arrow` (their tests skip). `cargo 1.96.0-nightly`.
@@ -38,8 +38,8 @@ Status: **plan drafted; awaiting user approval** (2026-10-15). No task has start
 
 | Wave | Tasks | Status | Depends on |
 |---|---|---|---|
-| 1 | `4.1.1.r-input-validation` | pending | none |
-| 1 | `4.1.2.rust-registry-lock` | pending | none |
+| 1 | `4.1.1.r-input-validation` | done (suite green) | none |
+| 1 | `4.1.2.rust-registry-lock` | done (cargo check clean) | none |
 | 2 | `4.2.1.rust-size-and-upload` | pending | 4.1.2 |
 | 2 | `4.2.2.r-atomic-download` | pending | 4.1.1 |
 | 3 | `4.3.1.lifecycle-failure-tests` | pending | 4.2.2, 4.2.1 |
@@ -59,3 +59,29 @@ Status: **plan drafted; awaiting user approval** (2026-10-15). No task has start
 ## Task reports
 
 <!-- Orchestrator and workers append reports below. One section per task id, <=15 lines each. -->
+
+### 4.1.2.rust-registry-lock
+
+- Status: done (uncommitted; orchestrator to review).
+- File changed: `src/rust/src/lib.rs` only (diff: +15 / -51).
+- Added `fn acquire_client` at L41–49 (lock, `get().cloned()`, lock released on return). Four call sites now `let client = acquire_client(handle)?;`: `xet_stream_raw` L113, `xet_stream_range` L175, `xet_download_file` L226, `xet_upload_file` L256.
+- Removed `impl Drop for XetClient`, `TOKIO_RUNTIME`, `get_rt`; removed `OnceLock` and `tokio::runtime` imports.
+- `safe_exec`, `xet_init_client` (insert ~L72), `xet_close_client` (remove ~L88), and `extendr_module!` unchanged. Error texts unchanged.
+- Baseline `cargo check` warnings: 0. After edit: 0 warnings, `Finished`.
+- Grep check: no `impl Drop for XetClient|fn get_rt|TOKIO_RUNTIME` in lib.rs.
+- `tokio` remains in `src/rust/Cargo.toml` (unused in code, per H5 and coordinator answer 2). Not edited.
+- Acceptance: `devtools::test(filter = "client", reporter = "summary", stop_on_failure = TRUE)` exit 0; output "client: .........." (10 passing expectations), no FAIL/SKIP/WARN lines. Exact pass counts from the summary reporter are not shown beyond these dots.
+- Not committed. No R/, tests/, Cargo.* edits.
+
+### 4.1.1.r-input-validation
+
+- Status: complete, not committed. Worker ran on the approved micro-plan with the coordinator's clarifications (a)-(d).
+- `R/client.R` 33-44: https accepted for any host; http accepted only when host (capture `^http://([^/:]+)`, tolower) is `localhost` or `127.0.0.1`; else stop with the D6 message. Roxygen `@param endpoint` updated.
+- `R/stream.R` `xet_stream_raw` 35-54: finite/whole check (`file_size must be a finite whole number of bytes`) before `>= 0`; 2 GiB cap before `.Call` (literal `2147483647`). Roxygen updated.
+- `R/stream.R` `xet_stream_range` 85-112: same finite/whole check on `file_size` only; cap on `end_byte - start_byte` with "in-memory requested range of ..." wording (clarification b). Roxygen updated.
+- `R/connection.R` `xet_open_connection` 47-57: finite/whole check before `>= 0`; cap enforced by the `xet_stream_raw` call. Roxygen updated.
+- `tests/testthat/test-input-validation.R`: 10 new `it()` blocks across the xet_client_new, xet_stream_raw, xet_stream_range, and xet_open_connection describes (Inf/NaN/fractional, 2 GiB cap, http/localhost/127.0.0.1/HTTP://LOCALHOST, remote-http and userinfo/IPv6 rejection). Loopback tests close their handles via `on.exit`.
+- Acceptance: `devtools::test(filter = "input-validation|streaming", reporter = "summary", stop_on_failure = TRUE)` exit 0. Counts: 47 tests, 45 passed, 0 failed, 0 errors, 3 skipped (HF_TOKEN credential guards in test-streaming.R:5, :19, :37; pre-existing).
+- Existing patterns ("file_size", "nchar.*handle", "end_byte.*file_size") still match; test-streaming.R:19 is skipped on this machine, so its "file_size" pattern was not exercised here.
+- Deviations: none from the approved plan. Not run: `R CMD INSTALL`, roxygen2 (H7).
+- Left untouched as directed: `src/Makevars`, `src/entrypoint.o` (modified by baseline run), `src/rust/src/lib.rs` (other worker). Other modified files in `git status` (`planning/EXECUTION_PLAN_4.md`, `planning/tasks/4.1.2...`) were not made by this task.
