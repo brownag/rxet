@@ -40,8 +40,8 @@ Status: **plan drafted; awaiting user approval** (2026-10-15). No task has start
 |---|---|---|---|
 | 1 | `4.1.1.r-input-validation` | done (suite green) | none |
 | 1 | `4.1.2.rust-registry-lock` | done (cargo check clean) | none |
-| 2 | `4.2.1.rust-size-and-upload` | pending | 4.1.2 |
-| 2 | `4.2.2.r-atomic-download` | pending | 4.1.1 |
+| 2 | `4.2.1.rust-size-and-upload` | done (suite green) | 4.1.2 |
+| 2 | `4.2.2.r-atomic-download` | done (suite green) | 4.1.1 |
 | 3 | `4.3.1.lifecycle-failure-tests` | pending | 4.2.2, 4.2.1 |
 | 3 | `4.3.2.rust-registry-tests` | pending | 4.2.1 |
 | 4 | `4.4.1.docs-rd-sync` | pending | 4.3.1, 4.3.2 |
@@ -85,3 +85,26 @@ Status: **plan drafted; awaiting user approval** (2026-10-15). No task has start
 - Existing patterns ("file_size", "nchar.*handle", "end_byte.*file_size") still match; test-streaming.R:19 is skipped on this machine, so its "file_size" pattern was not exercised here.
 - Deviations: none from the approved plan. Not run: `R CMD INSTALL`, roxygen2 (H7).
 - Left untouched as directed: `src/Makevars`, `src/entrypoint.o` (modified by baseline run), `src/rust/src/lib.rs` (other worker). Other modified files in `git status` (`planning/EXECUTION_PLAN_4.md`, `planning/tasks/4.1.2...`) were not made by this task.
+
+### 4.2.2.r-atomic-download
+
+- Status: done (uncommitted). Only `R/download.R` edited.
+- Lines: whole-number check L31-33 (after the L30 `file_size` stopifnot, `if (!(...)) stop(...)` form per coordinator); roxygen description L3-7 (one added sentence); `tmp <- tempfile(...)` and `on.exit(unlink)` L48-49; `.Call` now passes `tmp` L51; `file.rename` check L53-55; `invisible(dest_path)` L57. Dir/parent checks unchanged.
+- Acceptance: `grep tempfile(` and `grep file.rename` both match (L48, L53); `devtools::test(filter = "input-validation", reporter = "summary", stop_on_failure = TRUE)` exit 0, no failure lines reported. Summary reporter prints no pass/fail counts, so exact counts are not available from this run.
+- Parse check `parse("R/download.R")`: OK.
+- Deviations: none from the approved plan. Not run: `R CMD INSTALL`, roxygen2 (H7), any behavioral download-failure test (owned by 4.3.1).
+- Risk recorded: `file.rename()` overwrite on Windows unverified (H4); no Windows-specific code added.
+- Left untouched: `src/Makevars`, `src/entrypoint.o`, all other tracked files. Untracked `planning/tasks/4.2.1...` and `4.2.2...` todo files are present.
+
+### 4.2.1.rust-size-and-upload
+- Status: done (not committed). Edited `src/rust/src/lib.rs` only.
+- Added: `MAX_IN_MEMORY_BYTES` (const, ~line 14), `to_whole_bytes` (~lines 16-23).
+- `xet_stream_raw`: `to_whole_bytes` + 2 GiB cap before `acquire_client`; `try_reserve_exact` replaces `with_capacity`.
+- `xet_stream_range`: `to_whole_bytes` for total/start/end, existing offset-order messages kept, `checked_sub` for size, cap check before `acquire_client`, `try_reserve_exact`.
+- `xet_download_file`: `to_whole_bytes(file_size, "file_size")` before `acquire_client`; no cap (D2).
+- `xet_upload_file`: `report.uploads.len() != 1` error before `.values().next()`; `Sha256Policy::Skip` kept.
+- Cap wording matches R (`R/stream.R` lines 50, 119) character for character.
+- Checks: `grep -c "round() as u64\|with_capacity\|is_nan\|is_infinite"` on lib.rs = 0 matches. `cargo check` exit 0, 0 warnings.
+- Acceptance (filter corrected per coordinator): `devtools::test(filter = "input-validation|streaming", reporter = "summary", stop_on_failure = TRUE)` exit 0. Counts: 45 passed, 0 failed, 0 errors, 3 skipped (HF_TOKEN guards, test-streaming.R:5, :19, :37).
+- Deviations: none from the approved plan. Not run: `R CMD INSTALL`, roxygen2, full suite (wave-end orchestrator).
+- Untouched: `src/Makevars`, `src/entrypoint.o`, `registry.rs` (not created), `R/**`, `Cargo.*`.
