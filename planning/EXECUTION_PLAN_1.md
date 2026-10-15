@@ -180,7 +180,7 @@ This is a planning-only orchestration. It uses one task in each wave because Pha
 - **Depends on:** `1.2.1.support-policy`
 - **Files in scope:**
   - Must edit: `planning/EXECUTION_PLAN_1.md` (only corrections required by consistency review); `planning/STATE_1.md` (task completion status and concise reports).
-  - Can create: no other tracked files. Task TODOs will be `planning/tasks/1.1.api-inventory.todo.md`, `planning/tasks/1.2.support-policy.todo.md`, `planning/tasks/1.3.phase-contract.todo.md`.
+  - Can create: no other tracked files. Task TODOs will be `planning/tasks/1.1.1.api-inventory.todo.md`, `planning/tasks/1.2.1.support-policy.todo.md`, `planning/tasks/1.3.1.phase-contract.todo.md`.
   - Do not edit implementation files, tests, README/man, `MASTER_PLAN.md`, or prior artifacts.
 - **Spec:** Check that the approved Goal & Scope, exact user constraints, API inventory, decisions, wave/task sequence, and master-plan Phase 1 exit gate agree. Verify later-phase handoff facts for docs/API (Phase 2), pinning/platform/vendor (Phase 3), hardening (Phase 4), test policy (Phase 5), and optional integrations (Phase 6). Record acceptance outcome and any explicit deferral; do not claim resolution of code defects.
 - **Anchors:** `planning/MASTER_PLAN.md` Phase 1 and phase sequence; decisions table and task specs in `EXECUTION_PLAN_1.md`; `AGENTS.md` quick-start/test conventions.
