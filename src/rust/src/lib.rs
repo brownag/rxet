@@ -1,9 +1,13 @@
 use extendr_api::prelude::*;
 use xet::xet_session::{XetSession, XetSessionBuilder, XetFileInfo, Sha256Policy, XetConfig};
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::panic;
 use uuid::Uuid;
+
+mod registry;
+#[cfg(test)]
+mod tests;
+use registry::Registry;
 
 struct XetClient {
     session: XetSession,
@@ -45,19 +49,16 @@ where
 }
 
 lazy_static::lazy_static! {
-    static ref CLIENTS: Mutex<HashMap<String, Arc<XetClient>>> = Mutex::new(HashMap::new());
+    static ref CLIENTS: Registry<XetClient> = Registry::new();
 }
 
 /// Look up a client by handle and return an owned `Arc`.
 /// The registry lock is released when this function returns, so blocking
 /// network calls never hold the lock.
 fn acquire_client(handle: &str) -> extendr_api::Result<Arc<XetClient>> {
-    let clients = CLIENTS.lock()
-        .map_err(|e| Error::Other(format!("client registry poisoned: {}", e)))?;
-
-    clients
-        .get(handle)
-        .cloned()
+    CLIENTS
+        .acquire(handle)
+        .map_err(Error::Other)?
         .ok_or_else(|| Error::Other(format!("invalid or closed client handle")))
 }
 
@@ -75,17 +76,14 @@ fn xet_init_client(endpoint: &str, token: &str) -> extendr_api::Result<String> {
             .build()
             .map_err(|e| Error::Other(format!("XetSession build failed: {}", e)))?;
 
-        let client = Arc::new(XetClient {
+        let client = XetClient {
             session,
             endpoint: endpoint.to_string(),
             token: token.to_string(),
-        });
+        };
 
         let handle = Uuid::new_v4().to_string();
-        let mut clients = CLIENTS.lock()
-            .map_err(|e| Error::Other(format!("client registry poisoned: {}", e)))?;
-
-        clients.insert(handle.clone(), client);
+        CLIENTS.insert(handle.clone(), client).map_err(Error::Other)?;
 
         // Print debug message only if RXET_DEBUG=1
         if std::env::var("RXET_DEBUG").map(|v| v == "1").unwrap_or(false) {
@@ -98,11 +96,9 @@ fn xet_init_client(endpoint: &str, token: &str) -> extendr_api::Result<String> {
 /// Close and free a Xet storage client
 #[extendr]
 fn xet_close_client(handle: &str) -> extendr_api::Result<()> {
-    let mut clients = CLIENTS.lock()
-        .map_err(|e| Error::Other(format!("client registry poisoned: {}", e)))?;
-
-    clients
+    CLIENTS
         .remove(handle)
+        .map_err(Error::Other)?
         .ok_or_else(|| Error::Other(format!("invalid or already-closed client handle")))?;
     Ok(())
 }
