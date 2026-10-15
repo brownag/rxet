@@ -19,8 +19,9 @@ read_xet_vector(handle, file_hash, file_size, ...)
 An sf object (data frame with geometry column)
 }
 \description{
-Streams a shapefile, GeoJSON, GeoPackage, or other vector format
-directly from Xet storage using sf and GDAL.
+Downloads a shapefile, GeoJSON, GeoPackage, or other vector format from Xet
+storage and reads it with sf/GDAL. The whole file is buffered into memory
+before sf reads it.
 }
 \details{
 Supports any format that GDAL can read:
@@ -34,8 +35,7 @@ Supports any format that GDAL can read:
 \item And 80+ other formats
 }
 
-\strong{Note:} GDAL must be able to seek within the file, which requires
-full R connection API integration (Phase 5+).
+\strong{Status:} Experimental pending live evidence.
 }
 \examples{
 \dontrun{

@@ -1,6 +1,6 @@
 #' Open an R connection to a Xet file
 #'
-#' Streams a Xet file into memory and returns a standard R connection object
+#' Downloads a Xet file into memory and returns a standard R connection object
 #' that can be used with standard R connection functions and ecosystem packages
 #' like Arrow, terra, and sf.
 #'
@@ -17,6 +17,12 @@
 #' 2. Wraps it with [rawConnection()], which returns a real R connection object
 #' 3. The connection supports `readBin()`, `seek()`, `close()`, and integration
 #'    with Arrow, terra, sf/GDAL, and other packages that read from connections
+#'
+#' The whole file is materialized into an in-memory `rawConnection()`. `seek()`
+#' works within that in-memory copy, but this is **not** remote range access:
+#' no bytes are fetched lazily from the endpoint.
+#'
+#' **Status:** Experimental pending live evidence.
 #'
 #' **Example use cases:**
 #' - Arrow: `arrow::read_parquet(xet_open_connection(...))`
@@ -56,6 +62,8 @@ xet_open_connection <- function(handle, file_hash, file_size) {
 #' Since [xet_open_connection()] returns a standard R connection created
 #' via [rawConnection()], you can use base R's `close()` function directly.
 #' This function is provided for convenience and compatibility.
+#'
+#' **Status:** Experimental pending live evidence.
 #'
 #' @param conn An R connection object created by [xet_open_connection()]
 #'

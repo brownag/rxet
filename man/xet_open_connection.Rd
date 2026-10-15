@@ -18,7 +18,7 @@ An R connection object created via \code{\link[=rawConnection]{rawConnection()}}
 passed to \code{\link[=readBin]{readBin()}}, \code{\link[=readLines]{readLines()}}, and other connection-aware functions.
 }
 \description{
-Streams a Xet file into memory and returns a standard R connection object
+Downloads a Xet file into memory and returns a standard R connection object
 that can be used with standard R connection functions and ecosystem packages
 like Arrow, terra, and sf.
 }
@@ -30,6 +30,12 @@ This function:
 \item The connection supports \code{readBin()}, \code{seek()}, \code{close()}, and integration
 with Arrow, terra, sf/GDAL, and other packages that read from connections
 }
+
+The whole file is materialized into an in-memory \code{rawConnection()}. \code{seek()}
+works within that in-memory copy, but this is \strong{not} remote range access:
+no bytes are fetched lazily from the endpoint.
+
+\strong{Status:} Experimental pending live evidence.
 
 \strong{Example use cases:}
 \itemize{

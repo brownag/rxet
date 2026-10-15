@@ -14,28 +14,18 @@ xet_stream_raw(handle, file_hash, file_size)
 \item{file_size}{Numeric scalar, total file size in bytes}
 }
 \value{
-A list containing:
-\itemize{
-\item \code{file_hash}: The file hash
-\item \code{file_size}: The file size in bytes
-\item \code{stream_status}: Current status of the stream
-\item \code{controller_active}: Boolean indicating if StreamController is active
-\item \code{note}: Implementation status note
-}
+A \code{raw()} vector containing the complete file contents
 }
 \description{
-Downloads a complete file from Xet storage directly into memory without
-writing to disk. Uses background streaming with bounded backpressure to
-prevent memory exhaustion. Ideal for in-memory analytics on large files.
+Downloads a complete file from Xet storage into memory as a \code{raw()} vector
+without writing to disk. The whole file is buffered in memory, so it must
+fit in available RAM.
 }
 \details{
-This function streams a file using a background StreamController that manages
-chunks through a bounded crossbeam channel. The bounded channel (128 chunks)
-provides backpressure, preventing the R main thread from being blocked or
-overwhelmed by network speed differences.
-
-\strong{Note:} Current implementation (Phase 5) returns metadata about the stream.
-Full byte-range assembly into Raw vectors comes later in Phase 5.
+The file bytes are returned as a \code{raw()} vector, with the whole file buffered
+in memory. This vector can be passed to \code{\link[=xet_open_connection]{xet_open_connection()}}
+to create an R connection, or used directly with downstream functions
+like \code{arrow::read_parquet()} via a temporary file (see \code{\link[=read_xet_parquet_stream]{read_xet_parquet_stream()}}).
 }
 \examples{
 \dontrun{

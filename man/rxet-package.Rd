@@ -12,5 +12,10 @@ via Rust and the extendr framework.
 \author{
 \strong{Maintainer}: Andrew Brown \email{brown.andrewg@gmail.com}
 
+Authors:
+\itemize{
+  \item Andrew Brown \email{brown.andrewg@gmail.com}
+}
+
 }
 \keyword{internal}

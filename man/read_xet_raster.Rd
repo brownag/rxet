@@ -21,8 +21,8 @@ read_xet_raster(handle, file_hash, file_size, ext = NULL, ...)
 A SpatRaster object
 }
 \description{
-Streams a GeoTIFF or other raster file directly from Xet storage.
-Supports partial reads (crops, windows) without downloading entire file.
+Downloads a raster file from Xet storage and reads it with terra.
+The whole file is buffered into memory before terra reads it.
 }
 \details{
 Uses the terra package (successor to raster) for reading raster files.
@@ -38,6 +38,8 @@ cropped <- terra::crop(dem, terra::ext(100, 110, 40, 50))
 \item HDF5 spatial data
 \item netCDF with spatial metadata
 }
+
+\strong{Status:} Experimental pending live evidence.
 }
 \examples{
 \dontrun{

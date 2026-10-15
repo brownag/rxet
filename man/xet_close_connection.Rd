@@ -18,6 +18,9 @@ Since \code{\link[=xet_open_connection]{xet_open_connection()}} returns a standa
 via \code{\link[=rawConnection]{rawConnection()}}, you can use base R's \code{close()} function directly.
 This function is provided for convenience and compatibility.
 }
+\details{
+\strong{Status:} Experimental pending live evidence.
+}
 \seealso{
 \code{\link[=close]{close()}}, \code{\link[=xet_open_connection]{xet_open_connection()}}
 }

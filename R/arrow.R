@@ -1,8 +1,8 @@
 #' Read a Parquet file from Xet storage using Arrow
 #'
-#' Streams a Parquet file directly from Xet storage without writing to disk.
-#' Supports Arrow's push-down filtering and column selection for efficient
-#' loading of large datasets.
+#' Downloads a Parquet file from Xet storage and reads it with Arrow.
+#' The whole file is buffered into memory first; column selection and filters
+#' are applied by Arrow after the data has been downloaded.
 #'
 #' @param handle Character string handle from [xet_client_new()]
 #' @param file_hash Character string, the content hash of the Parquet file
@@ -19,8 +19,11 @@
 #' 3. Supports all Arrow read_parquet options (col_select, filters, schema, etc.)
 #' 4. Automatically closes the connection when done
 #'
-#' Arrow can apply filters and select specific columns while reading,
-#' avoiding unnecessary data transfer from Xet storage.
+#' The entire file is buffered into memory by [xet_open_connection()] before
+#' Arrow reads it, so column selection and filters reduce Arrow/in-memory work
+#' but not the number of bytes downloaded.
+#'
+#' **Status:** Experimental pending live evidence.
 #'
 #' **Requirements:** The `arrow` package must be installed.
 #'
@@ -67,10 +70,11 @@ read_xet_parquet <- function(handle, file_hash, file_size, ...) {
   arrow::read_parquet(conn, ...)
 }
 
-#' Stream and read a Parquet file from Xet into memory
+#' Read a Parquet file from Xet via a temporary file
 #'
-#' Streams the entire Parquet file into memory via a temporary file and reads it with Arrow.
-#' This is an alternative to [read_xet_parquet()] for use cases where a temporary file is preferred.
+#' Downloads the entire Parquet file into memory, writes it to a temporary
+#' `.parquet` file, and reads it with Arrow. This is an alternative to
+#' [read_xet_parquet()] for use cases where a temporary file is preferred.
 #'
 #' @param handle Character string handle from [xet_client_new()]
 #' @param file_hash Character string, the content hash of the Parquet file
@@ -81,14 +85,15 @@ read_xet_parquet <- function(handle, file_hash, file_size, ...) {
 #'
 #' @details
 #' This function:
-#' 1. Streams the entire file into memory via [xet_stream_raw()]
-#' 2. Writes to a temporary file
-#' 3. Reads with `arrow::read_parquet()`
+#' 1. Downloads the **entire** file into memory via [xet_stream_raw()]
+#' 2. Writes those bytes to a temporary `.parquet` file
+#' 3. Reads the temporary file with `arrow::read_parquet()`
 #' 4. Deletes the temporary file
 #'
-#' **Memory requirement:** File must fit in available RAM.
-#' **Performance:** Not suitable for very large files (>10GB); consider
-#' partial reads with [xet_stream_range()] once fully integrated.
+#' Because the whole file is buffered into memory, it must fit in available RAM.
+#'
+#' **Status:** Experimental pending live evidence. The end-to-end behaviour
+#' against a live Xet endpoint has not yet been verified.
 #'
 #' @examples
 #' \dontrun{
@@ -106,7 +111,6 @@ read_xet_parquet <- function(handle, file_hash, file_size, ...) {
 #' }
 #'
 #' @seealso [read_xet_parquet()] for direct connection-based reading
-#' @keywords internal
 #' @export
 read_xet_parquet_stream <- function(handle, file_hash, file_size, ...) {
   if (!requireNamespace("arrow", quietly = TRUE)) {

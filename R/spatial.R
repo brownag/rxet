@@ -1,7 +1,7 @@
 #' Read a raster file from Xet storage using terra
 #'
-#' Streams a GeoTIFF or other raster file directly from Xet storage.
-#' Supports partial reads (crops, windows) without downloading entire file.
+#' Downloads a raster file from Xet storage and reads it with terra.
+#' The whole file is buffered into memory before terra reads it.
 #'
 #' @param handle Character string handle from [xet_client_new()]
 #' @param file_hash Character string, the content hash of the raster file
@@ -24,6 +24,8 @@
 #' - COG (Cloud-Optimized GeoTIFF)
 #' - HDF5 spatial data
 #' - netCDF with spatial metadata
+#'
+#' **Status:** Experimental pending live evidence.
 #'
 #' @examples
 #' \dontrun{
@@ -75,8 +77,9 @@ read_xet_raster <- function(handle, file_hash, file_size, ext = NULL, ...) {
 
 #' Read a vector file from Xet storage using sf/GDAL
 #'
-#' Streams a shapefile, GeoJSON, GeoPackage, or other vector format
-#' directly from Xet storage using sf and GDAL.
+#' Downloads a shapefile, GeoJSON, GeoPackage, or other vector format from Xet
+#' storage and reads it with sf/GDAL. The whole file is buffered into memory
+#' before sf reads it.
 #'
 #' @param handle Character string handle from [xet_client_new()]
 #' @param file_hash Character string, the content hash of the vector file
@@ -95,7 +98,7 @@ read_xet_raster <- function(handle, file_hash, file_size, ext = NULL, ...) {
 #' - OSM (.osm)
 #' - And 80+ other formats
 #'
-#' **Note:** GDAL can seek within the file via the R connection interface.
+#' **Status:** Experimental pending live evidence.
 #'
 #' @examples
 #' \dontrun{

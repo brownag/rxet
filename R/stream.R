@@ -1,7 +1,8 @@
 #' Stream an entire file from Xet storage into memory
 #'
-#' Downloads a complete file from Xet storage directly into memory without
-#' writing to disk. Ideal for in-memory analytics on large files.
+#' Downloads a complete file from Xet storage into memory as a `raw()` vector
+#' without writing to disk. The whole file is buffered in memory, so it must
+#' fit in available RAM.
 #'
 #' @param handle Character string handle from [xet_client_new()]
 #' @param file_hash Character string, the content hash of the file
@@ -10,8 +11,8 @@
 #' @return A `raw()` vector containing the complete file contents
 #'
 #' @details
-#' Streams the file via xet-core's download stream API and returns the
-#' bytes as a raw vector. This vector can be passed to [xet_open_connection()]
+#' The file bytes are returned as a `raw()` vector, with the whole file buffered
+#' in memory. This vector can be passed to [xet_open_connection()]
 #' to create an R connection, or used directly with downstream functions
 #' like `arrow::read_parquet()` via a temporary file (see [read_xet_parquet_stream()]).
 #'
@@ -45,9 +46,9 @@ xet_stream_raw <- function(handle, file_hash, file_size) {
 
 #' Stream a byte range of a file from Xet storage
 #'
-#' Retrieves a specific byte range of a file from Xet storage without downloading
-#' the entire file. This enables efficient partial downloads, such as reading
-#' Parquet metadata footers or spatial windows from remote GeoTIFFs.
+#' Retrieves a specific byte range of a file from Xet storage and returns it as
+#' a `raw()` vector. Byte ranges can be used to read Parquet metadata footers or
+#' spatial windows from remote GeoTIFFs.
 #'
 #' @param handle Character string handle from [xet_client_new()]
 #' @param file_hash Character string, the content hash of the file
@@ -58,9 +59,9 @@ xet_stream_raw <- function(handle, file_hash, file_size) {
 #' @return A `raw()` vector containing the requested byte range.
 #'
 #' @details
-#' This function uses xet-core's download stream API with byte-range support to
-#' efficiently fetch only the chunks needed to reconstruct the requested byte range.
-#' It downloads only those chunks and assembles them into the final result.
+#' `start_byte` is inclusive and `end_byte` is exclusive, so the requested range
+#' covers bytes `start_byte` through `end_byte - 1`. The result is a `raw()`
+#' vector of the returned bytes.
 #' @export
 #' @examples
 #' \dontrun{
@@ -68,16 +69,13 @@ xet_stream_raw <- function(handle, file_hash, file_size) {
 #' on.exit(xet_client_close(client))
 #'
 #' # Get first 1MB of a 10GB file
-#' result <- xet_stream_range(
+#' bytes <- xet_stream_range(
 #'   handle = client,
 #'   file_hash = "abc123def456...",
 #'   file_size = 10e9,
 #'   start_byte = 0,
 #'   end_byte = 1e6
 #' )
-#'
-#' # See which chunks are needed
-#' result$chunks_needed
 #' }
 xet_stream_range <- function(handle, file_hash, file_size, start_byte, end_byte) {
   stopifnot(is.character(handle), length(handle) == 1, nchar(handle) > 0)

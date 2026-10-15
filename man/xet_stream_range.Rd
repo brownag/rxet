@@ -21,14 +21,14 @@ xet_stream_range(handle, file_hash, file_size, start_byte, end_byte)
 A \code{raw()} vector containing the requested byte range.
 }
 \description{
-Retrieves a specific byte range of a file from Xet storage without downloading
-the entire file. This enables efficient partial downloads, such as reading
-Parquet metadata footers or spatial windows from remote GeoTIFFs.
+Retrieves a specific byte range of a file from Xet storage and returns it as
+a \code{raw()} vector. Byte ranges can be used to read Parquet metadata footers or
+spatial windows from remote GeoTIFFs.
 }
 \details{
-This function uses xet-core's download stream API with byte-range support to
-efficiently fetch only the chunks needed to reconstruct the requested byte range.
-It downloads only those chunks and assembles them into the final result.
+\code{start_byte} is inclusive and \code{end_byte} is exclusive, so the requested range
+covers bytes \code{start_byte} through \code{end_byte - 1}. The result is a \code{raw()}
+vector of the returned bytes.
 }
 \examples{
 \dontrun{
@@ -36,15 +36,12 @@ client <- xet_client_new("https://cas-cf.huggingface.co", "token")
 on.exit(xet_client_close(client))
 
 # Get first 1MB of a 10GB file
-result <- xet_stream_range(
+bytes <- xet_stream_range(
   handle = client,
   file_hash = "abc123def456...",
   file_size = 10e9,
   start_byte = 0,
   end_byte = 1e6
 )
-
-# See which chunks are needed
-result$chunks_needed
 }
 }

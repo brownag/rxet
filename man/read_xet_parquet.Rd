@@ -20,9 +20,9 @@ such as \code{col_select}, \code{filters}, \code{schema}, etc.}
 An Arrow Table or R data frame (depending on \code{as_data_frame} argument)
 }
 \description{
-Streams a Parquet file directly from Xet storage without writing to disk.
-Supports Arrow's push-down filtering and column selection for efficient
-loading of large datasets.
+Downloads a Parquet file from Xet storage and reads it with Arrow.
+The whole file is buffered into memory first; column selection and filters
+are applied by Arrow after the data has been downloaded.
 }
 \details{
 This function:
@@ -33,8 +33,11 @@ This function:
 \item Automatically closes the connection when done
 }
 
-Arrow can apply filters and select specific columns while reading,
-avoiding unnecessary data transfer from Xet storage.
+The entire file is buffered into memory by \code{\link[=xet_open_connection]{xet_open_connection()}} before
+Arrow reads it, so column selection and filters reduce Arrow/in-memory work
+but not the number of bytes downloaded.
+
+\strong{Status:} Experimental pending live evidence.
 
 \strong{Requirements:} The \code{arrow} package must be installed.
 }

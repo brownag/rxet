@@ -2,7 +2,7 @@
 % Please edit documentation in R/arrow.R
 \name{read_xet_parquet_stream}
 \alias{read_xet_parquet_stream}
-\title{Stream and read a Parquet file from Xet into memory}
+\title{Read a Parquet file from Xet via a temporary file}
 \usage{
 read_xet_parquet_stream(handle, file_hash, file_size, ...)
 }
@@ -19,22 +19,23 @@ read_xet_parquet_stream(handle, file_hash, file_size, ...)
 An Arrow Table or R data frame (depending on \code{as_data_frame} argument in ...)
 }
 \description{
-Streams the entire Parquet file into memory and then reads it with Arrow.
-This is the recommended workaround until \code{\link[=xet_open_connection]{xet_open_connection()}} supports
-the full R connection API.
+Downloads the entire Parquet file into memory, writes it to a temporary
+\code{.parquet} file, and reads it with Arrow. This is an alternative to
+\code{\link[=read_xet_parquet]{read_xet_parquet()}} for use cases where a temporary file is preferred.
 }
 \details{
 This function:
 \enumerate{
-\item Streams the entire file into memory via \code{\link[=xet_stream_raw]{xet_stream_raw()}}
-\item Writes to a temporary file
-\item Reads with \code{arrow::read_parquet()}
+\item Downloads the \strong{entire} file into memory via \code{\link[=xet_stream_raw]{xet_stream_raw()}}
+\item Writes those bytes to a temporary \code{.parquet} file
+\item Reads the temporary file with \code{arrow::read_parquet()}
 \item Deletes the temporary file
 }
 
-\strong{Memory requirement:} File must fit in available RAM.
-\strong{Performance:} Not suitable for very large files (>10GB); consider
-partial reads with \code{\link[=xet_stream_range]{xet_stream_range()}} once fully integrated.
+Because the whole file is buffered into memory, it must fit in available RAM.
+
+\strong{Status:} Experimental pending live evidence. The end-to-end behaviour
+against a live Xet endpoint has not yet been verified.
 }
 \examples{
 \dontrun{
@@ -53,6 +54,5 @@ df <- read_xet_parquet_stream(
 
 }
 \seealso{
-\code{\link[=read_xet_parquet]{read_xet_parquet()}} (requires full R connection API in Phase 5)
+\code{\link[=read_xet_parquet]{read_xet_parquet()}} for direct connection-based reading
 }
-\keyword{internal}
