@@ -512,3 +512,33 @@ Exit 0.
   client handle"`, `"source file does not exist"`); no product error text changes in Phase 5.
 - No product code changes are expected in Phase 5. Any product defect the tests reveal is a
   STOP-and-report finding for a follow-up phase or a user decision, not a silent fix.
+
+---
+
+## Amendment (2026-10-15): task 5.3.0.stream-length-check (product defect fix, user-approved)
+
+**Why this exists.** Task 5.3.1 found that `xet_stream_raw` returns `raw(0)` with no error for an unknown hash (reproduced: 64-zero hash, size 1024 → length 0). `xet_open_connection` builds on it and returns an empty connection. The Phase 5 rule is "no product fixes in test tasks; a defect is a STOP-and-report." The user chose "Fix it now" on 2026-10-15. This amendment is that fix, scoped to the minimum.
+
+**Wave placement.** Wave 3 gate is held until 5.3.0 lands. 5.3.0 is serial (nothing else runs in parallel with it). 5.3.1's failing test then passes as written; no test is changed.
+
+### 5.3.0.stream-length-check
+
+- **Repo:** rxet
+- **Files (must edit):** `src/rust/src/lib.rs` only
+- **Depends on:** 5.2.2, 5.3.1 (committed state)
+- **Reference:** the existing error style `Error::Other(format!(...))` in the same functions.
+
+**Spec**
+1. In `fn xet_stream_raw`, after the `while let Some(chunk) = stream.blocking_next()` loop, add a check: if `buf.len() as u64 != size_bytes`, return `Error::Other(format!("stream returned {} bytes, expected {} for hash {}", buf.len(), size_bytes, file_hash))`.
+2. In `fn xet_stream_range`, after its loop, apply the same check against `size` with the same wording.
+3. Do not change any other error text. Do not add token text to any message. The hash is public content identity, so it may appear.
+4. No changes to `R/**`, `tests/**`, or other Rust files.
+5. Confirm by reading the code that the success path (correct hash, full size) still returns the bytes unchanged.
+
+**Anchors:** `grep -n "blocking_next\|Ok(buf.into_robj())\|fn xet_stream_raw\|fn xet_stream_range" src/rust/src/lib.rs`.
+
+**Acceptance**
+```bash
+cd src/rust && cargo check 2>&1 | tail -1 && cd ../.. && RXET_LOCAL_CAS_SERVER=$HOME/.cargo/bin/local_cas_server Rscript -e 'devtools::test(filter = "local-failures|local-download|streaming|stream", reporter = "summary", stop_on_failure = TRUE)'
+```
+Exit 0. The `local-failures` invalid-hash `xet_stream_raw` test must now pass; `local-download` range boundary tests must still pass.

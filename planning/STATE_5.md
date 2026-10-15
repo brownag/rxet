@@ -75,11 +75,12 @@ Status: **plan drafted; awaiting user approval** (2026-10-15). No task has start
 | 1 | `5.1.1.local-server-harness` | done (smoke test passes, 2 expectations) | 5.0.1 |
 | 2 | `5.1.2.retire-mock-tests` | done (3 files removed; with_test_client moved) | 5.1.1 |
 | 2 | `5.2.1.local-upload-roundtrip` | done (6 tests, server set) | 5.1.1 |
-| 3 | `5.2.2.local-download-read` | pending | 5.1.1, 5.2.1 |
-| 3 | `5.3.1.local-failure-paths` | pending | 5.1.1, 5.2.1 |
+| 3 | `5.2.2.local-download-read` | done (7 tests, server set) | 5.1.1, 5.2.1 |
+| 3 | `5.3.1.local-failure-paths` | done (auth skipped by probe; defect found, fixed by 5.3.0) | 5.1.1, 5.2.1 |
 | 4 | `5.3.2.live-suite` | pending | 5.1.2, 5.2.2 |
 | 5 | `5.4.1.ci-local-server` | pending | 5.3.1, 5.3.2 |
 | 5 | `5.4.2.docs-testing` | pending | 5.3.2 |
+| 3a | `5.3.0.stream-length-check` (user-approved defect fix) | done | 5.3.1 finding |
 | final | Phase exit gate (orchestrator, serial) | pending | wave 5 |
 
 ## Phase exit gate checklist (orchestrator)
@@ -123,3 +124,35 @@ Status: **plan drafted; awaiting user approval** (2026-10-15). No task has start
 - Acceptance (`RXET_LOCAL_CAS_SERVER=$HOME/.cargo/bin/local_cas_server`): `devtools::test(filter = "local-upload")` exit 0; tests=6, passed=11 expectations, failed=0, errors=0, skipped=0. Repeated 3 times, same result.
 - Server unset: tests=6, skipped=6, failed=0, errors=0, exit 0.
 - Deviations: `start_upload_client()` helper inside the test file (sets `HF_HOME`) to isolate the cache, as above. Empty-file test title names the pinned behavior.
+
+### 5.2.2.local-download-read
+
+- Status: done (2026-10-15). Not committed. Micro-plan: `planning/tasks/5.2.2.local-download-read.todo.md`.
+- Files: created `tests/testthat/test-local-download.R` (7 tests). No `R/**`, `src/**`, helpers, `DESCRIPTION`, or other tests touched.
+- Isolation: `start_download_client()` copied from `start_upload_client()`; each test has a private `HF_HOME` tempdir. Per-test `fresh_dir()` for `.part` checks.
+- Coverage: 64 KiB disk download (byte + size), `xet_stream_raw`, 4 MiB range boundaries `[0,1) [0,4096) [4095,4097) [size-1,size) [1000003,1500017)`, empty and past-EOF range errors, connection read/close, `.part` absence, handle reuse.
+- Acceptance (`RXET_LOCAL_CAS_SERVER=$HOME/.cargo/bin/local_cas_server`, `devtools::test(filter = "local-download", stop_on_failure = TRUE)`): tests=7, expectations=18, failed=0, errors=0, skipped=0. Repeated 3 times, same result.
+- Server unset: tests=7, skipped=7, failed=0, errors=0.
+- Deviations: none from the approved plan. Note `src/Makevars` and `src/entrypoint.o` show as modified in `git status` after test runs (build outputs); not staged, not restored, left for the orchestrator.
+- Side effect: none in repo or `./local_cas_data`; all temp dirs via `tempfile()`.
+
+### 5.3.1.local-failure-paths
+
+- Status: STOPPED on Discovered (2026-10-15). Not committed. Micro-plan: `planning/tasks/5.3.1.local-failure-paths.todo.md`.
+- Files: created `tests/testthat/test-local-failures.R` only. No other edits (`src/Makevars` and `src/entrypoint.o` are modified by `devtools::load_all`, unstaged and not restored).
+- Auth probe (scratchpad, `GET /v{1,2}/reconstructions/<64 zeros>`): no header, wrong token, and valid-looking token all return HTTP 416. Not enforced. Auth test skipped with the spec reason.
+- Size probe (65536-byte upload, download with 65537): R error `finish error: Task error: task N panicked ... left: 65537 right: 65536`. No dest, no .part. Panic text leaks hf-xet internals; noted, not a stop condition.
+- Discovered: `xet_stream_raw` with a 64-zero hash returns `raw(0)` with no error. Spec step 3 requires an error. The test for this fails by design; it is not weakened.
+- Acceptance (`RXET_LOCAL_CAS_SERVER=$HOME/.cargo/bin/local_cas_server`, run twice, same result): exit 1. Tests: 6. Passed: 4. Failed: 1 test with 2 failures and 1 error (all in xet_stream_raw). Skipped: 1 (auth, probe reason). Reason for failure: Discovered above.
+
+### 5.3.0.stream-length-check
+
+- Status: DONE (2026-10-15). Not committed. Micro-plan: `planning/tasks/5.3.0.stream-length-check.todo.md` (APPROVED).
+- Files: `src/rust/src/lib.rs` only. `R/**`, `tests/**`, Cargo files, `DESCRIPTION` untouched. No `R CMD INSTALL`; rebuild via `devtools::test`.
+- Diff: 14 insertions, 0 deletions. Hunk 1 in `xet_stream_raw` (after the stream loop, before `Ok(buf.into_robj())`): `buf.len() as u64 != size_bytes` returns `Error::Other("stream returned {} bytes, expected {} for hash {}")`. Hunk 2 in `xet_stream_range`: same check against `size`.
+- `cargo check`: exit 0, `Finished dev profile`.
+- Acceptance (`RXET_LOCAL_CAS_SERVER=$HOME/.cargo/bin/local_cas_server`): exit 0.
+  - local-download: 18 passed, 0 failed.
+  - local-failures: 16 passed, 0 failed, 1 skipped (auth, probe reason). Invalid-hash `xet_stream_raw` test now passes.
+  - streaming: 0 run, 3 skipped (HF_TOKEN not set, pre-existing skips, not a regression).
+- Log: `/tmp/claude-1000/-home-andrew-workspace-rxet/3f2eea98-4900-4ebe-ace3-43e8966b323c/scratchpad/accept_530.log`
