@@ -148,6 +148,13 @@ fn xet_stream_raw(
             buf.extend_from_slice(&chunk);
         }
 
+        if buf.len() as u64 != size_bytes {
+            return Err(Error::Other(format!(
+                "stream returned {} bytes, expected {} for hash {}",
+                buf.len(), size_bytes, file_hash
+            )));
+        }
+
         Ok(buf.into_robj())
     }))
 }
@@ -216,6 +223,13 @@ fn xet_stream_range(
         while let Some(chunk) = stream.blocking_next()
             .map_err(|e| Error::Other(format!("stream read error: {}", e)))? {
             buf.extend_from_slice(&chunk);
+        }
+
+        if buf.len() as u64 != size {
+            return Err(Error::Other(format!(
+                "stream returned {} bytes, expected {} for hash {}",
+                buf.len(), size, file_hash
+            )));
         }
 
         Ok(buf.into_robj())
