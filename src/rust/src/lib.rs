@@ -11,6 +11,19 @@ struct XetClient {
     token: String,
 }
 
+/// In-memory reads are capped at 2^31 - 1 bytes (decision D2).
+const MAX_IN_MEMORY_BYTES: u64 = i32::MAX as u64;
+
+/// Converts an R double to a byte count, rejecting anything that is not a finite whole number.
+fn to_whole_bytes(value: f64, what: &str) -> extendr_api::Result<u64> {
+    if !value.is_finite() || value < 0.0 || value.fract() != 0.0 || value >= 18446744073709551616.0 {
+        return Err(Error::Other(format!(
+            "{what} must be a finite whole number of bytes, got {value}"
+        )));
+    }
+    Ok(value as u64)
+}
+
 /// Wraps a closure in panic::catch_unwind and converts panics to readable R errors.
 fn safe_exec<F, T>(f: F) -> extendr_api::Result<T>
 where
@@ -103,16 +116,15 @@ fn xet_stream_raw(
     file_size: f64,
 ) -> extendr_api::Result<Robj> {
     safe_exec(panic::AssertUnwindSafe(|| {
-        if file_size < 0.0 || file_size.is_nan() || file_size.is_infinite() {
+        let size_bytes = to_whole_bytes(file_size, "file_size")?;
+        if size_bytes > MAX_IN_MEMORY_BYTES {
             return Err(Error::Other(format!(
-                "invalid file size: must be non-negative number, got {}",
-                file_size
+                "in-memory read of {size_bytes} bytes exceeds the 2 GiB limit (2147483647 bytes); use xet_download_file() for larger files"
             )));
         }
 
         let client = acquire_client(handle)?;
 
-        let size_bytes = file_size.round() as u64;
         let info = XetFileInfo::new(file_hash.to_string(), size_bytes);
 
         // Use download stream group to fetch entire file in chunks
@@ -131,7 +143,10 @@ fn xet_stream_raw(
 
         stream.start();
 
-        let mut buf = Vec::with_capacity(size_bytes as usize);
+        let mut buf = Vec::new();
+        buf.try_reserve_exact(size_bytes as usize).map_err(|e| {
+            Error::Other(format!("cannot allocate {size_bytes} bytes for in-memory read: {e}"))
+        })?;
         while let Some(chunk) = stream.blocking_next()
             .map_err(|e| Error::Other(format!("stream read error: {}", e)))? {
             buf.extend_from_slice(&chunk);
@@ -153,33 +168,34 @@ fn xet_stream_range(
 ) -> extendr_api::Result<Robj> {
     safe_exec(panic::AssertUnwindSafe(|| {
         // Validate inputs
-        if total_size < 0.0 || total_size.is_nan() || total_size.is_infinite() {
-            return Err(Error::Other(format!(
-                "invalid file size: {}",
-                total_size
-            )));
-        }
-        if start_offset < 0.0 || start_offset > total_size {
+        let total = to_whole_bytes(total_size, "file_size")?;
+        let start = to_whole_bytes(start_offset, "start_offset")?;
+        let end = to_whole_bytes(end_offset, "end_offset")?;
+        if start > total {
             return Err(Error::Other(format!(
                 "invalid start offset: {} (file size: {})",
-                start_offset, total_size
+                start, total
             )));
         }
-        if end_offset < start_offset || end_offset > total_size {
+        if end < start || end > total {
             return Err(Error::Other(format!(
                 "invalid end offset: {} (must be >= start {} and <= file size {})",
-                end_offset, start_offset, total_size
+                end, start, total
+            )));
+        }
+        let size = end.checked_sub(start).ok_or_else(|| {
+            Error::Other(format!("invalid byte range: end {end} is before start {start}"))
+        })?;
+        if size > MAX_IN_MEMORY_BYTES {
+            return Err(Error::Other(format!(
+                "in-memory requested range of {size} bytes exceeds the 2 GiB limit (2147483647 bytes); use xet_download_file() for larger files"
             )));
         }
 
         let client = acquire_client(handle)?;
 
-        let start = start_offset.round() as u64;
-        let end = end_offset.round() as u64;
-        let size = end - start;
-
         // Use xet-core's download stream API with byte range
-        let info = XetFileInfo::new(file_hash.to_string(), total_size.round() as u64);
+        let info = XetFileInfo::new(file_hash.to_string(), total);
         let range = start..end;
 
         let group = client
@@ -197,7 +213,10 @@ fn xet_stream_range(
 
         stream.start();
 
-        let mut buf = Vec::with_capacity(size as usize);
+        let mut buf = Vec::new();
+        buf.try_reserve_exact(size as usize).map_err(|e| {
+            Error::Other(format!("cannot allocate {size} bytes for in-memory read: {e}"))
+        })?;
         while let Some(chunk) = stream.blocking_next()
             .map_err(|e| Error::Other(format!("stream read error: {}", e)))? {
             buf.extend_from_slice(&chunk);
@@ -216,16 +235,11 @@ fn xet_download_file(
     dest_path: &str,
 ) -> extendr_api::Result<()> {
     safe_exec(panic::AssertUnwindSafe(|| {
-        if file_size < 0.0 || file_size.is_nan() || file_size.is_infinite() {
-            return Err(Error::Other(format!(
-                "invalid file size: must be non-negative number, got {}",
-                file_size
-            )));
-        }
+        let size = to_whole_bytes(file_size, "file_size")?;
 
         let client = acquire_client(handle)?;
 
-        let info = XetFileInfo::new(hash.to_string(), file_size.round() as u64);
+        let info = XetFileInfo::new(hash.to_string(), size);
         let dest = std::path::PathBuf::from(dest_path);
 
         let group = client
@@ -273,6 +287,13 @@ fn xet_upload_file(handle: &str, src_path: &str) -> extendr_api::Result<Robj> {
         let report = commit
             .commit_blocking()
             .map_err(|e| Error::Other(format!("commit error: {}", e)))?;
+
+        if report.uploads.len() != 1 {
+            return Err(Error::Other(format!(
+                "expected exactly one uploaded file, got {}",
+                report.uploads.len()
+            )));
+        }
 
         let meta = report
             .uploads
