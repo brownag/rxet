@@ -42,8 +42,8 @@ Status: **plan drafted; awaiting user approval** (2026-10-15). No task has start
 | 1 | `4.1.2.rust-registry-lock` | done (cargo check clean) | none |
 | 2 | `4.2.1.rust-size-and-upload` | done (suite green) | 4.1.2 |
 | 2 | `4.2.2.r-atomic-download` | done (suite green) | 4.1.1 |
-| 3 | `4.3.1.lifecycle-failure-tests` | pending | 4.2.2, 4.2.1 |
-| 3 | `4.3.2.rust-registry-tests` | pending | 4.2.1 |
+| 3 | `4.3.1.lifecycle-failure-tests` | done (suite green) | 4.2.2, 4.2.1 |
+| 3 | `4.3.2.rust-registry-tests` | done (cargo test 4 passed) | 4.2.1 |
 | 4 | `4.4.1.docs-rd-sync` | pending | 4.3.1, 4.3.2 |
 | final | Phase exit gate (orchestrator, serial) | pending | wave 4 |
 
@@ -108,3 +108,26 @@ Status: **plan drafted; awaiting user approval** (2026-10-15). No task has start
 - Acceptance (filter corrected per coordinator): `devtools::test(filter = "input-validation|streaming", reporter = "summary", stop_on_failure = TRUE)` exit 0. Counts: 45 passed, 0 failed, 0 errors, 3 skipped (HF_TOKEN guards, test-streaming.R:5, :19, :37).
 - Deviations: none from the approved plan. Not run: `R CMD INSTALL`, roxygen2, full suite (wave-end orchestrator).
 - Untouched: `src/Makevars`, `src/entrypoint.o`, `registry.rs` (not created), `R/**`, `Cargo.*`.
+
+### 4.3.2.rust-registry-tests
+
+- Status: DONE (orchestrator-approved revision: Registry methods return `Result`, no `expect`).
+- Files: `src/rust/src/registry.rs` (new, `Registry<T>` with `new`/`insert`/`acquire`/`remove`, each returning `Result` with `client registry poisoned: {e}` on poison), `src/rust/src/tests.rs` (new, four tests), `src/rust/src/lib.rs`: imports at lines 1-9 (`mod registry;`, `#[cfg(test)] mod tests;`), `CLIENTS` at line 52 (`Registry<XetClient>`), `acquire_client` at lines 58-63, insert at line 86, `xet_close_client` remove at lines 99-103.
+- Error text unchanged: `invalid or closed client handle`, `invalid or already-closed client handle`, poisoned text mapped via `Error::Other`.
+- `cargo check`: exit 0, 0 warnings.
+- `cargo test --lib tests::`: 4 passed, 0 failed (`acquire_returns_clone_and_releases_lock`, `acquire_unknown_key_is_none`, `remove_twice_second_is_none`, `insert_then_remove_then_acquire_none`). No link failure (H6 not hit).
+- Deviation 1: spec acceptance filter `cargo test --lib registry` runs 0 tests because test paths are `tests::*` and none contain "registry". Passed with `tests::` filter instead. Spec filter needs fixing in the plan.
+- Deviation 2: `Registry::insert` takes `T` and wraps it in `Arc` internally (spec's `Arc<T>` value type), so `xet_init_client` builds a plain `XetClient`.
+- Untouched: `Cargo.toml`, `Cargo.lock`, `src/Makevars`, `src/entrypoint.o`, `R/**`, `tests/**`. No commit, no git checkout/restore.
+
+### 4.3.1.lifecycle-failure-tests
+
+- Status: done. Created `tests/testthat/test-phase4-lifecycle.R` only (no other file written, nothing committed).
+- Acceptance: `Rscript -e 'devtools::test(filter = "phase4-lifecycle", reporter = "summary", stop_on_failure = TRUE)'` exit 0; `FAIL 0 | WARN 0 | SKIP 0 | PASS 17` (6 tests, 17 expectations).
+- Per-test timings (JUnit reporter, seconds): blackhole download 8.99; blackhole stream 5.97; closed-port download 1.47 / 1.69 (first test/second test); token-leak test 0.16; other tests under 0.1. All under the 60 s J4 bound.
+- Env seam: `make_test_client()` sets `HF_XET_CLIENT_READ_TIMEOUT="2s"` and `HF_XET_CLIENT_RETRY_MAX_ATTEMPTS="1"` only around `xet_client_new()`; restores with `Sys.unsetenv` for previously unset vars. No timeout raised.
+- Deviation 1: spec's stream/download hash `"abc"`/`"abc123"` fails hash parsing before any network I/O, so those tests were vacuous; tests use `HASH <- strrep("a", 64)`.
+- Deviation 2: `socketConnection` probe warnings suppressed in `closed_port()`.
+- Deviation 3: `reporter = "timing"` does not exist in this testthat; per-test timing taken from JUnitReporter.
+- Observation: blackhole download took ~9 s with read timeout 2 s, so hf-xet retry/backoff adds time beyond one read timeout; still well under 60 s.
+- Residual: Windows `file.rename` not exercised (H4); blackhole behavior with default retry count not run (set to 1 by design).

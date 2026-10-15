@@ -321,7 +321,7 @@ Exit 0. Report per-test elapsed time (`reporter = "timing"` if available) and an
    - `acquire_unknown_key_is_none`.
    - `remove_twice_second_is_none`.
    - `insert_then_remove_then_acquire_none`.
-4. Run `cargo test` (see Acceptance). If the test binary fails to link against R/extendr symbols (H6), STOP: report the exact linker error and the output of `cargo test --lib registry` and do not work around it.
+4. Run `cargo test` (see Acceptance). If the test binary fails to link against R/extendr symbols (H6), STOP: report the exact linker error and the output of `cargo test --lib tests::` and do not work around it.
 
 **Anchors**
 - `lib.rs` `lazy_static!` (`CLIENTS`), `fn acquire_client` (from 4.1.2), `fn xet_init_client` insert site, `fn xet_close_client` remove site.
@@ -333,7 +333,7 @@ Exit 0. Report per-test elapsed time (`reporter = "timing"` if available) and an
 
 **Acceptance**
 ```bash
-cd src/rust && cargo check 2>&1 | tail -3 && cargo test --lib registry 2>&1 | tail -15
+cd src/rust && cargo check 2>&1 | tail -3 && cargo test --lib tests:: 2>&1 | tail -15
 ```
 `cargo check` exit 0. `cargo test` exit 0 with the four named tests passing (report `N passed`). If link fails, the task is reported as BLOCKED with the linker output, not as done.
 
@@ -371,7 +371,7 @@ Exit 0.
 
 Not a task; the orchestrator runs this and records it in `STATE_4.md`.
 
-1. `cd src/rust && cargo check` and `cargo test --lib registry` → exit 0.
+1. `cd src/rust && cargo check` and `cargo test --lib tests::` → exit 0.
 2. `R CMD INSTALL .` → exit 0.
 3. Full suite serially: `Rscript -e 'devtools::test(reporter = "summary", stop_on_failure = TRUE)'` → exit 0, `FAIL 0`.
 4. From a clean archive (`git archive HEAD | tar -x -C <scratch>`, where `<scratch>` is an empty directory outside the repo, such as the session scratchpad): `R CMD build .` then `_R_CHECK_FORCE_SUGGESTS_=false R CMD check --no-manual rxet_0.1.0.tar.gz` → `Status: OK` with no new ERROR/WARNING/NOTE vs. the Phase 3 baseline.
