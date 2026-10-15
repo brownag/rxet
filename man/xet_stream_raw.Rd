@@ -26,6 +26,8 @@ The file bytes are returned as a \code{raw()} vector, with the whole file buffer
 in memory. This vector can be passed to \code{\link[=xet_open_connection]{xet_open_connection()}}
 to create an R connection, or used directly with downstream functions
 like \code{arrow::read_parquet()} via a temporary file (see \code{\link[=read_xet_parquet_stream]{read_xet_parquet_stream()}}).
+
+\strong{Status:} Experimental pending live evidence.
 }
 \examples{
 \dontrun{

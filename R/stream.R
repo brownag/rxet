@@ -16,6 +16,8 @@
 #' to create an R connection, or used directly with downstream functions
 #' like `arrow::read_parquet()` via a temporary file (see [read_xet_parquet_stream()]).
 #'
+#' **Status:** Experimental pending live evidence.
+#'
 #' @seealso [xet_stream_range()] for partial downloads
 #' @export
 #' @examples
@@ -62,6 +64,9 @@ xet_stream_raw <- function(handle, file_hash, file_size) {
 #' `start_byte` is inclusive and `end_byte` is exclusive, so the requested range
 #' covers bytes `start_byte` through `end_byte - 1`. The result is a `raw()`
 #' vector of the returned bytes.
+#'
+#' **Status:** Experimental pending live evidence.
+#'
 #' @export
 #' @examples
 #' \dontrun{

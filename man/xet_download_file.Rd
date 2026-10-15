@@ -18,6 +18,8 @@ directory must already exist.}
 }
 \value{
 \code{dest_path} invisibly on success
+
+\strong{Status:} Experimental pending live evidence.
 }
 \description{
 Retrieves a file from a Xet content-addressed storage endpoint using its

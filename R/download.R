@@ -11,6 +11,8 @@
 #'
 #' @return `dest_path` invisibly on success
 #'
+#' **Status:** Experimental pending live evidence.
+#'
 #' @export
 #' @examples
 #' \dontrun{

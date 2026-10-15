@@ -29,6 +29,8 @@ spatial windows from remote GeoTIFFs.
 \code{start_byte} is inclusive and \code{end_byte} is exclusive, so the requested range
 covers bytes \code{start_byte} through \code{end_byte - 1}. The result is a \code{raw()}
 vector of the returned bytes.
+
+\strong{Status:} Experimental pending live evidence.
 }
 \examples{
 \dontrun{

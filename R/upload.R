@@ -10,6 +10,8 @@
 #'   - `hash`: Character string with the Merkle hash of the uploaded file
 #'   - `file_size`: Numeric size of the file in bytes
 #'
+#' **Status:** Experimental pending live evidence.
+#'
 #' @export
 #' @examples
 #' \dontrun{

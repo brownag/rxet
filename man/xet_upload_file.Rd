@@ -17,6 +17,8 @@ Named list with components:
 \item \code{hash}: Character string with the Merkle hash of the uploaded file
 \item \code{file_size}: Numeric size of the file in bytes
 }
+
+\strong{Status:} Experimental pending live evidence.
 }
 \description{
 Uploads a local file to a Xet content-addressed storage endpoint and returns
