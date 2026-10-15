@@ -103,6 +103,8 @@ Observed during initial release-readiness review (2026-10-15):
 
 **Exit gate:** From a clean checkout/archive, all declared supported platform builds/installations pass using pinned/reproducible dependencies; unsupported platforms are explicit; no missing-template or hidden-lockfile failure remains.
 
+**Phase 3 recorded deferral (2026-10-15):** Linux build/install/`R CMD check` pass locally from a clean `git archive HEAD` checkout (`Status: OK`; pinned crates.io `hf-xet 1.7.0`; `Cargo.lock` and `src/Makevars.win.in` ship; no `planning/`/`docs/`/build products). The macOS and Windows legs of the exit gate **cannot** be executed on the Linux development host; they are validated by the new `.github/workflows/R-CMD-check.yaml` matrix (ubuntu/macos/windows) on the first user push, and are therefore recorded here and in `planning/STATE_3.md` as an explicit, user-approved deferral (Phase 3 decision D9). Vendoring remains deferred (online crates.io build requirement documented). See `planning/EXECUTION_PLAN_3.md` and `planning/STATE_3.md` for evidence.
+
 ### Phase 4 — Harden core Rust/R operations and failure semantics
 
 **Outcome:** Included core operations have predictable handle lifecycle, safe size/range validation, concurrency behavior, cleanup on errors, and useful R errors.

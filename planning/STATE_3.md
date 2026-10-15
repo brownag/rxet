@@ -38,7 +38,7 @@ Resume from this file. The user approved this plan on 2026-10-15. Approval cover
 | 1 | `3.1.4.ci-matrix` | done | none |
 | 1 | `3.1.5.online-build-docs` | done | none |
 | 2 | `3.2.1.env-var-check` | done | 3.1.1 |
-| 3 | `3.3.1.build-verify` | pending | 3.1.1–3.1.5, 3.2.1 |
+| 3 | `3.3.1.build-verify` | done (PASS, Status: OK) | 3.1.1–3.1.5, 3.2.1 |
 
 ## Task reports
 
@@ -106,4 +106,17 @@ Validation: read-only; no package/source/test/doc/config file modified. Deviatio
 
 ### 3.3.1.build-verify
 
-Status: pending.
+Status: PASS. Executed by the orchestrator (serial acceptance gate), not delegated.
+
+**Method:** clean checkout via `git archive HEAD | tar -x -C /tmp/opencode/rxet-plan3/src` (excludes `.git`, user artifacts, and build products), then `R CMD build .` and `_R_CHECK_FORCE_SUGGESTS_=false R CMD check --no-manual rxet_0.1.0.tar.gz`.
+
+**Evidence:**
+- `R CMD build .` → rc 0; `R CMD check` → rc 0, **Status: OK** (0 ERROR/WARNING/NOTE). Check ran both `hf_test_setup.R` and `testthat.R` → `checking tests ... OK`.
+- Tarball audit: `rxet/src/Makevars.win.in` present; `rxet/src/rust/Cargo.lock` present; `planning_entries=0`; `docs_entries=0`; `bad_entries=0` (no `target/`, `.cargo/`, `vendor/`, `*.o`, `*.so`).
+- Pin confirmed: `grep -c 'git+https://github.com/huggingface/xet-core' src/rust/Cargo.lock` → `0`; `hf-xet` is `version = "1.7.0"` `source = "registry+https://github.com/rust-lang/crates.io-index"`.
+- Declaration consistency: `src/rust/Cargo.toml` `rust-version = '1.85'` and `DESCRIPTION` `rustc >= 1.85.0` agree; `tools/msrv.R` is exercised by `configure` during build/check (indirect MSRV-parsing validation).
+- CI workflow `.github/workflows/R-CMD-check.yaml` present and valid YAML (wave 1).
+
+**Platform deferral (D9):** macOS/Windows execution is the CI matrix gate, pending the first user push. Recorded in `planning/MASTER_PLAN.md` (Phase 3 deferral note) and here. No macOS/Windows build is claimed locally.
+
+Findings: none. Residual/blocked work: first CI run (post-push) to confirm the macOS/Windows legs; vendoring still deferred (Phase 7 / CRAN prep).
