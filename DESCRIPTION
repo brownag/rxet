@@ -18,8 +18,10 @@ Imports:
     httr2
 Suggests:
     arrow,
+    digest,
     future.apply,
     jsonlite,
+    processx,
     rprojroot,
     sf,
     terra,
