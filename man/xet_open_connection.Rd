@@ -35,6 +35,9 @@ The whole file is materialized into an in-memory \code{rawConnection()}. \code{s
 works within that in-memory copy, but this is \strong{not} remote range access:
 no bytes are fetched lazily from the endpoint.
 
+\code{file_size} must be a finite whole number of bytes, and at most 2^31 - 1
+bytes (2 GiB), the same in-memory cap as \code{\link[=xet_stream_raw]{xet_stream_raw()}}.
+
 \strong{Status:} Experimental pending live evidence.
 
 \strong{Example use cases:}

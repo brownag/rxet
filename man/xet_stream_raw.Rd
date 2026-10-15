@@ -27,6 +27,10 @@ in memory. This vector can be passed to \code{\link[=xet_open_connection]{xet_op
 to create an R connection, or used directly with downstream functions
 like \code{arrow::read_parquet()} via a temporary file (see \code{\link[=read_xet_parquet_stream]{read_xet_parquet_stream()}}).
 
+\code{file_size} must be a finite whole number of bytes, and at most 2^31 - 1
+bytes (2 GiB). Larger files error before any network access; use
+\code{\link[=xet_download_file]{xet_download_file()}} instead.
+
 \strong{Status:} Experimental pending live evidence.
 }
 \examples{

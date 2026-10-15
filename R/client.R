@@ -48,6 +48,9 @@ xet_client_new <- function(endpoint, token) {
 #'
 #' Releases the client handle and frees associated resources.
 #'
+#' After closing, the handle is invalid immediately; later calls with it error.
+#' An operation already in progress when the handle is closed completes normally.
+#'
 #' @param handle Character string handle from [xet_client_new()]
 #'
 #' @return `NULL` invisibly

@@ -8,7 +8,10 @@ rxet provides native access to files stored in [Hugging Face
 Hub](https://huggingface.co/) using Xet’s content-addressed storage
 engine. A download buffers the whole file through a single blocking Rust
 client bound to R, then hands the bytes back to R — either as a `raw()`
-vector in memory or written to a destination path on disk.
+vector in memory or written to a destination path on disk. Disk
+downloads go to a temporary file beside the destination and are renamed
+into place only on success, so a failed download leaves an existing file
+untouched.
 
 ## Key Features
 
@@ -219,7 +222,10 @@ operation calls xet-core’s `*.blocking()` API on the calling R thread -
 A global client registry (`Mutex<HashMap<String, Arc<XetClient>>>`)
 serializes access and returns a character UUID handle to R - Whole-file
 buffering: downloads materialize the complete file in memory or on disk;
-there is no remote partial-read path
+there is no remote partial-read path; in-memory reads
+(`xet_stream_raw()`, `xet_stream_range()`, `xet_open_connection()`) are
+capped at 2 GiB (2^31 − 1 bytes) and error above that, so use
+`xet_download_file()` for larger files
 
 ## Testing
 
@@ -285,6 +291,8 @@ block the calling R thread. In a standard single-threaded Shiny app that
 is workable if long downloads are kept off the UI path. Do not assume
 the client is safe for concurrent use from multiple R threads, and
 always release handles with `on.exit(xet_client_close(...))`.
+`xet_client_close()` invalidates a handle immediately: later calls on it
+error, while an operation already in flight finishes normally.
 
 ## v0.1 status
 

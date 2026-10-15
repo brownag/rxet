@@ -23,7 +23,10 @@ directory must already exist.}
 }
 \description{
 Retrieves a file from a Xet content-addressed storage endpoint using its
-Merkle hash and saves it to a local path.
+Merkle hash and saves it to a local path. The file is written to a temporary
+file in the destination directory and moved into place only after the download
+succeeds; a failed download leaves no partial file and does not modify an
+existing \code{dest_path}.
 }
 \examples{
 \dontrun{

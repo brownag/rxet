@@ -7,7 +7,8 @@
 xet_client_new(endpoint, token)
 }
 \arguments{
-\item{endpoint}{URL of the Xet CAS endpoint}
+\item{endpoint}{URL of the Xet CAS endpoint. Must use \verb{https://}; \verb{http://} is
+accepted only for \code{localhost} or \verb{127.0.0.1}.}
 
 \item{token}{Bearer token for authentication with the CAS endpoint}
 }
