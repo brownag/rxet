@@ -47,13 +47,13 @@ CAS protocol + Tokio runtime (internal to hf-xet)
 ### Key Components
 
 **Handle-Based Session Management** (`src/rust/src/lib.rs`)
-- Integer handles (0, 1, 2, ...) map to `XetClient` structs
+- Character UUID handles (v4 strings) map to `XetClient` structs
 - Each `XetClient` owns: `XetSession` + auth credentials (endpoint, token)
-- Stored in lazy_static `Mutex<HashMap<u32, Arc<XetClient>>>`
+- Stored in lazy_static `Mutex<HashMap<String, Arc<XetClient>>>` keyed by that UUID
 - Avoids passing credentials on every operation
 
 **R Wrapper Layer** (`R/`)
-- `xet_client_new(endpoint, token)` → integer handle
+- `xet_client_new(endpoint, token)` → character UUID handle
 - `xet_client_close(handle)` → cleanup
 - `xet_download_file(handle, hash, file_size, dest)` → file
 - `xet_upload_file(handle, src_path)` → list(hash, file_size)
@@ -199,14 +199,14 @@ rxet/
 - **extendr-api 0.9.0.** Locked version; update carefully (may change macro syntax).
 - **Synchronous API only.** Rust code blocks; no async callbacks to R (not supported by R).
 - **Static lib linking.** `crate-type = ['rlib', 'staticlib']` in Cargo.toml; R links the `.a` into `.so`.
-- **Handle opaqueness.** Handles are u32 integers; no type safety. R must not invent handles.
+- **Handle opaqueness.** Handles are random character UUID strings; opaque and no type safety. R must not invent handles.
 
 ---
 
 ## Design Rationale
 
-**Why integer handles instead of ExternalPtr?**
-- Simpler R API (user just passes numbers)
+**Why character UUID handles instead of ExternalPtr?**
+- Simpler R API (user just passes strings)
 - Matches roxigdal pattern (local reference)
 - Avoids serialization issues with R's external pointer format
 
