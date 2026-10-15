@@ -32,7 +32,7 @@ Resume from this file. The user approved this plan on 2026-10-15. Approval cover
 | 1 | `2.1.2.readme` | done | none |
 | 1 | `2.1.3.agents-doc` | done | none |
 | 1 | `2.1.4.test-harness` | done | none |
-| 2 | `2.2.1.release-check` | pending | `2.1.1`, `2.1.2`, `2.1.3`, `2.1.4` |
+| 2 | `2.2.1.release-check` | blocked (1 license NOTE, F1) | `2.1.1`, `2.1.2`, `2.1.3`, `2.1.4` |
 
 ## Task reports
 
@@ -87,4 +87,20 @@ Gotchas: `devtools::test()` uses `pkgload::load_all`, so it loads `R/` from sour
 
 ### 2.2.1.release-check
 
-(pending)
+Status: BLOCKED — 1 phase-attributable NOTE (license). Executed by the orchestrator (serial gate).
+
+Evidence (scratch copy `/tmp/opencode/rxet-check/src`, protecting the user's `rxet.Rcheck/`/`rxet_0.1.0.tar.gz`):
+- Roxygen sync: `roxygen2::roxygenise()` then `git diff --exit-code -- man NAMESPACE DESCRIPTION` → clean (exit 0).
+- Build/check: `R CMD build .` → `rxet_0.1.0.tar.gz` (90 KB); `_R_CHECK_FORCE_SUGGESTS_=false R CMD check --no-manual rxet_0.1.0.tar.gz` → exit 0, **Status: 1 NOTE** (0 ERROR, 0 WARNING).
+- Remaining NOTE (verbatim): `* checking DESCRIPTION meta-information ... NOTE` / `License components with restrictions not permitted:` / `  Apache License (>= 2) + file LICENSE`. This NOTE is **introduced by Phase 2** (D2 change); the baseline "File LICENSE is not mentioned" NOTE is now gone.
+- All other checks pass: dependencies INFO only (suggested pkgs unavailable), `top-level files` OK, `code/documentation mismatches` OK, `Rd cross-references` OK, `unstated dependencies in 'tests'` OK (rprojroot declared), `tests` OK.
+- Check ran the suite via `tests/testthat.R`: `[ FAIL 0 | WARN 0 | SKIP 11 | PASS 111 ]`.
+- README cross-check: README "v0.1 status" list == exactly the 13 `NAMESPACE` exports (3 supported + 10 experimental).
+- Tarball: `LICENSE` present, `LICENSE.md` absent, `README.md` present, `README.Rmd`/`AGENTS.md` absent, no `target/`/`.so`/`rxet.Rcheck`. `planning/` ships (17 entries) — deferred to Phase 3/7 (`.Rbuildignore` policy).
+
+Finding F1 (blocking, needs triage; 2.2.1 does not fix per plan): R's license model marks `Apache License` **non-extensible**, so `Apache License (>= 2) + file LICENSE` is rejected by `tools:::.check_package_license` (`bad_extensions`). Empirically (`R CMD check` on a minimal package):
+- `Apache License (>= 2) + file LICENSE` → NOTE "License components with restrictions not permitted" (current).
+- `Apache License (>= 2) | file LICENSE` (stanza LICENSE) → clean.
+- `Apache License (>= 2)` + `LICENSE.md` full text, no `LICENSE` → clean.
+- `file LICENSE` with full Apache text → clean.
+D2's rationale ("clears the LICENSE NOTE") was mistaken. User's verbatim constraint (`+ file LICENSE`) conflicts with the phase exit gate (0 phase-attributable NOTE). Orchestrator escalated to the user for a decision.
