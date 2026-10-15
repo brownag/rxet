@@ -1,28 +1,14 @@
 use extendr_api::prelude::*;
 use xet::xet_session::{XetSession, XetSessionBuilder, XetFileInfo, Sha256Policy, XetConfig};
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex, OnceLock};
+use std::sync::{Arc, Mutex};
 use std::panic;
 use uuid::Uuid;
-use tokio::runtime::{Builder, Runtime};
 
 struct XetClient {
     session: XetSession,
     endpoint: String,
     token: String,
-}
-
-impl Drop for XetClient {
-    fn drop(&mut self) {
-        // Cleanup: spawn async task on Tokio runtime to close connections
-        // This allows graceful resource release without blocking on R's main thread
-        if let Ok(rt) = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| get_rt())) {
-            rt.spawn(async {
-                // Async cleanup would happen here if XetSession implements async cleanup
-                // For now, this is a placeholder for future integration with async session.close()
-            });
-        }
-    }
 }
 
 /// Wraps a closure in panic::catch_unwind and converts panics to readable R errors.
@@ -49,19 +35,17 @@ lazy_static::lazy_static! {
     static ref CLIENTS: Mutex<HashMap<String, Arc<XetClient>>> = Mutex::new(HashMap::new());
 }
 
-// Global Tokio runtime for async operations, initialized on first use
-static TOKIO_RUNTIME: OnceLock<Runtime> = OnceLock::new();
+/// Look up a client by handle and return an owned `Arc`.
+/// The registry lock is released when this function returns, so blocking
+/// network calls never hold the lock.
+fn acquire_client(handle: &str) -> extendr_api::Result<Arc<XetClient>> {
+    let clients = CLIENTS.lock()
+        .map_err(|e| Error::Other(format!("client registry poisoned: {}", e)))?;
 
-/// Get a static reference to the global Tokio runtime.
-/// Lazily constructs the multi-threaded pool on the first call.
-fn get_rt() -> &'static Runtime {
-    TOKIO_RUNTIME.get_or_init(|| {
-        Builder::new_multi_thread()
-            .enable_all()
-            .thread_name("rxet-tokio-worker")
-            .build()
-            .expect("Failed to initialize rxet multi-threaded Tokio runtime")
-    })
+    clients
+        .get(handle)
+        .cloned()
+        .ok_or_else(|| Error::Other(format!("invalid or closed client handle")))
 }
 
 /// Initialize a Xet storage client with endpoint and authentication token
@@ -126,12 +110,7 @@ fn xet_stream_raw(
             )));
         }
 
-        let clients = CLIENTS.lock()
-            .map_err(|e| Error::Other(format!("client registry poisoned: {}", e)))?;
-
-        let client = clients
-            .get(handle)
-            .ok_or_else(|| Error::Other(format!("invalid or closed client handle")))?;
+        let client = acquire_client(handle)?;
 
         let size_bytes = file_size.round() as u64;
         let info = XetFileInfo::new(file_hash.to_string(), size_bytes);
@@ -193,12 +172,7 @@ fn xet_stream_range(
             )));
         }
 
-        let clients = CLIENTS.lock()
-            .map_err(|e| Error::Other(format!("client registry poisoned: {}", e)))?;
-
-        let client = clients
-            .get(handle)
-            .ok_or_else(|| Error::Other(format!("invalid or closed client handle")))?;
+        let client = acquire_client(handle)?;
 
         let start = start_offset.round() as u64;
         let end = end_offset.round() as u64;
@@ -249,12 +223,7 @@ fn xet_download_file(
             )));
         }
 
-        let clients = CLIENTS.lock()
-            .map_err(|e| Error::Other(format!("client registry poisoned: {}", e)))?;
-
-        let client = clients
-            .get(handle)
-            .ok_or_else(|| Error::Other(format!("invalid or closed client handle")))?;
+        let client = acquire_client(handle)?;
 
         let info = XetFileInfo::new(hash.to_string(), file_size.round() as u64);
         let dest = std::path::PathBuf::from(dest_path);
@@ -284,12 +253,7 @@ fn xet_download_file(
 #[extendr]
 fn xet_upload_file(handle: &str, src_path: &str) -> extendr_api::Result<Robj> {
     safe_exec(panic::AssertUnwindSafe(|| {
-        let clients = CLIENTS.lock()
-            .map_err(|e| Error::Other(format!("client registry poisoned: {}", e)))?;
-
-        let client = clients
-            .get(handle)
-            .ok_or_else(|| Error::Other(format!("invalid or closed client handle")))?;
+        let client = acquire_client(handle)?;
 
         let src = std::path::PathBuf::from(src_path);
 
