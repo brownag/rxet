@@ -25,6 +25,5 @@
 ^\.Rproj\.user
 ^\.vscode
 ^\.cursor
-^LICENSE\.md$
 ^Makefile$
 ^\.DS_Store$

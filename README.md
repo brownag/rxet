@@ -322,7 +322,7 @@ Contributions welcome! Please:
 
 ## License
 
-Licensed under Apache 2.0. See LICENSE file.
+Licensed under Apache 2.0. See the LICENSE.md file.
 
 ## Resources
 
