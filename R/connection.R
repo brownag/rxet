@@ -22,6 +22,9 @@
 #' works within that in-memory copy, but this is **not** remote range access:
 #' no bytes are fetched lazily from the endpoint.
 #'
+#' `file_size` must be a finite whole number of bytes, and at most 2^31 - 1
+#' bytes (2 GiB), the same in-memory cap as [xet_stream_raw()].
+#'
 #' **Status:** Experimental pending live evidence.
 #'
 #' **Example use cases:**
@@ -47,7 +50,11 @@
 xet_open_connection <- function(handle, file_hash, file_size) {
   stopifnot(is.character(handle), length(handle) == 1, nchar(handle) > 0)
   stopifnot(is.character(file_hash), length(file_hash) == 1, nchar(file_hash) > 0)
-  stopifnot(is.numeric(file_size), length(file_size) == 1, file_size >= 0)
+  stopifnot(is.numeric(file_size), length(file_size) == 1)
+  if (!is.finite(file_size) || file_size != floor(file_size)) {
+    stop("file_size must be a finite whole number of bytes")
+  }
+  stopifnot(file_size >= 0)
 
   # Stream file into memory
   raw_bytes <- xet_stream_raw(handle, file_hash, file_size)

@@ -16,7 +16,8 @@ NULL
 #' Initializes a client session for interacting with a Xet content-addressed
 #' storage endpoint.
 #'
-#' @param endpoint URL of the Xet CAS endpoint
+#' @param endpoint URL of the Xet CAS endpoint. Must use `https://`; `http://` is
+#'   accepted only for `localhost` or `127.0.0.1`.
 #' @param token Bearer token for authentication with the CAS endpoint
 #'
 #' @return A character string handle that identifies the client session. Pass this handle
@@ -32,8 +33,12 @@ NULL
 #' }
 xet_client_new <- function(endpoint, token) {
   stopifnot(is.character(endpoint), length(endpoint) == 1, nchar(endpoint) > 0)
-  if (!grepl("^https?://", endpoint, ignore.case = TRUE)) {
-    stop("endpoint must start with http:// or https://")
+  is_https <- grepl("^https://", endpoint, ignore.case = TRUE)
+  is_loopback_http <- grepl("^http://", endpoint, ignore.case = TRUE) &&
+    tolower(sub("^http://([^/:]+).*$", "\\1", endpoint, ignore.case = TRUE)) %in%
+      c("localhost", "127.0.0.1")
+  if (!is_https && !is_loopback_http) {
+    stop("endpoint must use https:// (http:// is allowed only for localhost or 127.0.0.1)")
   }
   stopifnot(is.character(token), length(token) == 1, nchar(token) > 0)
   .Call("wrap__xet_init_client", endpoint, token, PACKAGE = "rxet")
