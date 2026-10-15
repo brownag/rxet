@@ -1,0 +1,50 @@
+# State 1 — Phase 1: Freeze v0.1 Scope, Support Policy, and Acceptance Contract
+
+Resume from this file. The user approved this plan on 2026-10-15. Approval covers Phase 1 planning-task orchestration only, not product implementation or release publication.
+
+## Baseline checklist (observed 2026-10-15)
+
+- [x] Repository instructions read: `AGENTS.md`.
+- [x] Master input read: `planning/MASTER_PLAN.md`.
+- [x] No existing orchestration plans/states or repository ADRs found.
+- [x] Inventory anchors found: 13 NAMESPACE exports; R wrappers and Rust binding locations recorded in `EXECUTION_PLAN_1.md`.
+- [x] `R CMD build .` succeeded in initial release-readiness review.
+- [x] `R CMD INSTALL .` succeeded on current Linux environment in initial release-readiness review.
+- [x] `cargo check` succeeded in initial release-readiness review (Cargo resolved dependencies online; no tracked lockfile).
+- [ ] Green test baseline: **not established**. `devtools::test(reporter="summary")` on the observed installed build had 3 failures due to missing `uuid`, 8 skips from optional packages/credentials/environment, remaining tests passed. Resolve/re-run in an implementation phase; this planning phase does not modify test setup.
+- [ ] Clean CRAN-style check baseline: **not established**. Earlier `_R_CHECK_FORCE_SUGGESTS_=false R CMD check --no-manual` completed with 1 WARNING (`rprojroot` undeclared for tests) and 1 NOTE (LICENSE metadata); standard forced-suggests run stopped for unavailable suggested packages.
+- [x] Existing workspace artifacts preserved: `rxet.Rcheck/` and `rxet_0.1.0.tar.gz` are untracked and must not be removed by this phase.
+
+## Decisions / user answers
+
+- macOS is in scope alongside Linux and minimal Windows.
+- Use `brownag/rxet-test-data` for opt-in manual live integration testing; routine tests remain offline/secret-free, credentials are environment-only, and public CI must not require them.
+- CRAN is the intended eventual target if feasible; vendorization belongs in the later packaging phase, not this policy phase.
+- Preserve implemented APIs provisionally. Mark an API supported only after its success behavior is demonstrated through actual package behavior; otherwise retain provisionally as experimental or defer the support claim rather than remove it by default.
+- Rust MSRV/toolchain and exact R minimum remain technical validation items for Phase 3, not unresolved user-policy decisions.
+- User approved the Phase 1 plan on 2026-10-15; approval covers planning-task orchestration only.
+
+## Wave board
+
+| Wave | Tasks | Status | Depends on |
+|---|---|---|---|
+| 1 | `1.1.1.api-inventory` | done | none |
+| 2 | `1.2.1.support-policy` | pending (approved; ready to start) | Wave 1 |
+| 3 | `1.3.1.phase-contract` | pending (approved; awaiting Wave 2) | Wave 2 |
+
+## Task reports
+
+### 1.1.1.api-inventory
+
+Status: done (2026-10-15). Appended `## Appendix A — API inventory (Task 1.1.1)` to `EXECUTION_PLAN_1.md` (lines 146–207): 13-row export table, non-exported/stale-claims table, read-only `brownag/rxet-test-data` inventory. No runtime/test/doc/metadata files changed.
+Classification: 4 `candidate supported` (`xet_client_new`, `xet_client_close`, `xet_config_environment`, `xet_close_connection`), 8 `experimental pending evidence` (all network/Arrow/spatial helpers), 1 `defer/remove claim as stub` (`read_xet_parquet_stream`).
+Validation: `git diff --check -- planning/EXECUTION_PLAN_1.md` clean; targeted grep found 13 export rows + stale-claims section; `git status --short` shows no source changes. `rg` unavailable — used `grep -E` (deviation: tool only).
+Key facts for later waves: no test performs a real successful Xet transfer; `test-stream-range.R` never calls `xet_stream_range`; `read_xet_parquet_stream` is `@keywords internal` yet exported (NAMESPACE:4); live repo has only 3 tiny fixtures (one Xet-stored), no large/GeoTIFF/write fixture. Phase 4 hazards: mutex held across blocking I/O, whole-file buffering, non-atomic download to final path, placeholder `Drop`. README is generated from `README.Rmd`; both carry the same stale claims.
+
+### 1.2.1.support-policy
+
+Pending. Must wait for Task 1.1.1 report and plan approval.
+
+### 1.3.1.phase-contract
+
+Pending. Must wait for Task 1.2.1 report.
