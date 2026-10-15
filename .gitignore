@@ -2,10 +2,8 @@
 venv/
 README.html
 src/rust/target/
-src/rust/Cargo.lock
 src/rxet.so
 *.o
 *.so
 *.a
 .cargo/
-Cargo.lock
