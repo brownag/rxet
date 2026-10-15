@@ -66,13 +66,72 @@ This phase is a planning/policy artifact phase and does not modify runtime/packa
 | 2026-10-15 | Use the user's Hugging Face dataset repository `brownag/rxet-test-data` for opt-in manual live integration testing. | Phase 5 must inspect repository contents/access, define safe read operations and any write-test policy, confirm required credential scope, and never put credentials in source or public CI. |
 | 2026-10-15 | Initial route is a GitHub/source release without prebuilt binaries; CRAN is the intended eventual distribution target if feasible. | Phase 3 should plan dependency pinning and later vendorization for CRAN; Phase 7 performs CRAN-oriented checks. This is not authorization to submit. |
 | 2026-10-15 | Preserve currently implemented APIs provisionally; classify an API as supported only after success behavior is demonstrated using actual package behavior, preferably against the chosen live dataset where appropriate. | If success behavior is not yet demonstrated, retain provisionally but label experimental or defer its supported claim. Do not remove a working function without explicit approval. |
-| Pending | Rust MSRV/toolchain and R minimum version. | Current declarations are R >= 4.2 and Rust >= 1.70; actual compatibility not validated. Phase 3 should determine exact values based on dependency/platform checks. |
+| 2026-10-15 | API evidence threshold: record an export as `supported` only when a success-path test demonstrates its real behavior through actual package behavior; network-backed exports with only validation/error-path evidence are `experimental pending evidence`; a genuine stub/temp-file/internal-tagged export has its supported claim `deferred`. | Prevents compile success, an exported wrapper, or error-path tests from being misread as proof of a working feature. All 13 exports remain in `NAMESPACE`; the label bounds the supported claim, it does not remove the function. |
+| 2026-10-15 | Supported for v0.1: `xet_client_new`, `xet_client_close`, `xet_config_environment`. | Each has genuine R-level success-path coverage (`test-client.R:3–27,44–62`; `test-config.R`). They make no live network call, so env-var consumption by the pinned hf-xet stays a Phase 3 verification item. |
+| 2026-10-15 | Experimental pending evidence for v0.1: `xet_download_file`, `xet_upload_file`, `xet_stream_raw`, `xet_stream_range`, `xet_open_connection`, `xet_close_connection`, `read_xet_parquet`, `read_xet_raster`, `read_xet_vector`. | Retained and exported but the supported claim is bounded until real success evidence exists (Appendix A shows validation/error-path or no success evidence, and `xet_close_connection`'s only test is HF_TOKEN-gated and asserts an error from `xet_open_connection`). |
+| 2026-10-15 | Deferred support claim: `read_xet_parquet_stream`. | No test references it; it writes a temp `.parquet` and is `@keywords internal` yet exported. Retain provisionally; Phase 2 decides de-export vs internal and corrects the temp-file claim. |
+| Phase 3 (technical) | Rust MSRV/toolchain and R minimum version — technical validation items, not unresolved user policy. | Current declarations are R >= 4.2 and Rust >= 1.70; actual compatibility not validated. Phase 3 determines exact values from dependency/platform checks; no Phase 1 policy change is required. |
+
+## Support policy decisions — v0.1 API disposition (Task 1.2.1)
+
+This is the final v0.1 disposition of every NAMESPACE export, derived from the Appendix A evidence. Dispositions are applied under the evidence threshold above: `supported` = success-path behavior demonstrated; `experimental pending evidence` = retained/exported but supported claim bounded until success evidence exists; `deferred support claim` = not promoted pending an API/docs decision. No export is removed. The three client/config exports are local and make no live network call; their env-var consumption by the pinned hf-xet remains a Phase 3 verification item.
+
+| Export | Group | v0.1 disposition | Rationale (Appendix A evidence) | Downstream phase handoff |
+|---|---|---|---|---|
+| `xet_client_new` | Client lifecycle | supported | `success-path`: `test-client.R:3–27` (non-empty UUID handle); no network contact at init | Phase 3 confirm env-var config consumed by pinned hf-xet; Phase 5 live client-setup smoke |
+| `xet_client_close` | Client lifecycle | supported | `success-path`: `test-client.R:22–27,44–62` (silent close, `NULL` return, multi-client) | Phase 4 close-vs-in-flight operation semantics |
+| `xet_config_environment` | Configuration | supported | `success-path`: `test-config.R` asserts env-var effects; pure R, no I/O | Phase 3 prove pinned hf-xet honors `HF_XET_*` vars |
+| `xet_close_connection` | Connection helper | experimental pending evidence | `none` success evidence: only `test-connection.R:14–25`, which is skipped unless `HF_TOKEN` is set and asserts an error from `xet_open_connection` rather than a successful close | Phase 5 add a success-path close test; Phase 2 may reconsider whether it stays a standalone export |
+| `xet_download_file` | Disk download | experimental pending evidence | `validation/error-path` only: `test-input-validation.R:34–61`; no live byte-integrity evidence; writes directly to final `dest_path` | Phase 4 atomic download/cleanup; Phase 5 live byte-integrity download via `brownag/rxet-test-data` |
+| `xet_upload_file` | Upload | experimental pending evidence | `validation/error-path` only: `test-input-validation.R:119–127`; endpoint/auth/commit semantics unspecified | Phase 5 determine endpoint/auth/commit semantics and obtain live evidence; defer if unsupported |
+| `xet_stream_raw` | Raw stream | experimental pending evidence | `validation/error-path` only: `test-streaming.R:17–33`, `test-input-validation.R:63–77`; whole file buffered into a `Vec<u8>` then `raw()` | Phase 4 size/overflow policy; Phase 5 live byte-return; Phase 2 correct "returns metadata" doc |
+| `xet_stream_range` | Range stream | experimental pending evidence | `validation/error-path` only: `test-streaming.R:35–51`; `test-stream-range.R` never calls the function; result still fully buffered and needs full `file_size` | Phase 4 boundary validation; Phase 5 byte-exact range test (needs a larger fixture); Phase 2 fix return-value/example mismatch |
+| `xet_open_connection` | Connection helper | experimental pending evidence | `validation/error-path` only: `test-connection.R:3–12`; materializes the whole file via `xet_stream_raw`, not a remote/seek-backed connection | Phase 6 honest memory/I/O docs; Phase 5 success evidence |
+| `read_xet_parquet` | Arrow adapter | experimental pending evidence | `validation/error-path` only: `test-arrow-spatial.R:3–26`; whole file into memory, README push-down claim unsubstantiated | Phase 6 prove `arrow::read_parquet()` accepts the `rawConnection`; remove push-down claim |
+| `read_xet_parquet_stream` | Arrow adapter | deferred support claim | `none`: no test references it; writes a temp `.parquet`; `@keywords internal` yet exported | Phase 2 decide de-export vs internal and correct the temp-file claim |
+| `read_xet_raster` | Spatial adapter | experimental pending evidence | `validation/error-path` only: `test-arrow-spatial.R:28–37`; whole file into memory; "partial reads/COG windows" claim unsubstantiated | Phase 6 prove `terra::rast()` reads the `rawConnection`; bound the claim |
+| `read_xet_vector` | Spatial adapter | experimental pending evidence | `validation/error-path` only: `test-arrow-spatial.R:39–48`; whole file into memory; "GDAL can seek" claim unsubstantiated for a `rawConnection` | Phase 6 prove `sf::st_read()` reads the `rawConnection`; bound the claim |
+
+### Stale / non-exported claim disposition (not API entries)
+
+| Claim (Appendix A) | Disposition | Downstream phase handoff |
+|---|---|---|
+| Phantom `xet_get_file_metadata()` in README | Remove claim (no R/Rust/NAMESPACE/man implementation) | Phase 2 |
+| Zero-copy / "without temporary files" / "without intermediate disk copies" | Reword to real in-memory/temp behavior | Phase 2 (truth of optional-integration paths verified Phase 6) |
+| Random-access "10% of file in seconds" | Mark experimental; drop the speed claim | Phase 2; Phase 5 fixture permitting measurement |
+| "Parallel downloads with automatic token refresh and retry" | Remove claim (no parallel/refresh/retry logic exists) | Phase 2 |
+| "Production-ready with panic recovery and resource cleanup" | Downgrade; panic recovery real, cleanup is a placeholder | Phase 2; Phase 4 cleanup semantics |
+| Performance table (metadata fetch, token refresh, worker speedup, byte-range multiples) | Remove/defer until measured | Phase 2 |
+| "Parallelism: 4 workers typically achieve 3.0–3.8x" | Remove claim (no worker pool implemented) | Phase 2 |
+| Architecture "Async I/O with Tokio (non-blocking to R)", bounded channels, LRU shard cache, O(log N) binary search | Remove; describe the real blocking-under-mutex model | Phase 2 |
+| `xet_stream_raw` "returns metadata about streaming operation" | Correct to "returns file bytes as `raw()`" | Phase 2 |
+| `xet_stream_range` example `metadata`/`result$chunks_needed` | Correct examples to a `raw()` return | Phase 2 |
+| FAQ metadata-shard overlapping-chunk explanation | Rewrite or remove | Phase 2 |
+| FAQ "Client is thread-safe" / Shiny concurrency | Qualify after concurrency work | Phase 4; docs Phase 2 |
+| `DESCRIPTION` "Supports chunked upload and download" | Keep provisionally, bound after evidence | Phase 5 evidence; Phase 2 wording |
+| `read_xet_parquet_stream` `@keywords internal` yet exported | Resolve export-vs-internal conflict | Phase 2 |
+| README Testing "Range downloads … byte-range accuracy", "Concurrent clients … stress testing" | Correct to actual mock/simulation tests | Phase 2 (facts from Phase 5) |
+| `AGENTS.md` integer `u32` handles vs UUID character handles | Out-of-plan doc fix | Phase 2 |
+| Benchmarking scripts `tools/benchmark.R`, `tools/benchmark-extended.R` | Substantiated at file level; keep and verify runnability | Phase 7 |
+
+## Phase handoff (Task 1.2.1)
+
+The frozen policy maps to the master-plan phases as follows; no downstream phase may widen the v0.1 support claim without new success evidence.
+
+| Downstream phase | Handoff facts from this policy |
+|---|---|
+| Phase 2 — docs/API/metadata | Apply the stale/claim disposition table; resolve the `read_xet_parquet_stream` internal-tag conflict; correct `xet_stream_raw`/`xet_stream_range` docs and the `AGENTS.md` handle text; keep all 13 exports unless a documented API-boundary decision says otherwise. |
+| Phase 3 — reproducible build & platforms | Pin the hf-xet revision; determine Rust MSRV and R minimum; validate Linux, macOS, and minimal Windows source builds; plan vendoring as later work (not a Phase 1 task); confirm the pinned hf-xet honors `HF_XET_*` env vars set by `xet_config_environment`. |
+| Phase 4 — hardening | Atomic download destination; release the registry mutex around blocking I/O; size/offset validation for raw/range APIs; close-vs-in-flight semantics; remove placeholder drop/cleanup. |
+| Phase 5 — real Xet verification | Opt-in live tests against `brownag/rxet-test-data` using environment credentials only, no live credentials in public CI, manual live run required before release; obtain success evidence for `xet_close_connection`, download, upload, raw, and range; record that the live repo currently lacks a large/multi-chunk, GeoTIFF, or write-target fixture. |
+| Phase 6 — optional integrations & memory | Prove Arrow/terra/sf accept the `rawConnection`; document full-file buffering; bound or defer unsupported remote/seek/push-down claims. |
+| Phase 7 — release validation | Run offline routine tests (secret-free) plus the manual live run; verify the source archive; obtain explicit user approval before tagging/publishing. |
 
 ## Decisions resolved / remaining
 
-Resolved: macOS is in scope; `brownag/rxet-test-data` is the live-test repository; CRAN is the intended eventual target if feasible; APIs are preserved provisionally and receive supported status only after success behavior is tested through actual package behavior. Untested APIs remain experimental or have their supported claims deferred rather than being deleted by default.
+Resolved: macOS is in scope; `brownag/rxet-test-data` is the live-test repository; CRAN is the intended eventual target if feasible; APIs are preserved provisionally and receive supported status only after success behavior is tested through actual package behavior. Untested APIs remain experimental or have their supported claims deferred rather than being deleted by default. The v0.1 support dispositions in this plan resolve the remaining user-policy questions: platform scope (Linux + macOS + minimal Windows), initial distribution (GitHub/source, no prebuilt binaries), CRAN as eventual target with vendoring deferred, and the offline/opt-in live-test credential policy. No unresolved user-policy item changes platform, API, or distribution scope.
 
-Remaining: Rust MSRV/toolchain and R minimum version require technical validation in Phase 3. This is not a Phase 1 policy ambiguity; retain the current declarations only as unverified starting values until that phase establishes support.
+Remaining: only technical values — Rust MSRV/toolchain and the exact R minimum version — require validation in Phase 3. This is not a Phase 1 policy ambiguity; the current declarations (R >= 4.2, Rust >= 1.70) are unverified starting values until that phase establishes support.
 
 ## Wave table (draft for user approval)
 

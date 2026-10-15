@@ -29,8 +29,8 @@ Resume from this file. The user approved this plan on 2026-10-15. Approval cover
 | Wave | Tasks | Status | Depends on |
 |---|---|---|---|
 | 1 | `1.1.1.api-inventory` | done | none |
-| 2 | `1.2.1.support-policy` | pending (approved; ready to start) | Wave 1 |
-| 3 | `1.3.1.phase-contract` | pending (approved; awaiting Wave 2) | Wave 2 |
+| 2 | `1.2.1.support-policy` | done | Wave 1 |
+| 3 | `1.3.1.phase-contract` | pending (approved; ready to start) | Wave 2 |
 
 ## Task reports
 
@@ -43,7 +43,11 @@ Key facts for later waves: no test performs a real successful Xet transfer; `tes
 
 ### 1.2.1.support-policy
 
-Pending. Must wait for Task 1.1.1 report and plan approval.
+Status: done (2026-10-15). Added `## Support policy decisions — v0.1 API disposition (Task 1.2.1)` (13-row table + stale-claim disposition table), `## Phase handoff (Task 1.2.1)`, and policy decision rows; reframed the `Pending` MSRV row as `Phase 3 (technical)`. Edited `EXECUTION_PLAN_1.md` only.
+Dispositions: `supported` = `xet_client_new`, `xet_client_close`, `xet_config_environment` (3). `experimental pending evidence` = `xet_download_file`, `xet_upload_file`, `xet_stream_raw`, `xet_stream_range`, `xet_open_connection`, `xet_close_connection`, `read_xet_parquet`, `read_xet_raster`, `read_xet_vector` (9). `deferred support claim` = `read_xet_parquet_stream` (1). No export removed; labels bound the supported claim only.
+Correction during review: `xet_close_connection` moved from `supported` to `experimental` — its only test (`test-connection.R:14–25`) is HF_TOKEN-gated and asserts an error from `xet_open_connection`, so it has `none` success evidence.
+Validation: `git diff --check` clean; grep shows all policy concepts present; 13 disposition rows confirmed; no source/test/metadata changes. `rg` unavailable — used `grep -E`.
+Handoff: Phase 2 docs/claims, Phase 3 pin/MSRV/platforms/env-vars, Phase 4 hardening, Phase 5 live tests (needs larger fixture), Phase 6 optional integrations, Phase 7 release validation. MSRV/R-version remain the only open technical items (Phase 3).
 
 ### 1.3.1.phase-contract
 
