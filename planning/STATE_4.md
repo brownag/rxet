@@ -44,7 +44,7 @@ Status: **plan drafted; awaiting user approval** (2026-10-15). No task has start
 | 2 | `4.2.2.r-atomic-download` | done (suite green) | 4.1.1 |
 | 3 | `4.3.1.lifecycle-failure-tests` | done (suite green) | 4.2.2, 4.2.1 |
 | 3 | `4.3.2.rust-registry-tests` | done (cargo test 4 passed) | 4.2.1 |
-| 4 | `4.4.1.docs-rd-sync` | pending | 4.3.1, 4.3.2 |
+| 4 | `4.4.1.docs-rd-sync` | done (roxygen once, acceptance 0) | 4.3.1, 4.3.2 |
 | final | Phase exit gate (orchestrator, serial) | pending | wave 4 |
 
 ## Phase exit gate checklist (orchestrator)
@@ -131,3 +131,15 @@ Status: **plan drafted; awaiting user approval** (2026-10-15). No task has start
 - Deviation 3: `reporter = "timing"` does not exist in this testthat; per-test timing taken from JUnitReporter.
 - Observation: blackhole download took ~9 s with read timeout 2 s, so hf-xet retry/backoff adds time beyond one read timeout; still well under 60 s.
 - Residual: Windows `file.rename` not exercised (H4); blackhole behavior with default retry count not run (set to 1 by design).
+
+### 4.4.1.docs-rd-sync
+
+- Status: done. Acceptance command exit 0 (input-validation and phase4-lifecycle pass).
+- roxygenise: ran manually once, then again inside the acceptance command (the spec's command includes it). Both runs produced the same man/ output.
+- Roxygen edits: `R/client.R` xet_client_close block (D4 sentence). Rd regenerated: xet_client_close, xet_client_new, xet_download_file, xet_open_connection, xet_stream_range, xet_stream_raw.
+- README.Rmd and README.md: D3 temp-file sentence (download), D2 2 GiB cap (buffering), D4 close sentence (Shiny FAQ). No Windows atomic claim (H4). D6: no README change, per answer.
+- NAMESPACE unchanged. DESCRIPTION unchanged (roxygen2 8.1.0 did not add RoxygenNote).
+- Deviation 1: src/Makevars and src/entrypoint.o are modified. The devtools/pkgload build rewrote them (Makevars switched release to debug). Not reverted, since I was told not to touch them and cannot use git checkout. Must not be staged. Needs an orchestrator decision.
+- Deviation 2: roxygenise ran twice (see above), because the acceptance command includes it.
+- Deviation 3: build log written to /tmp/claude-1000/rox.log, not the scratchpad.
+- Not committed. The todo file planning/tasks/4.4.1.docs-rd-sync.todo.md is untracked.
