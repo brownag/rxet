@@ -93,6 +93,17 @@ if (file.exists(mv_ofp)) {
   invisible(file.remove(mv_ofp))
 }
 
+# fail early with a clear message if the platform template is missing,
+# instead of the opaque `cannot open the connection` from readLines()
+if (!file.exists(mv_fp)) {
+  stop(
+    "Missing build template '", mv_fp, "' for ",
+    if (is_windows) "Windows" else "Unix",
+    ". Expected the template to exist in the source tree; ",
+    "cannot generate '", mv_ofp, "'."
+  )
+}
+
 # read as a single string
 mv_txt <- readLines(mv_fp)
 
