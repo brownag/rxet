@@ -3,7 +3,8 @@
 ^src/\.cargo$
 ^src/rust/vendor$
 ^src/rust/target$
-^src/rust/Cargo\.lock$
+^planning$
+^docs$
 ^src/Makevars$
 ^src/Makevars\.win$
 ^\.claude$
