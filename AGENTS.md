@@ -37,7 +37,7 @@ R functions (R/)
     ↓ [.Call() dispatch]
 Rust extendr bindings (src/rust/src/lib.rs)
     ↓ [async_blocking API]
-hf-xet crate (git dependency)
+hf-xet crate (crates.io dependency)
     ↓
 XetSession + AuthGroupBuilder
     ↓
@@ -108,14 +108,14 @@ The hf-xet crate publishes lib name `xet`, and public types live in `xet::xet_se
 4. Rebuild and test
 
 ### First Build (Slow)
-- First `R CMD INSTALL .` downloads hf-xet and 300+ transitive deps from git
+- First `R CMD INSTALL .` downloads the `hf-xet` crate and its transitive deps from crates.io (requires network access)
 - Compiles ~40 proc-macro crates (slow)
 - Subsequent builds cache in `src/rust/target/`, much faster
 - ~5-10 minutes first time, ~30 seconds for Rust-only changes
 
 ### Dependency Issues
 - Dependencies stored in `src/rust/Cargo.lock` (commit if stable)
-- Git dep (hf-xet) is specified by commit hash in lock file
+- `hf-xet = "1.7.0"` comes from crates.io and is pinned by `src/rust/Cargo.lock`
 - To update: `cd src/rust && cargo update`
 
 ---

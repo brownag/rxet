@@ -24,6 +24,10 @@ vector in memory or written to a destination path on disk.
 
 ### From source
 
+Building from source compiles the Rust `hf-xet` client and downloads
+crates from crates.io, so it requires network access and a Rust
+toolchain (≥ 1.85).
+
 ``` r
 # Install Rust (if needed)
 # https://rustup.rs/
