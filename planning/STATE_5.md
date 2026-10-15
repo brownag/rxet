@@ -73,8 +73,8 @@ Status: **plan drafted; awaiting user approval** (2026-10-15). No task has start
 |---|---|---|---|
 | 0 | `5.0.1.server-spike` (orchestrator, serial) | pending | none |
 | 1 | `5.1.1.local-server-harness` | done (smoke test passes, 2 expectations) | 5.0.1 |
-| 2 | `5.1.2.retire-mock-tests` | pending | 5.1.1 |
-| 2 | `5.2.1.local-upload-roundtrip` | pending | 5.1.1 |
+| 2 | `5.1.2.retire-mock-tests` | done (3 files removed; with_test_client moved) | 5.1.1 |
+| 2 | `5.2.1.local-upload-roundtrip` | done (6 tests, server set) | 5.1.1 |
 | 3 | `5.2.2.local-download-read` | pending | 5.1.1, 5.2.1 |
 | 3 | `5.3.1.local-failure-paths` | pending | 5.1.1, 5.2.1 |
 | 4 | `5.3.2.live-suite` | pending | 5.1.2, 5.2.2 |
@@ -91,6 +91,35 @@ Status: **plan drafted; awaiting user approval** (2026-10-15). No task has start
 - [ ] Every task's todo file and STATE report present.
 - [ ] Residual gaps recorded (see "Known limitations"), plus Windows and macOS server runs (CI-gated, H1).
 
+### Cross-task rule from 5.2.1 (applies to 5.2.2, 5.3.x, 5.3.2)
+
+- The Xet client keeps a shard cache under `HF_HOME` (default `~/.cache/huggingface/xet`), shared across processes and endpoints. A second upload of identical bytes to a fresh server is deduplicated and then fails on download with HTTP 404. Every test that uploads or downloads a local fixture must give itself a private `HF_HOME` (use `start_upload_client()` from `test-local-upload.R`, or copy its pattern).
+- Probes during 5.2.1 wrote entries under the developer's real `~/.cache/huggingface/xet`. These are harmless caches but were not intentional; no repo file is affected.
+
 ## Task reports
 
 <!-- Orchestrator and workers append reports below. One section per task id, <=15 lines each. -->
+
+### 5.1.2.retire-mock-tests
+- Status: done (not committed). Staged deletions via `git rm`: `helper-mock-backend.R`, `test-stream-range.R`, `test-concurrent.R`.
+- Created `tests/testthat/helper-test-client.R` (lines 25-44 of the old helper, verbatim: `with_test_client` + roxygen; diff-verified as identical to source block). Real-client helper, not a mock.
+- Original spec grep (with `with_test_client`) hit `test-client.R`, `test-arrow-spatial.R`, `test-connection.R`, `test-streaming.R`. Coordinator amended the pattern to drop `with_test_client`.
+- Amended grep (7 mock-only names) after deletions: no hits in `tests/testthat/*.R`.
+- `is_compiled <- function` now only in `helper-local-cas.R:11`.
+- Acceptance (filter `parallel-downloads|utils|input-validation`): exit 0; tests=71 failed=0 skipped=0 passed=89.
+- Extra check (filter adds `client`): tests=78 failed=0 skipped=0 passed=99.
+- Deviation: scratch output of one run was written to `/tmp/unused` instead of the scratchpad. Discarded, no repo impact.
+- Untracked `planning/tasks/5.1.2.retire-mock-tests.todo.md` (micro-plan) and `planning/tasks/5.2.1.local-upload-roundtrip.todo.md` (not mine) left unstaged. `helper-test-client.R` left unstaged.
+- Not run: full suite (orchestrator runs at wave end).
+
+### 5.2.1.local-upload-roundtrip
+
+- Status: done (2026-10-15). Not committed. Micro-plan: `planning/tasks/5.2.1.local-upload-roundtrip.todo.md`.
+- Files: created `tests/testthat/test-local-upload.R` (6 tests). No `R/**`, `src/**`, helpers, or other tests touched.
+- Empty-file behavior (observed, pinned): upload succeeds with hash `0`×64 and `file_size == 0`; repeat uploads give the same hash; download of that hash with size 0 writes a 0-byte file.
+- Multi-chunk: 4 MiB round-trips byte-identical. 64 KiB round-trips byte-identical, no `.part` files.
+- Finding (product, not fixed): `xet_upload_file` deduplicates against a persistent shard cache under `HF_HOME` (default `~/.cache/huggingface/xet`), shared across processes and endpoints. A second upload of identical bytes to a fresh server is skipped, and the download then fails with HTTP 404. The test file sets a per-test `HF_HOME` tempdir to isolate this. Future tests that reuse the same fixture bytes must do the same.
+- Side effect (outside repo, not by design): the earlier runs wrote shard cache under `~/.cache/huggingface/xet`.
+- Acceptance (`RXET_LOCAL_CAS_SERVER=$HOME/.cargo/bin/local_cas_server`): `devtools::test(filter = "local-upload")` exit 0; tests=6, passed=11 expectations, failed=0, errors=0, skipped=0. Repeated 3 times, same result.
+- Server unset: tests=6, skipped=6, failed=0, errors=0, exit 0.
+- Deviations: `start_upload_client()` helper inside the test file (sets `HF_HOME`) to isolate the cache, as above. Empty-file test title names the pinned behavior.
