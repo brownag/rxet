@@ -143,3 +143,19 @@ Status: **plan drafted; awaiting user approval** (2026-10-15). No task has start
 - Deviation 2: roxygenise ran twice (see above), because the acceptance command includes it.
 - Deviation 3: build log written to /tmp/claude-1000/rox.log, not the scratchpad.
 - Not committed. The todo file planning/tasks/4.4.1.docs-rd-sync.todo.md is untracked.
+
+## Phase exit gate result (orchestrator, 2026-10-15)
+
+- `cargo check` → Finished, no warnings. `cargo test --lib tests::` → 4 passed, 0 failed (no link failure, H6 not hit).
+- Full suite serial on HEAD `930554e`: `failed: 0  skipped: 9  passed: 143  errors: 0`. Skips are the HF_TOKEN and optional-package guards.
+- Clean archive (`git archive HEAD`, scratch dir): `R CMD build` rc 0; `R CMD check --no-manual` rc 0, `Status: OK`, no WARNING or NOTE. Archive audit: 0 `planning/`, `docs/`, build, or `.o`/`.so` entries; `src/rust/Cargo.lock` and `src/Makevars.win.in` ship.
+- Manual review: every `acquire_client` call precedes its blocking call and returns an owned `Arc`; the registry guard is released on return. No `with_capacity` and no `round() as u64` remain in `src/rust/src/lib.rs`.
+
+Residual gaps (recorded per J1, J2, H4 and Phase 5):
+- J1: lock call sites are verified by review and grep, not by a test that runs them.
+- J2: panic/FFI propagation is review-level evidence only; no deterministic panic trigger.
+- H4: Windows `file.rename` overwrite behavior is unverified; CI matrix is the gate.
+- Success-path network behavior remains for Phase 5.
+- `README.md` line ~225 still names the old `Mutex<HashMap<...>>` registry type; pre-existing prose, not updated in Phase 4.
+
+Phase 4 status: **complete** against its exit gate. Publication remains gated by Phase 7.
