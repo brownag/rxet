@@ -72,4 +72,8 @@ rxet does not write the token into its error output. The token-expiry fault test
 
 ## Test evidence
 
-TEST_EVIDENCE_PENDING
+Recorded at the release gate (HEAD before this commit):
+
+- Routine suite, local CAS server, arrow, terra and sf installed: 242 passed, 0 failed, 0 errors, 15 skipped.
+- Clean-archive `R CMD build` and `R CMD check --no-manual` (no server or live variables): Status OK.
+- Live suite (`RXET_LIVE_TESTS=1`, opt-in): not yet recorded for this release.

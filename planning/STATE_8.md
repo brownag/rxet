@@ -71,3 +71,29 @@ Plan: `planning/EXECUTION_PLAN_8.md` (DRAFT for approval, 2026-10-15). Prompt: `
 - Medium: token claim is broader than the fault test (401 path only) — static reading, no token found in error formats. Memory-copy claims in `R/arrow.R` and `R/spatial.R` are not measured.
 - Low: extensionless temp file in `read_xet_vector` (`R/spatial.R:173`) with the "80+ formats" claim at `R/spatial.R:118`; `read_xet_parquet` relies on arrow closing the connection; `xet_close_connection` errors on a closed connection; dead `make_hf_api_request` in `R/utils.R:165`; `uuid` not installed in CI; AGENTS.md 1.70 stale; STATE_7 close-gap residual is stale (fixed by 47f3c5d).
 - Decision: 8.4.1 not created. No critical or high product finding; the high item is the planned gate placeholder. Medium and low items are residual gaps (recorded below), not fixed in this plan.
+
+## Final phase gate (orchestrator, serial, 2026-10-15)
+
+- [x] Step 1 roxygenise: NAMESPACE unchanged; `man/rxet-package.Rd` gained the DESCRIPTION links (committed).
+- [x] Step 2 routine suite, local server, arrow/terra/sf installed: 242 passed, 0 failed, 0 errors, 15 skipped (baseline 239/15; +3 from the 8.1.3 test).
+- [ ] Step 3 live suite: NOT RUN. `HF_TOKEN` is not set in the orchestrator session. Needs the user to export it and approve the run.
+- [x] Step 4 clean-archive `git archive HEAD` → `R CMD build` → `R CMD check --no-manual`: Status OK.
+- [x] Step 5 tarball (94 entries): no `.env`, `local_cas_data/`, `planning/`, `docs/`, `.o`, `Makevars`. Credential scan: only "Bearer token" doc text.
+- [x] Step 6 NEWS.md placeholder filled from steps 2 and 4. Live line says "not yet recorded".
+- [x] Step 7 every task has a todo and report under `planning/tasks/` (8.1.1 to 8.3.1).
+- [ ] Step 8 residual gaps (below). Tag and publication await user approval.
+
+## Residual gaps (recorded, not fixed in plan 8)
+
+- CI unvalidated until pushed (8.5.1 is gated). Last CI result on record: plan 6.
+- Live suite not yet run under plan 8 (step 3).
+- Shapefile and other multi-file vector formats: documented as a limitation (D4).
+- Range-backed or seekable connection deferred (plan 7).
+- Upstream xet-core "Data sender was dropped" race: not reported; needs user go-ahead.
+- Token claim (NEWS, README) covers the 401 path only in the fault test; static review found no token in error formats.
+- Memory-copy claims in `R/arrow.R` and `R/spatial.R` are unmeasured.
+- `read_xet_vector` temp file has no extension (`R/spatial.R:173`); the "80+ formats" wording at `R/spatial.R:118` is overstated.
+- `uuid` is in Suggests but not installed in CI, so the uuid tests skip silently.
+- `AGENTS.md:208` says Rust >= 1.70; enforced minimum is 1.85.0.
+- `make_hf_api_request` (`R/utils.R:165`) is dead code.
+- Tag `v0.1.0`, GitHub release, and push: awaiting user approval (master plan Phase 7 item 7; H5).
