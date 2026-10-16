@@ -100,3 +100,18 @@ Plan: `planning/EXECUTION_PLAN_7.md` (APPROVED 2026-10-16 by the user; D8 amende
 - Deviations: none from the approved plan.
 - Discovered: `read_xet_parquet_stream` refusal comes from `xet_stream_raw()` (R/stream.R:48-52), not `xet_open_connection()`; documented as such (approved).
 - Discovered: `read_xet_parquet_stream` is refused by the cap in `xet_stream_raw`, so the other three helpers are refused in `xet_open_connection`. Both messages name `xet_download_file()`.
+
+## Final phase gate (orchestrator, 2026-10-15)
+- [x] `roxygen2::roxygenise()` run after wave 4: only the four helper Rd pages changed; NAMESPACE unchanged.
+- [x] Routine suite with `RXET_LOCAL_CAS_SERVER` and arrow, terra, sf installed (`devtools::test()`): FAILED 0, ERR 0, PASSED 239, SKIPPED 15 (baseline was 224 pass, 17 skip; new tests added).
+- [x] Clean-archive `R CMD build --no-manual` and `R CMD check --no-manual` with `_R_CHECK_FORCE_SUGGESTS_=false` and no server or live variables: Status OK.
+- [x] Fixtures under 100 KB each (1204 B, 529 B, 2240 B); hashes match PROVENANCE.md (fresh-dir regeneration byte-identical).
+- [x] Every task has a todo in `planning/tasks/` (7.1.1, 7.1.2, 7.2.1, 7.2.2a, 7.2.2, 7.3.1) and a STATE_7 report.
+- Product changes made during this orchestration (each approved by the user): 5f764c1 (read_xet_parquet closed a connection arrow had already closed), 6caa988 (raster and vector helpers read from a temp file; raster values loaded into memory).
+
+## Residual gaps
+- CI with arrow, terra and sf (D8, commit e43f59a) is unvalidated until pushed.
+- Shapefile (multi-file) formats are not supported by `read_xet_vector` or `read_xet_raster`; the roxygen now says so.
+- Range-backed connection is deferred (master plan item 4).
+- Phase 7 (release validation and publication) is a later orchestration.
+- Small: if `readBin` errors inside `read_xet_raster`/`read_xet_vector`, the connection is not closed (no exit handler). Not covered by a test.
