@@ -51,3 +51,22 @@ fn insert_then_remove_then_acquire_none() {
     assert!(reg.remove("k").unwrap().is_some());
     assert!(reg.acquire("k").unwrap().is_none());
 }
+
+#[test]
+fn size_mismatch_message_names_both_sizes() {
+    let raw = "Internal error: File size mismatch: expected 65537 bytes but downloaded 65536 bytes";
+    assert_eq!(
+        crate::size_mismatch_message(65537, raw).as_deref(),
+        Some("downloaded size does not match file_size: expected 65537 bytes, got 65536 bytes")
+    );
+}
+
+#[test]
+fn size_mismatch_message_ignores_other_errors() {
+    assert!(crate::size_mismatch_message(10, "Internal error: something else").is_none());
+}
+
+#[test]
+fn size_mismatch_message_unparseable_count_is_none() {
+    assert!(crate::size_mismatch_message(10, "File size mismatch: expected 10 bytes but downloaded many bytes").is_none());
+}

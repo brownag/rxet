@@ -63,7 +63,35 @@ Source: `xet-client` 1.7.0 (also `xet-data`, `xet-core-structures`, `xet-runtime
 
 No token values were printed or written. Repo files changed: this section only.
 
+### 6.1.2.size-mismatch-fix (done)
+
+- Error text change: a size mismatch now raises `downloaded size does not match file_size: expected 65537 bytes, got 65536 bytes` (exact text for the test case). The `download error:` and `finish error:` prefixes and the `Internal error` / `Task error` wrapping are dropped for this case only. All other errors keep their existing format.
+- The size error surfaced at `finish_blocking` (wrapped as `finish error: Task error: File size mismatch: ...`), not at the download call as 6.1.1 predicted. The helper is applied to both mappings in `src/rust/src/lib.rs`.
+- Rust: `size_mismatch_message` helper in `src/rust/src/lib.rs`, unit tests in `src/rust/src/tests.rs` (3 new).
+- R: `tests/testthat/test-local-failures.R` size test now asserts the new message and no `Internal error|panic`. `R/download.R` unchanged.
+- Counts: `cargo test --lib tests::` 7 passed, 0 failed. `devtools::test(filter="local-failures")` PASS 18, FAIL 0, SKIP 1 (token test, skipped by design). First reinstall attempt hit a transient Rust dep-info error and was retried; second install succeeded.
+- Not committed. `src/Makevars` and `src/entrypoint.o` show as modified in the worktree and were not staged.
+
 ### Plan amendments from 6.1.1 (2026-10-15)
 - 6.2.2 token-expiry: the "rejection status from 6.1.1" does not exist (no 401 or expiry mapping in xet-client 1.7.0 or the local server). The fault server returns 401 and the test asserts a fatal error with no token value and no destination file. A 403 would be retried by term fetch, so do not use 403.
 - 6.1.2 size-mismatch: the premise "panic-style message" is not supported by source. The check is `xet-data` `File size mismatch: expected N bytes but downloaded M bytes`, wrapped by `hf-xet` as `Internal error: ...` and by rxet as `download error:` or `finish error:` (`src/rust/src/lib.rs:266,270`). Decision needed from the user: fix the wording (a clean R message) or record it as-is. 6.1.2 is held until the user decides.
 - DECISION (user, 2026-10-15): 6.1.2 proceeds with "Clean the wording (Recommended)": map the size mismatch to a plain R error naming expected and downloaded sizes; no panic wording; test added.
+
+### 6.2.1.fault-server (done, with a finding)
+
+Files: `tests/testthat/helper-fault-cas.R` (new), `tests/testthat/test-fault-midstream.R` (new). No src changes. No commit. `src/Makevars` and `src/entrypoint.o` not staged.
+
+Pre-coding checks (read-only):
+- Fallback: a 404 on `/v2/reconstructions` triggers the V1 fallback (`xet-client-1.7.0/src/cas_client/remote_client.rs:316-321`, matches `NOT_FOUND | NOT_IMPLEMENTED`).
+- `Range` and `Content-Length`: not re-checked against the code; the test does not depend on them beyond the 404 route.
+
+Run: `Rscript -e 'devtools::test(filter="fault-midstream")'`. Per coordinator answer 1, `RXET_LOCAL_CAS_SERVER` is dropped from the command.
+- Counts: 9 testcases, 0 failures, 0 errors, 0 skipped (JUnit reporter).
+- Elapsed: 0.30 s total test time. The whole `devtools::test` call took about 39 s, mostly load and compile.
+
+Exact error text (from a diagnostic run, `scratchpad/diag/capture.R`):
+- `xet_download_file`: `finish error: Task error: File reconstruction error: Internal Writer Error: Byte range not sequential: expected start at 65536, got 256000000` (0.02 s).
+- `xet_stream_raw`: `stream read error: Internal error: Internal Writer Error: Byte range not sequential: expected start at 65536, got 256000000` (0.02 s).
+- Source of the message: `xet-data-1.7.0/src/file_reconstruction/data_writer/sequential_writer.rs:270-275`.
+
+FINDING (must be read before relying on this test): the test passes, but it does not exercise a mid-stream drop. The error is raised by the sequential writer when a term's byte start does not match the expected position. It is not a short read and not a bad-term-body error. It fires in about 20 ms, so the client never reaches the term fetch. The server's `/xorb/` route is probably never hit. The coordinator's answer 2 (accept only term-fetch errors) is therefore NOT met: the decoder error comes from the reconstruction layer. The `got 256000000` value is not explained by the V1 JSON the server sends (one term, `unpacked_length` 65536). The cause is not yet traced. The test still checks the failure contract (error, no dest, no `.part`, no token leak, bounded time), but not the drop itself. Next step: trace where the second term's byte start comes from, and fix the JSON or the server, not the assertions.

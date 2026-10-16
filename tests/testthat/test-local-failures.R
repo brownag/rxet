@@ -94,6 +94,8 @@ test_that("size mismatch: download with wrong file_size errors, never writes tru
   )
   # Observed (probe 5.3.1): an error is raised and no destination is written.
   expect_s3_class(err, "error")
+  expect_match(conditionMessage(err), "expected 65537 bytes, got 65536 bytes", fixed = TRUE)
+  expect_false(grepl("Internal error|panic", conditionMessage(err)))
   expect_false(grepl("rxet-leak-canary-7f3a", conditionMessage(err), fixed = TRUE))
   expect_false(file.exists(dest))
   expect_length(list.files(dir, all.files = TRUE, pattern = "\\.part$"), 0)

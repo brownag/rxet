@@ -236,6 +236,19 @@ fn xet_stream_range(
     }))
 }
 
+/// Maps an hf-xet size-mismatch error to a plain message naming both sizes.
+/// Returns None for any other error text, or when the downloaded count cannot be parsed.
+fn size_mismatch_message(expected: u64, err_text: &str) -> Option<String> {
+    if !err_text.contains("File size mismatch") {
+        return None;
+    }
+    let after = err_text.split("downloaded ").nth(1)?;
+    let actual: u64 = after.split_whitespace().next()?.parse().ok()?;
+    Some(format!(
+        "downloaded size does not match file_size: expected {expected} bytes, got {actual} bytes"
+    ))
+}
+
 /// Download a file from Xet storage to a local path
 #[extendr]
 fn xet_download_file(
@@ -263,11 +276,23 @@ fn xet_download_file(
 
         group
             .download_file_to_path_blocking(info, dest)
-            .map_err(|e| Error::Other(format!("download error: {}", e)))?;
+            .map_err(|e| {
+                let text = e.to_string();
+                match size_mismatch_message(size, &text) {
+                    Some(msg) => Error::Other(msg),
+                    None => Error::Other(format!("download error: {}", text)),
+                }
+            })?;
 
         group
             .finish_blocking()
-            .map_err(|e| Error::Other(format!("finish error: {}", e)))?;
+            .map_err(|e| {
+                let text = e.to_string();
+                match size_mismatch_message(size, &text) {
+                    Some(msg) => Error::Other(msg),
+                    None => Error::Other(format!("finish error: {}", text)),
+                }
+            })?;
 
         Ok(())
     }))
