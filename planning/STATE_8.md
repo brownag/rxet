@@ -76,7 +76,7 @@ Plan: `planning/EXECUTION_PLAN_8.md` (DRAFT for approval, 2026-10-15). Prompt: `
 
 - [x] Step 1 roxygenise: NAMESPACE unchanged; `man/rxet-package.Rd` gained the DESCRIPTION links (committed).
 - [x] Step 2 routine suite, local server, arrow/terra/sf installed: 242 passed, 0 failed, 0 errors, 15 skipped (baseline 239/15; +3 from the 8.1.3 test).
-- [ ] Step 3 live suite: NOT RUN. `HF_TOKEN` is not set in the orchestrator session. Needs the user to export it and approve the run.
+- [x] Step 3 live suite (token sourced from .env for this run, approved by the user): 18 passed, 0 failed, 0 errors, 0 skipped.
 - [x] Step 4 clean-archive `git archive HEAD` → `R CMD build` → `R CMD check --no-manual`: Status OK.
 - [x] Step 5 tarball (94 entries): no `.env`, `local_cas_data/`, `planning/`, `docs/`, `.o`, `Makevars`. Credential scan: only "Bearer token" doc text.
 - [x] Step 6 NEWS.md placeholder filled from steps 2 and 4. Live line says "not yet recorded".

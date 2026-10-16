@@ -76,4 +76,4 @@ Recorded at the release gate (HEAD before this commit):
 
 - Routine suite, local CAS server, arrow, terra and sf installed: 242 passed, 0 failed, 0 errors, 15 skipped.
 - Clean-archive `R CMD build` and `R CMD check --no-manual` (no server or live variables): Status OK.
-- Live suite (`RXET_LIVE_TESTS=1`, opt-in): not yet recorded for this release.
+- Live suite (`RXET_LIVE_TESTS=1`, opt-in, live Hub token): 18 passed, 0 failed, 0 errors, 0 skipped.
