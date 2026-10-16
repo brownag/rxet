@@ -9,6 +9,14 @@
 Native R bindings to the Hugging Face Xet content-addressed storage engine
 via Rust and the extendr framework.
 }
+\seealso{
+Useful links:
+\itemize{
+  \item \url{https://github.com/soilschema/rxet}
+  \item Report bugs at \url{https://github.com/soilschema/rxet/issues}
+}
+
+}
 \author{
 \strong{Maintainer}: Andrew Brown \email{brown.andrewg@gmail.com}
 
