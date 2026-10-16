@@ -63,3 +63,11 @@ Plan: `planning/EXECUTION_PLAN_8.md` (DRAFT for approval, 2026-10-15). Prompt: `
 ## Wave 2 board
 
 - 8.2.1: done. 8.2.2: done.
+
+## 8.3.1 (final review, static, read-only)
+
+- Result: 0 critical, 1 high, 2 medium, 7 low (10 findings). Review: `planning/tasks/8.3.1.review.md`. Nothing run (static only).
+- High: `NEWS.md` placeholder `TEST_EVIDENCE_PENDING`. Expected; filled at gate step 6 (J3). Not a product defect.
+- Medium: token claim is broader than the fault test (401 path only) — static reading, no token found in error formats. Memory-copy claims in `R/arrow.R` and `R/spatial.R` are not measured.
+- Low: extensionless temp file in `read_xet_vector` (`R/spatial.R:173`) with the "80+ formats" claim at `R/spatial.R:118`; `read_xet_parquet` relies on arrow closing the connection; `xet_close_connection` errors on a closed connection; dead `make_hf_api_request` in `R/utils.R:165`; `uuid` not installed in CI; AGENTS.md 1.70 stale; STATE_7 close-gap residual is stale (fixed by 47f3c5d).
+- Decision: 8.4.1 not created. No critical or high product finding; the high item is the planned gate placeholder. Medium and low items are residual gaps (recorded below), not fixed in this plan.
