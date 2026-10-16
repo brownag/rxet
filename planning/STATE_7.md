@@ -16,6 +16,7 @@ Plan: `planning/EXECUTION_PLAN_7.md` (APPROVED 2026-10-16 by the user; D8 amende
 | 7.1.1.spike-helper-paths | 1 | done (a7011b5) |
 | 7.1.2.fixtures | 1 | done (7dedc9c) |
 | 7.2.1.arrow-tests | 2 | done (test commit below; product fix 5f764c1) |
+| 7.2.2a.spatial-read-fix (inserted) | 3 | done (fix, uncommitted until below) |
 | 7.2.2.spatial-tests | 3 | pending |
 | 7.3.1.helper-docs | 4 | pending |
 
@@ -71,3 +72,12 @@ Plan: `planning/EXECUTION_PLAN_7.md` (APPROVED 2026-10-16 by the user; D8 amende
 - Blockers: the product defect above. Awaiting orchestrator decision on the fix task.
 - Orchestrator (after 7.2.1): product defect fixed in `R/arrow.R` (commit 5f764c1): `read_xet_parquet` no longer closes the connection in `on.exit`; it closes it only on the error path. Re-run `devtools::test(filter="arrow-spatial")` with `RXET_LOCAL_CAS_SERVER=$HOME/.cargo/bin/local_cas_server`: 5 pass, 0 fail, 3 skip (first arrow test and the terra/sf absence checks).
 - Note: the old `read_xet_parquet handles nonexistent files gracefully` test (HF_TOKEN-gated) was replaced by the approved local-server tests.
+
+## 7.2.2a
+- Status: done (acceptance passed on local server; nothing committed).
+- Files changed: `R/spatial.R` lines 67-79 (`read_xet_raster` body: readBin, close, tempfile, on.exit unlink, writeBin, rast, unwrap(wrap), crop) and 135-149 (`read_xet_vector` body: readBin, close, tempfile, on.exit unlink, writeBin, sf::st_read(path)). Roxygen, signatures, guards and stopifnot unchanged. Plan `planning/tasks/7.2.2a.todo.md`.
+- Deviation (approved option c, function changed): `terra::readAll()` is not exported in terra 1.9.51. Used `terra::unwrap(terra::wrap(rast))` to load values into memory before unlink (probe: sum of 1..256 = 32896, inMemory TRUE).
+- Acceptance: `RXET_LOCAL_CAS_SERVER=$HOME/.cargo/bin/local_cas_server Rscript <scratchpad>/accept_7_2_2a.R` gave raster nrow 16, ncol 16, values length 256 readable after return; vector feature count 3; temp files added by each read 0. Output "ACCEPTANCE PASS".
+- Discovered: the raster is loaded into memory, so peak memory is the file bytes plus the raster values. Single-file temp writes cannot serve multi-file formats such as shapefiles (`.shp/.dbf/.shx`), which the roxygen lists; not fixed, signature unchanged.
+- Discovered: terra reads pixel values lazily from the path; unlinking a file-backed raster makes `values()` fail (`[readStart] file does not exist`).
+- sf path: `sf::st_read` reads the full file, so no extra load step was added.
