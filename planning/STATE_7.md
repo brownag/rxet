@@ -81,3 +81,14 @@ Plan: `planning/EXECUTION_PLAN_7.md` (APPROVED 2026-10-16 by the user; D8 amende
 - Discovered: the raster is loaded into memory, so peak memory is the file bytes plus the raster values. Single-file temp writes cannot serve multi-file formats such as shapefiles (`.shp/.dbf/.shx`), which the roxygen lists; not fixed, signature unchanged.
 - Discovered: terra reads pixel values lazily from the path; unlinking a file-backed raster makes `values()` fail (`[readStart] file does not exist`).
 - sf path: `sf::st_read` reads the full file, so no extra load step was added.
+
+## 7.2.2
+- Status: done (acceptance passed on local server; nothing committed).
+- Files changed: `tests/testthat/test-arrow-spatial.R` lines 61-101 (two new tests, inserted after the 2 GiB test and before the "requires" tests). Plan `planning/tasks/7.2.2.todo.md` (new).
+- Tests: "read_xet_raster returns the 16x16 GeoTIFF with the generator's values" (dims, CRS "32633", values vs `set.seed(20260102L); round(runif(256), 4)` with tolerance 1e-6, read after return; no new tempdir file). "read_xet_vector returns the three-feature GeoJSON fixture" (class sf, 3 features, matches `sf::st_read` of the fixture; no new tempdir file).
+- Cell order: `make_fixtures.R` uses `terra::values(r) <- round(runif(256), 4)`, which fills cells 1..256 in order (row-major from top-left). Committed values match the seeded sequence within 1e-6 (max abs diff 2.9e-8, Float32).
+- Command: `RXET_LOCAL_CAS_SERVER=$HOME/.cargo/bin/local_cas_server Rscript -e 'devtools::test(filter="arrow-spatial")'`: FAIL 0, SKIP 3, PASS 14. Skips: HF_TOKEN test (untouched), terra and sf "requires" tests (installed, untouched). Both new tests ran and passed.
+- Local server: `$HOME/.cargo/bin/local_cas_server`.
+- Deviations: approved change applied (seeded values, not terra reading the committed file). Tolerance 1e-6 is needed for Float32 storage; `identical()` fails.
+- Discovered: `sf::st_read` in `read_xet_vector` prints a "Reading layer" message to the console (not quiet). Not a failure.
+- Discovered: no new temp files were left by either read.

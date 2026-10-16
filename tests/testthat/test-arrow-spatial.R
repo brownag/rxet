@@ -58,6 +58,47 @@ test_that("read_xet_parquet refuses a file above the 2 GiB cap and names xet_dow
   )
 })
 
+test_that("read_xet_raster returns the 16x16 GeoTIFF with the generator's values", {
+  skip_without_local_cas()
+  skip_if_not_installed("terra")
+  client <- start_fixture_client()
+  info <- serve_fixture(client, "small.tif")
+
+  before <- list.files(tempdir(), full.names = TRUE)
+  r <- read_xet_raster(client, info$hash, info$file_size)
+  after <- list.files(tempdir(), full.names = TRUE)
+
+  # Values are read after the call returns: the helper unlinks its temp file
+  # on exit, so this also proves the raster was loaded into memory.
+  expect_s4_class(r, "SpatRaster")
+  expect_equal(c(terra::nrow(r), terra::ncol(r), terra::nlyr(r)), c(16, 16, 1))
+  expect_equal(terra::crs(r, describe = TRUE)$code, "32633")
+
+  # make_fixtures.R assigns round(runif(256), 4) with terra::values<-, which
+  # fills cells 1..256 in order (row-major from the top-left).
+  set.seed(20260102L)
+  expected <- round(runif(256), 4)
+  expect_equal(as.numeric(terra::values(r)[, 1]), expected, tolerance = 1e-6)
+
+  expect_length(setdiff(after, before), 0)
+})
+
+test_that("read_xet_vector returns the three-feature GeoJSON fixture", {
+  skip_without_local_cas()
+  skip_if_not_installed("sf")
+  client <- start_fixture_client()
+  info <- serve_fixture(client, "small.geojson")
+
+  before <- list.files(tempdir(), full.names = TRUE)
+  v <- read_xet_vector(client, info$hash, info$file_size)
+  after <- list.files(tempdir(), full.names = TRUE)
+
+  expect_s3_class(v, "sf")
+  expect_equal(nrow(v), 3L)
+  expect_equal(nrow(v), nrow(sf::st_read(fixture_path("small.geojson"), quiet = TRUE)))
+  expect_length(setdiff(after, before), 0)
+})
+
 test_that("read_xet_raster requires terra package", {
   skip_if_not(is_compiled())
   if (requireNamespace("terra", quietly = TRUE)) {
