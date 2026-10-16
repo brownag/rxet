@@ -21,6 +21,33 @@ test_that("read_xet_parquet returns the data frame written by make_fixtures.R", 
   expect_equal(read_xet_parquet(client, info$hash, info$file_size), expected)
 })
 
+test_that("read_xet_parquet closes its connection on success", {
+  skip_without_local_cas()
+  skip_if_not_installed("arrow")
+  client <- start_fixture_client()
+  info <- serve_fixture(client, "small.parquet")
+
+  captured <- NULL
+  real_open <- xet_open_connection
+  testthat::local_mocked_bindings(
+    xet_open_connection = function(handle, file_hash, file_size) {
+      captured <<- real_open(handle, file_hash, file_size)
+      captured
+    },
+    .package = "rxet"
+  )
+
+  expected <- arrow::read_parquet(fixture_path("small.parquet"))
+  expect_equal(read_xet_parquet(client, info$hash, info$file_size), expected)
+  expect_true(inherits(captured, "connection"))
+  # A closed R connection makes isOpen() error "invalid connection"; that is
+  # the closed state. Any other error is re-raised.
+  closed <- tryCatch(!isOpen(captured), error = function(e) {
+    if (grepl("invalid connection", conditionMessage(e))) TRUE else stop(e)
+  })
+  expect_true(closed)
+})
+
 test_that("read_xet_parquet_stream returns the data frame written by make_fixtures.R", {
   skip_without_local_cas()
   skip_if_not_installed("arrow")
