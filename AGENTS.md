@@ -205,7 +205,7 @@ rxet/
 ├── NAMESPACE                   # Exports (patterns: ^xet_)
 └── tools/
     ├── config.R                # Generate src/Makevars
-    └── msrv.R                  # Validate Rust version >= 1.70
+    └── msrv.R                  # Validate Rust version >= 1.85
 ```
 
 ---

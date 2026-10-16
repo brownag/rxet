@@ -147,39 +147,3 @@ maintain_cache <- function(cache, ttl_days = 90, max_entries = 5000) {
     evict_old_cache(ttl_days = ttl_days) |>
     evict_excess_cache(max_entries = max_entries)
 }
-
-#' Make authenticated HuggingFace API request
-#'
-#' Internal utility for making authenticated requests to HuggingFace API.
-#'
-#' @param url Character string URL to request
-#' @param method HTTP method ("GET", "POST", "HEAD")
-#' @param parse_json Logical; if TRUE, parse response as JSON
-#' @param token Bearer token for authentication
-#'
-#' @return List with components:
-#'   - `success`: Logical; TRUE if request succeeded
-#'   - `data`: Response data (headers as character, or parsed JSON)
-#'   - `error`: Error message if `success = FALSE`#'
-#' @keywords internal
-make_hf_api_request <- function(url, method = "GET", parse_json = FALSE, token) {
-  tryCatch({
-    req <- httr2::request(url) |>
-      httr2::req_headers("Authorization" = paste("Bearer", token)) |>
-      httr2::req_method(method)
-
-    response <- httr2::req_perform(req)
-
-    list(
-      success = TRUE,
-      data = if (parse_json) {
-        httr2::resp_body_json(response)
-      } else {
-        response
-      },
-      error = NULL
-    )
-  }, error = function(e) {
-    list(success = FALSE, data = NULL, error = as.character(e))
-  })
-}

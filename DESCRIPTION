@@ -22,12 +22,10 @@ Suggests:
     arrow,
     digest,
     future.apply,
-    jsonlite,
     processx,
     rprojroot,
     sf,
     terra,
     uuid,
-    testthat (>= 3.0.0),
-    covr
+    testthat (>= 3.0.0)
 Config/roxygen2/version: 8.1.0
