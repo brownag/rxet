@@ -16,8 +16,6 @@ Config/rextendr/version: 0.5.0
 SystemRequirements: Cargo (Rust's package manager), rustc >= 1.85.0
 Depends:
     R (>= 4.2)
-Imports:
-    httr2
 Suggests:
     arrow,
     digest,
