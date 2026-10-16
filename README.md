@@ -229,44 +229,30 @@ capped at 2 GiB (2^31 − 1 bytes) and error above that, so use
 
 ## Testing
 
-Run the test suite:
+Routine offline suite (no credentials, no server, no network):
 
 ``` r
 devtools::test()
-
-# Run specific test file
-devtools::test_file("tests/testthat/test-stream-range.R")
-
-# Test with coverage
-covr::package_coverage()
 ```
 
-Test suite includes: - **Mock backend**
-(`tests/testthat/helper-mock-backend.R`) — in-process, offline
-simulation of the Xet/CAS HTTP endpoints - **Input validation and error
-paths** (`tests/testthat/test-input-validation.R`) — argument checks for
-`xet_download_file`, `xet_stream_range`, and `xet_upload_file` -
-**Config side effects** (`tests/testthat/test-config.R`) —
-`xet_config_environment` sets the documented environment variables -
-**Connection wrappers** (`tests/testthat/test-connection.R`) —
-`xet_open_connection` / `xet_close_connection` - **Range arithmetic**
-(`tests/testthat/test-stream-range.R`) — R-side overlap calculations
-between requested byte ranges and fixture chunks; this file does not
-call `xet_stream_range()` against a live endpoint - **Client,
-concurrency and edge cases** (`tests/testthat/test-client.R`,
-`test-concurrent.R`, `test-edge-cases.R`) - **Download action state
-machine** (`tests/testthat/test-parallel-downloads.R`)
+Local-server tests (uploads and local round trips) run against the
+upstream `local_cas_server`. Install it with
+`cargo install xet-client --version 1.7.0 --features simulation --bin local_cas_server --locked`,
+then set `RXET_LOCAL_CAS_SERVER` to the binary path. Without it, these
+tests skip.
 
-Tests that hit a real Xet endpoint are opt-in: they skip unless the Rust
-extension is compiled and `HF_TOKEN` is set (see
-`tests/testthat/test-streaming.R`). The regular suite runs offline
-against the mock backend and needs no credentials.
+Live tests are on demand only and never run in public CI. They require
+`RXET_LIVE_TESTS=1` and `HF_TOKEN` (fine-grained read on the dataset
+`brownag/rxet-test-data`). Without `HF_TOKEN` they fail rather than skip.
+
+Public CI runs the local-server suite once task 5.4.1 lands; CI
+execution is not yet validated until the first push.
 
 ## FAQ
 
 **Q: Does rxet require an internet connection?** A: Yes, for real
-downloads from Hugging Face Hub. The test suite uses an in-process mock
-backend and runs offline.
+downloads from Hugging Face Hub. The routine test suite runs offline without
+a network connection.
 
 **Q: Can I use rxet with private repositories?** A: Yes, if your token
 grants access to the repository. `xet_client_new(endpoint, token)` takes

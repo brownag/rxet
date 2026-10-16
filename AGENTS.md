@@ -137,20 +137,29 @@ The hf-xet crate publishes lib name `xet`, and public types live in `xet::xet_se
 
 ## Testing
 
-**No formal test suite yet.** Smoke tests are manual:
+**Routine offline suite** (no credentials, no server, no network):
+
 ```bash
-R --quiet --no-save << 'EOF'
-library(rxet)
-client <- xet_client_new("https://example.com", "token")
-xet_client_close(client)
-cat("✓ API works\n")
-EOF
+Rscript -e 'devtools::test()'
 ```
 
-Integration testing requires:
-- Live Xet CAS endpoint
-- Valid bearer token
-- XetFileInfo (hash + file_size) from HuggingFace Hub
+Tests tied to the compiled Rust extension skip when it is not available.
+
+**Local-server tests** (uploads and local round trips) run against the upstream `local_cas_server`. Install it once and point `RXET_LOCAL_CAS_SERVER` at the binary:
+
+```bash
+cargo install xet-client --version 1.7.0 --features simulation --bin local_cas_server --locked
+export RXET_LOCAL_CAS_SERVER="$(command -v local_cas_server)"
+```
+
+Without `RXET_LOCAL_CAS_SERVER` (and no `local_cas_server` on `PATH`), these tests skip. Uploads are tested only against this local server.
+
+**Live tests** (on demand only, never in public CI):
+- Gate: `RXET_LIVE_TESTS=1` and `HF_TOKEN` set in the environment. The token needs fine-grained read access to the dataset `brownag/rxet-test-data`.
+- `HF_TOKEN` is required. The helper exchanges it in memory for the short-lived accessToken from the Hub's xet-read-token endpoint, because the CAS server rejects the raw token. Without `HF_TOKEN` the live tests fail; they do not skip.
+- Run: `RXET_LIVE_TESTS=1 Rscript -e 'devtools::test(filter = "live-hf")'`
+
+**CI:** public CI runs the local-server suite once task 5.4.1 lands (it installs `local_cas_server` and sets `RXET_LOCAL_CAS_SERVER`). It never runs the live suite. CI execution is not yet validated until the first push.
 
 ---
 
