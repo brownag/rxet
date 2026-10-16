@@ -95,3 +95,20 @@ Exact error text (from a diagnostic run, `scratchpad/diag/capture.R`):
 - Source of the message: `xet-data-1.7.0/src/file_reconstruction/data_writer/sequential_writer.rs:270-275`.
 
 FINDING (must be read before relying on this test): the test passes, but it does not exercise a mid-stream drop. The error is raised by the sequential writer when a term's byte start does not match the expected position. It is not a short read and not a bad-term-body error. It fires in about 20 ms, so the client never reaches the term fetch. The server's `/xorb/` route is probably never hit. The coordinator's answer 2 (accept only term-fetch errors) is therefore NOT met: the decoder error comes from the reconstruction layer. The `got 256000000` value is not explained by the V1 JSON the server sends (one term, `unpacked_length` 65536). The cause is not yet traced. The test still checks the failure contract (error, no dest, no `.part`, no token leak, bounded time), but not the drop itself. Next step: trace where the second term's byte start comes from, and fix the JSON or the server, not the assertions.
+
+#### 6.2.1 follow-up: finding resolved (correction 1 of 2)
+
+Cause of `got 256000000`: the client does not ask for the whole file in one reconstruction call. The reconstruction GET carries `Range: bytes=S-E` (`xet-client-1.7.0/src/cas_client/remote_client.rs:244-248`), and a 416 means end of file (`remote_client.rs:271-273`, `retry_wrapper.rs:204`). The fault server ignored `Range`, so the second window (start 256000000, from the prefetch block sizing in `xet-data-1.7.0/src/file_reconstruction/reconstruction_terms/manager.rs:239-247`) got the same one-term JSON. `file_term.rs:285` then placed that term at the window start, and `sequential_writer.rs:270-275` rejected it. The JSON fields were not wrong.
+
+Correction 1 (helper only, no assertion changed): the server parses `Range` and returns 416 when the start is at or past the file size (65536). It also logs each request line to `<ready>.req`, and logs `sent N of M` for each term body.
+
+Result after correction 1 (diagnostic run, then the test run below):
+- The error now comes from the term fetch. The `/xorb/term` route is hit.
+- Request counts per call (from the server request log): download = 3 `GET /v2/reconstructions` (404), 3 `GET /v1/reconstructions`, 2 `GET /xorb/term`. Stream = the same counts. One `POST /v1/telemetry` from the client.
+- Body: each `/xorb/term` response sent exactly half the body, `sent 32768 of 65536`, with `Content-Length: 65536`.
+- Exact final error text, download: `finish error: Task error: File reconstruction error: CAS Client Error: Format error: I/O error: error decoding response body`.
+- Exact final error text, stream: `stream read error: I/O error: I/O error: error decoding response body`.
+- Classification: the HTTP body ended before its `Content-Length`, so `error decoding response body` is the short read surfacing through the HTTP layer. It is not a bad-term-body parse error. The text does not say "truncated".
+- Timing: download about 2.8 s, stream about 1.9 s (diagnostic run).
+
+Test run after correction 1 (`devtools::test(filter="fault-midstream")`): 11 testcases, 0 failures, 0 errors, 0 skipped. Total test time 2.58 s. Two new assertions: `expect_true(any(grepl("^GET /xorb/", reqs)))` in each test. These tighten the tests and loosen nothing.
