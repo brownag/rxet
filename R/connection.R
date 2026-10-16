@@ -79,6 +79,12 @@ xet_open_connection <- function(handle, file_hash, file_size) {
 #' @seealso [close()], [xet_open_connection()]
 #' @export
 xet_close_connection <- function(conn) {
+  if (inherits(conn, "connection")) {
+    is_open <- tryCatch(isOpen(conn), error = function(e) {
+      if (grepl("invalid connection", conditionMessage(e))) FALSE else stop(e)
+    })
+    if (!is_open) return(invisible(NULL))
+  }
   close(conn)
   invisible(NULL)
 }

@@ -11,6 +11,24 @@ test_that("xet_open_connection validates input parameters", {
   expect_error(xet_open_connection("handle", "hash", -1), "file_size")
 })
 
+test_that("xet_close_connection closes twice without error", {
+  conn <- rawConnection(as.raw(1:4), "r")
+  expect_null(xet_close_connection(conn))
+  expect_error(xet_close_connection(conn), NA)
+})
+
+test_that("xet_close_connection accepts a connection the caller already closed", {
+  conn <- rawConnection(as.raw(1:4), "r")
+  close(conn)
+  expect_error(xet_close_connection(conn), NA)
+  expect_null(xet_close_connection(conn))
+})
+
+test_that("xet_close_connection still errors on non-connection input", {
+  expect_error(xet_close_connection("x"))
+  expect_error(xet_close_connection(1))
+})
+
 test_that("live connection reads the public parquet and closes (RXET_LIVE_TESTS)", {
   skip_if_not(identical(Sys.getenv("RXET_LIVE_TESTS"), "1"), "live tests are opt-in: set RXET_LIVE_TESTS=1")
   skip_if_not(is_compiled(), "Rust extension not available")
