@@ -17,11 +17,23 @@
 #' 1. Opens a Xet connection to the file via [xet_open_connection()]
 #' 2. Passes it to `arrow::read_parquet()` which reads from the connection
 #' 3. Supports all Arrow read_parquet options (col_select, filters, schema, etc.)
-#' 4. Automatically closes the connection when done
+#' 4. Arrow closes the connection after reading; this function closes it only
+#'    if reading fails
 #'
 #' The entire file is buffered into memory by [xet_open_connection()] before
 #' Arrow reads it, so column selection and filters reduce Arrow/in-memory work
 #' but not the number of bytes downloaded.
+#'
+#' **Whole-download:** the file is fully read before the call returns. No
+#' temporary file is used. Peak memory is about one copy of the file plus the
+#' parsed object.
+#'
+#' **2 GiB limit:** files larger than 2 GiB (2147483647 bytes) are refused by
+#' [xet_open_connection()] before any network call. The error names
+#' `xet_download_file()`.
+#'
+#' **Optional package:** `arrow` is in Suggests and is checked with
+#' `requireNamespace()`.
 #'
 #' **Status:** Experimental pending live evidence.
 #'
@@ -77,27 +89,37 @@ read_xet_parquet <- function(handle, file_hash, file_size, ...) {
   )
 }
 
-#' Read a Parquet file from Xet via a temporary file
+#' Read a Parquet file from Xet via a whole-file download and temporary file
 #'
 #' Downloads the entire Parquet file into memory, writes it to a temporary
-#' `.parquet` file, and reads it with Arrow. This is an alternative to
-#' [read_xet_parquet()] for use cases where a temporary file is preferred.
+#' `.parquet` file, and reads it with Arrow. This is a whole-download helper,
+#' not a streaming helper. Use it when a temporary file is preferred over
+#' [read_xet_parquet()].
 #'
 #' @param handle Character string handle from [xet_client_new()]
 #' @param file_hash Character string, the content hash of the Parquet file
 #' @param file_size Numeric scalar, total file size in bytes
 #' @param ... Additional arguments passed to `arrow::read_parquet()`
 #'
-#' @return An Arrow Table or R data frame (depending on `as_data_frame` argument in ...)
+#' @return An R data frame (not a connection)
 #'
 #' @details
 #' This function:
 #' 1. Downloads the **entire** file into memory via [xet_stream_raw()]
 #' 2. Writes those bytes to a temporary `.parquet` file
 #' 3. Reads the temporary file with `arrow::read_parquet()`
-#' 4. Deletes the temporary file
+#' 4. Deletes the temporary file on exit
 #'
-#' Because the whole file is buffered into memory, it must fit in available RAM.
+#' **Whole-download:** the file is fully read before the call returns.
+#' Peak memory is about the file bytes, plus the temporary copy, plus the
+#' parsed data frame.
+#'
+#' **2 GiB limit:** files larger than 2 GiB (2147483647 bytes) are refused by
+#' [xet_stream_raw()] before any network call. The error names
+#' `xet_download_file()`.
+#'
+#' **Optional package:** `arrow` is in Suggests and is checked with
+#' `requireNamespace()`.
 #'
 #' **Status:** Experimental pending live evidence. The end-to-end behaviour
 #' against a live Xet endpoint has not yet been verified.

@@ -19,14 +19,13 @@ read_xet_vector(handle, file_hash, file_size, ...)
 An sf object (data frame with geometry column)
 }
 \description{
-Downloads a shapefile, GeoJSON, GeoPackage, or other vector format from Xet
-storage and reads it with sf/GDAL. The whole file is buffered into memory
-before sf reads it.
+Downloads a GeoJSON, GeoPackage, or other single-file vector format from Xet
+storage and reads it with sf/GDAL. This is a whole-download helper: the file
+is downloaded before sf reads it.
 }
 \details{
-Supports any format that GDAL can read:
+Supports single-file formats that GDAL can read from one temporary file:
 \itemize{
-\item Shapefiles (.shp, .dbf, .shx, etc.)
 \item GeoJSON (.geojson, .json)
 \item GeoPackage (.gpkg)
 \item KML (.kml)
@@ -34,6 +33,21 @@ Supports any format that GDAL can read:
 \item OSM (.osm)
 \item And 80+ other formats
 }
+
+Multi-file formats such as shapefiles (\code{.shp} plus \code{.dbf}, \code{.shx} and other
+sidecars) are not supported, because a single temporary file cannot hold
+the sidecars.
+
+\strong{Whole-download:} the file is downloaded into memory and written to a
+temporary file, which is removed on exit. Peak memory is about the file bytes
+plus the parsed sf object.
+
+\strong{2 GiB limit:} files larger than 2 GiB (2147483647 bytes) are refused by
+\code{\link[=xet_open_connection]{xet_open_connection()}} before any network call. The error names
+\code{xet_download_file()}.
+
+\strong{Optional package:} \code{sf} is in Suggests and is checked with
+\code{requireNamespace()}.
 
 \strong{Status:} Experimental pending live evidence.
 }

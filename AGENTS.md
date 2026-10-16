@@ -166,6 +166,24 @@ Without `RXET_LOCAL_CAS_SERVER` (and no `local_cas_server` on `PATH`), these tes
 
 ---
 
+## Optional integrations
+
+Four helpers read Xet files with an optional package. Each one is in Suggests and is checked with `requireNamespace()`.
+
+| Helper | Package | Path |
+|---|---|---|
+| `read_xet_parquet()` | arrow | In memory via `xet_open_connection()`. No temp file. |
+| `read_xet_parquet_stream()` | arrow | Whole-download, then temp `.parquet` file. Returns a data frame. |
+| `read_xet_raster()` | terra | Whole-download, then temp file. All values loaded before the temp file is removed. |
+| `read_xet_vector()` | sf | Whole-download, then temp file. Single-file formats only. |
+
+- **Whole-download:** each helper reads the entire file before it returns. These are not streaming helpers.
+- **Peak memory:** about one copy of the file plus the parsed object. `read_xet_parquet_stream` adds the temp copy; `read_xet_raster` keeps the loaded raster values.
+- **2 GiB cap:** files over 2147483647 bytes are refused before any network call. `read_xet_parquet_stream` is refused by `xet_stream_raw()` (`R/stream.R`). The others are refused by `xet_open_connection()`. The error names `xet_download_file()`.
+- **Temp files:** the stream, raster and vector helpers write one temp file and remove it on exit. Multi-file formats such as shapefiles are not supported, because their sidecars cannot go in one temp file.
+
+---
+
 ## Codebase Layout
 
 ```

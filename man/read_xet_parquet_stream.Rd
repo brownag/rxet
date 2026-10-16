@@ -2,7 +2,7 @@
 % Please edit documentation in R/arrow.R
 \name{read_xet_parquet_stream}
 \alias{read_xet_parquet_stream}
-\title{Read a Parquet file from Xet via a temporary file}
+\title{Read a Parquet file from Xet via a whole-file download and temporary file}
 \usage{
 read_xet_parquet_stream(handle, file_hash, file_size, ...)
 }
@@ -16,12 +16,13 @@ read_xet_parquet_stream(handle, file_hash, file_size, ...)
 \item{...}{Additional arguments passed to \code{arrow::read_parquet()}}
 }
 \value{
-An Arrow Table or R data frame (depending on \code{as_data_frame} argument in ...)
+An R data frame (not a connection)
 }
 \description{
 Downloads the entire Parquet file into memory, writes it to a temporary
-\code{.parquet} file, and reads it with Arrow. This is an alternative to
-\code{\link[=read_xet_parquet]{read_xet_parquet()}} for use cases where a temporary file is preferred.
+\code{.parquet} file, and reads it with Arrow. This is a whole-download helper,
+not a streaming helper. Use it when a temporary file is preferred over
+\code{\link[=read_xet_parquet]{read_xet_parquet()}}.
 }
 \details{
 This function:
@@ -29,10 +30,19 @@ This function:
 \item Downloads the \strong{entire} file into memory via \code{\link[=xet_stream_raw]{xet_stream_raw()}}
 \item Writes those bytes to a temporary \code{.parquet} file
 \item Reads the temporary file with \code{arrow::read_parquet()}
-\item Deletes the temporary file
+\item Deletes the temporary file on exit
 }
 
-Because the whole file is buffered into memory, it must fit in available RAM.
+\strong{Whole-download:} the file is fully read before the call returns.
+Peak memory is about the file bytes, plus the temporary copy, plus the
+parsed data frame.
+
+\strong{2 GiB limit:} files larger than 2 GiB (2147483647 bytes) are refused by
+\code{\link[=xet_stream_raw]{xet_stream_raw()}} before any network call. The error names
+\code{xet_download_file()}.
+
+\strong{Optional package:} \code{arrow} is in Suggests and is checked with
+\code{requireNamespace()}.
 
 \strong{Status:} Experimental pending live evidence. The end-to-end behaviour
 against a live Xet endpoint has not yet been verified.

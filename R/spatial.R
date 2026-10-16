@@ -1,7 +1,8 @@
 #' Read a raster file from Xet storage using terra
 #'
 #' Downloads a raster file from Xet storage and reads it with terra.
-#' The whole file is buffered into memory before terra reads it.
+#' The whole file is downloaded before terra reads it, so this is a
+#' whole-download helper.
 #'
 #' @param handle Character string handle from [xet_client_new()]
 #' @param file_hash Character string, the content hash of the raster file
@@ -13,6 +14,19 @@
 #'
 #' @details
 #' Uses the terra package (successor to raster) for reading raster files.
+#'
+#' **Whole-download:** the file is downloaded into memory and written to a
+#' temporary file. terra reads it, and all values are loaded into memory
+#' (`terra::unwrap(terra::wrap(...))`) before the temporary file is removed.
+#' The `ext` crop is applied after that load. Peak memory is about the file
+#' bytes plus the in-memory raster values.
+#'
+#' **2 GiB limit:** files larger than 2 GiB (2147483647 bytes) are refused by
+#' [xet_open_connection()] before any network call. The error names
+#' `xet_download_file()`.
+#'
+#' **Optional package:** `terra` is in Suggests and is checked with
+#' `requireNamespace()`.
 #'
 #' ```r
 #' dem <- read_xet_raster(client, "geotiff-hash", 2e9)
@@ -83,9 +97,9 @@ read_xet_raster <- function(handle, file_hash, file_size, ext = NULL, ...) {
 
 #' Read a vector file from Xet storage using sf/GDAL
 #'
-#' Downloads a shapefile, GeoJSON, GeoPackage, or other vector format from Xet
-#' storage and reads it with sf/GDAL. The whole file is buffered into memory
-#' before sf reads it.
+#' Downloads a GeoJSON, GeoPackage, or other single-file vector format from Xet
+#' storage and reads it with sf/GDAL. This is a whole-download helper: the file
+#' is downloaded before sf reads it.
 #'
 #' @param handle Character string handle from [xet_client_new()]
 #' @param file_hash Character string, the content hash of the vector file
@@ -95,14 +109,28 @@ read_xet_raster <- function(handle, file_hash, file_size, ext = NULL, ...) {
 #' @return An sf object (data frame with geometry column)
 #'
 #' @details
-#' Supports any format that GDAL can read:
-#' - Shapefiles (.shp, .dbf, .shx, etc.)
+#' Supports single-file formats that GDAL can read from one temporary file:
 #' - GeoJSON (.geojson, .json)
 #' - GeoPackage (.gpkg)
 #' - KML (.kml)
 #' - GML (.gml)
 #' - OSM (.osm)
 #' - And 80+ other formats
+#'
+#' Multi-file formats such as shapefiles (`.shp` plus `.dbf`, `.shx` and other
+#' sidecars) are not supported, because a single temporary file cannot hold
+#' the sidecars.
+#'
+#' **Whole-download:** the file is downloaded into memory and written to a
+#' temporary file, which is removed on exit. Peak memory is about the file bytes
+#' plus the parsed sf object.
+#'
+#' **2 GiB limit:** files larger than 2 GiB (2147483647 bytes) are refused by
+#' [xet_open_connection()] before any network call. The error names
+#' `xet_download_file()`.
+#'
+#' **Optional package:** `sf` is in Suggests and is checked with
+#' `requireNamespace()`.
 #'
 #' **Status:** Experimental pending live evidence.
 #'

@@ -30,12 +30,24 @@ This function:
 \item Opens a Xet connection to the file via \code{\link[=xet_open_connection]{xet_open_connection()}}
 \item Passes it to \code{arrow::read_parquet()} which reads from the connection
 \item Supports all Arrow read_parquet options (col_select, filters, schema, etc.)
-\item Automatically closes the connection when done
+\item Arrow closes the connection after reading; this function closes it only
+if reading fails
 }
 
 The entire file is buffered into memory by \code{\link[=xet_open_connection]{xet_open_connection()}} before
 Arrow reads it, so column selection and filters reduce Arrow/in-memory work
 but not the number of bytes downloaded.
+
+\strong{Whole-download:} the file is fully read before the call returns. No
+temporary file is used. Peak memory is about one copy of the file plus the
+parsed object.
+
+\strong{2 GiB limit:} files larger than 2 GiB (2147483647 bytes) are refused by
+\code{\link[=xet_open_connection]{xet_open_connection()}} before any network call. The error names
+\code{xet_download_file()}.
+
+\strong{Optional package:} \code{arrow} is in Suggests and is checked with
+\code{requireNamespace()}.
 
 \strong{Status:} Experimental pending live evidence.
 

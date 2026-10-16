@@ -17,8 +17,8 @@ Plan: `planning/EXECUTION_PLAN_7.md` (APPROVED 2026-10-16 by the user; D8 amende
 | 7.1.2.fixtures | 1 | done (7dedc9c) |
 | 7.2.1.arrow-tests | 2 | done (test commit below; product fix 5f764c1) |
 | 7.2.2a.spatial-read-fix (inserted) | 3 | done (fix, uncommitted until below) |
-| 7.2.2.spatial-tests | 3 | pending |
-| 7.3.1.helper-docs | 4 | pending |
+| 7.2.2.spatial-tests | 3 | done (cd13253) |
+| 7.3.1.helper-docs | 4 | done (see commit below) |
 
 ## Task reports
 
@@ -92,3 +92,11 @@ Plan: `planning/EXECUTION_PLAN_7.md` (APPROVED 2026-10-16 by the user; D8 amende
 - Deviations: approved change applied (seeded values, not terra reading the committed file). Tolerance 1e-6 is needed for Float32 storage; `identical()` fails.
 - Discovered: `sf::st_read` in `read_xet_vector` prints a "Reading layer" message to the console (not quiet). Not a failure.
 - Discovered: no new temp files were left by either read.
+
+## 7.3.1
+- Status: done (roxygen and AGENTS.md only; nothing committed; roxygenise not run).
+- Files changed: `R/arrow.R` (read_xet_parquet roxygen 13-40ish: whole-download, 2 GiB, Suggests notes; step 4 close wording; read_xet_parquet_stream retitled, @return = data frame, cap from xet_stream_raw); `R/spatial.R` (read_xet_raster roxygen ~4-6 and ~15-30; read_xet_vector roxygen 86-88, 112-130: shapefile claim removed, single-file note, whole-download, 2 GiB, Suggests); `AGENTS.md` new "## Optional integrations" section before "## Codebase Layout" (+18 lines, 0 deletions). Plan `planning/tasks/7.3.1.todo.md`.
+- Acceptance: `git diff -- R/` added and removed lines are all comment lines (both checks empty); `git diff -- NAMESPACE DESCRIPTION` empty; AGENTS.md diff 0 deletions; `PARSE_OK` printed.
+- Deviations: none from the approved plan.
+- Discovered: `read_xet_parquet_stream` refusal comes from `xet_stream_raw()` (R/stream.R:48-52), not `xet_open_connection()`; documented as such (approved).
+- Discovered: `read_xet_parquet_stream` is refused by the cap in `xet_stream_raw`, so the other three helpers are refused in `xet_open_connection`. Both messages name `xet_download_file()`.

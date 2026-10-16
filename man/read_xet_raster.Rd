@@ -22,10 +22,24 @@ A SpatRaster object
 }
 \description{
 Downloads a raster file from Xet storage and reads it with terra.
-The whole file is buffered into memory before terra reads it.
+The whole file is downloaded before terra reads it, so this is a
+whole-download helper.
 }
 \details{
 Uses the terra package (successor to raster) for reading raster files.
+
+\strong{Whole-download:} the file is downloaded into memory and written to a
+temporary file. terra reads it, and all values are loaded into memory
+(\code{terra::unwrap(terra::wrap(...))}) before the temporary file is removed.
+The \code{ext} crop is applied after that load. Peak memory is about the file
+bytes plus the in-memory raster values.
+
+\strong{2 GiB limit:} files larger than 2 GiB (2147483647 bytes) are refused by
+\code{\link[=xet_open_connection]{xet_open_connection()}} before any network call. The error names
+\code{xet_download_file()}.
+
+\strong{Optional package:} \code{terra} is in Suggests and is checked with
+\code{requireNamespace()}.
 
 \if{html}{\out{<div class="sourceCode r">}}\preformatted{dem <- read_xet_raster(client, "geotiff-hash", 2e9)
 cropped <- terra::crop(dem, terra::ext(100, 110, 40, 50))
