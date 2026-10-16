@@ -50,3 +50,16 @@ Plan: `planning/EXECUTION_PLAN_8.md` (DRAFT for approval, 2026-10-15). Prompt: `
 - Validation (orchestrator re-run): `devtools::test(filter="arrow-spatial")` with local server: FAIL 0, WARN 0, SKIP 3, PASS 17 (baseline PASS 14, SKIP 3).
 - Not verified: the new test was not run against pre-fix code (no checkout allowed). Reasoning only.
 - Report: `planning/tasks/8.1.3.report.md`.
+
+## 8.2.1 (release notes)
+
+- Status: done. `NEWS.md` created with `# rxet 0.1.0`, 13 exports with ADR 0001 tiers, limitations, prerequisites (Rust >= 1.85), auth, and `TEST_EVIDENCE_PENDING` placeholder (filled at gate, J3). No test counts. Report: `planning/tasks/8.2.1.report.md`.
+- Orchestrator fix: auth wording changed from "never prints or stores" to "does not write the token into its error output" to match the README and the audit (not verified beyond the fault test).
+
+## 8.2.2 (readme)
+
+- Status: done. `README.Rmd` and `README.md` (hand-synced) add Installation (prereqs, `R CMD INSTALL .`, devtools alternative) and Authentication sections; v0.1 status lists all 13 exports once each. Acceptance `README_OK`. Report: `planning/tasks/8.2.2.report.md`.
+
+## Wave 2 board
+
+- 8.2.1: done. 8.2.2: done.
