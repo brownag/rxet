@@ -112,3 +112,32 @@ Result after correction 1 (diagnostic run, then the test run below):
 - Timing: download about 2.8 s, stream about 1.9 s (diagnostic run).
 
 Test run after correction 1 (`devtools::test(filter="fault-midstream")`): 11 testcases, 0 failures, 0 errors, 0 skipped. Total test time 2.58 s. Two new assertions: `expect_true(any(grepl("^GET /xorb/", reqs)))` in each test. These tighten the tests and loosen nothing.
+
+### 6.2.2.token-expiry (done)
+
+Files: `tests/testthat/test-fault-token.R` (new). `helper-fault-cas.R` and `test-fault-midstream.R` not edited (file-local 401 server with a `term_status` argument). No commit. `src/Makevars` and `src/entrypoint.o` not staged.
+
+Pre-coding checks (read-only):
+- No 401 or Unauthorized mapping in `xet-client-1.7.0/src/cas_client/` (re-checked, matches 6.1.1).
+- `retry_wrapper.rs:499-520`: other 4xx are Fatal. `retry_wrapper.rs:201-204` retries only 403. `remote_client.rs:634-639` refreshes the URL only on 403.
+- Source-derived guess was `Fatal Error: ... api call failed`. The real text is `Request error: HTTP status client error (401 Unauthorized)` (below), so the guess was wrong about the prefix. The assertions match on `401` only.
+
+Run: `Rscript -e 'devtools::test(filter="fault-token")'`. Counts: FAIL 0, WARN 0, SKIP 0, PASS 17. Wall time about 0.9 s total (whole command).
+
+Exact error text (diagnostic run, `scratchpad/diag2/capture_token.R`):
+- `xet_download_file`: `finish error: Task error: File reconstruction error: CAS Client Error: Request error: HTTP status client error (401 Unauthorized), domain: http://127.0.0.1:<PORT>/xorb/term` (0.02 s).
+- `xet_stream_raw`: `stream read error: Network error: Request error: HTTP status client error (401 Unauthorized), domain: http://127.0.0.1:<PORT>/xorb/term` (0.02 s).
+
+Request log, one call each: 3 `GET /v2/reconstructions` (404), 3 `GET /v1/reconstructions`, 1 `GET /xorb/term`, `status 401`, 1 `POST /v1/telemetry`. The term fetch was not retried (hard assertion `== 1` passes).
+
+Hygiene: `grep HF_TOKEN` on the new file is empty; the token-shaped grep `hf_[A-Za-z0-9]{20,}` on the new file and helper is empty. Canary `rxet-canary-token-XYZ` is not in either error message. `local_cas_data/` unchanged. No `.part` files in the repo.
+
+### 6.3.1.live-fixtures (done, not committed)
+
+- Files: `tests/testthat/test-live-hf.R` only (6 constants, 4 new tests). `helper-live-hf.R` unchanged. No commit; `src/Makevars` and `src/entrypoint.o` not staged.
+- Constants: `LIVE_MULTI_HASH` / `LIVE_MULTI_SIZE` (16777216) / `LIVE_MULTI_SHA256`; `LIVE_GEO_HASH` / `LIVE_GEO_SIZE` (1051299) / `LIVE_GEO_SHA256`. Literals checked against the scratchpad `SHA256SUMS.txt` and the 6.0.1 Xet hashes.
+- New tests: (a) multi download, size and sha256; (b) range `[65536, 69632)` compared with the same bytes from a full download (offset is "not the start of the file"; not claimed as a verified chunk boundary); (c) GeoTIFF download, size, sha256, TIFF magic; (d) GeoTIFF `xet_stream_raw` equals the downloaded bytes.
+- Gate unset: `Rscript -e 'devtools::test(filter="live-hf")'` gives FAIL 0, SKIP 9 (5 existing and 4 new), PASS 0.
+- Gate set: `RXET_LIVE_TESTS=1` with `.env` loaded in a subshell, output through a `sed` redaction. Result: 9 tests, 18 expectations, FAIL 0, ERROR 0, SKIP 0. The probe line reported `HF_TOKEN set`.
+- Timings (JUnit reporter, scratchpad `live-hf-junit.xml`, per test including its expectations): (a) multi download about 2.19 s; (b) multi range about 1.83 s (includes the second 16 MiB download); (c) GeoTIFF download about 1.95 s; (d) GeoTIFF stream about 1.55 s. Existing live tests ran in the same run (probe about 1.0 s, LIVE_HASH download about 1.0 s).
+- Xet read timings for the 16 MiB file: one download about 2.1 s, measured on a cold private `HF_HOME` per test.

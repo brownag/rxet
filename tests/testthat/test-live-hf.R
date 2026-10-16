@@ -16,6 +16,18 @@ LIVE_SHA256 <- "c25ed568c3f701e640a6d9db7495b8d989ee2f6dbaf3fc0ad2216c6d5cd28bf4
 # (authenticated probe, 5.3.2). The package examples still show cas-cf.huggingface.co, which does not resolve.
 LIVE_ENDPOINT <- "https://cas-server.xethub.hf.co"
 
+# Fixtures uploaded by the user to brownag/rxet-test-data at the dataset top level
+# (6.0.1). Generated from seed 20261015; the sha256 values are the SHA256SUMS.txt
+# entries (scratchpad, not in the repo) and the hub LFS oids.
+# Multi-chunk binary: 16 MiB, uncompressed bytes.
+LIVE_MULTI_HASH <- "5a32191c41e82f198b29d384ca4b5c38f3a3ce2f8d22b4f56f25d6aa4a50f6f9"
+LIVE_MULTI_SIZE <- 16777216
+LIVE_MULTI_SHA256 <- "f307458aa3556bf7c2c66bc36b7a3c1f3ce9e20d5b7784e4fd9df6231cdb6dbe"
+# GeoTIFF: 512x512 Float32, UTM 33N, uncompressed.
+LIVE_GEO_HASH <- "f8d51851e138a95dff77a8b5c944b218eed87e39c213ff4639ae75e0c472ce1a"
+LIVE_GEO_SIZE <- 1051299
+LIVE_GEO_SHA256 <- "f60de44e71ac663d79d4ef15a745aeb7a57a31ca42a51fa5d3173cbc4341e9e8"
+
 # Start a client with a private HF_HOME so the developer's shard cache is never
 # read or written (see test-local-download.R). Cleanup is registered on the
 # calling test's frame. xet_client_new rejects an empty token, so an unset
@@ -104,4 +116,67 @@ test_that("live connection reads LIVE_HASH byte-identical to the raw read and cl
   conn <- xet_open_connection(client, LIVE_HASH, LIVE_SIZE)
   expect_identical(readBin(conn, "raw", LIVE_SIZE), raw_bytes)
   expect_no_error(xet_close_connection(conn))
+})
+
+test_that("live download of LIVE_MULTI_HASH is 16777216 bytes with the hub LFS sha256", {
+  skip_if_not(identical(Sys.getenv("RXET_LIVE_TESTS"), "1"), "live tests are opt-in: set RXET_LIVE_TESTS=1")
+  skip_if_not(is_compiled(), "Rust extension not available")
+  skip_if_not_installed("digest")
+
+  client <- start_live_client()
+  dest <- tempfile(fileext = ".bin")
+  on.exit(unlink(dest), add = TRUE)
+
+  xet_download_file(client, LIVE_MULTI_HASH, LIVE_MULTI_SIZE, dest)
+  expect_equal(file.size(dest), LIVE_MULTI_SIZE)
+  expect_identical(digest::digest(file = dest, algo = "sha256"), LIVE_MULTI_SHA256)
+})
+
+test_that("live range read of LIVE_MULTI_HASH at offset 65536 matches the full download", {
+  skip_if_not(identical(Sys.getenv("RXET_LIVE_TESTS"), "1"), "live tests are opt-in: set RXET_LIVE_TESTS=1")
+  skip_if_not(is_compiled(), "Rust extension not available")
+
+  client <- start_live_client()
+  dest <- tempfile(fileext = ".bin")
+  on.exit(unlink(dest), add = TRUE)
+
+  xet_download_file(client, LIVE_MULTI_HASH, LIVE_MULTI_SIZE, dest)
+  full <- readBin(dest, "raw", LIVE_MULTI_SIZE)
+  # Ranges are end-exclusive: [65536, 69632) is R indices 65537 to 69632. The offset is
+  # not the start of the file; it is not claimed to be a verified chunk boundary.
+  part <- xet_stream_range(client, LIVE_MULTI_HASH, LIVE_MULTI_SIZE, 65536, 65536 + 4096)
+  expect_length(part, 4096)
+  expect_identical(part, full[65537:69632])
+})
+
+test_that("live download of LIVE_GEO_HASH is 1051299 bytes with the hub LFS sha256 and a TIFF magic", {
+  skip_if_not(identical(Sys.getenv("RXET_LIVE_TESTS"), "1"), "live tests are opt-in: set RXET_LIVE_TESTS=1")
+  skip_if_not(is_compiled(), "Rust extension not available")
+  skip_if_not_installed("digest")
+
+  client <- start_live_client()
+  dest <- tempfile(fileext = ".tif")
+  on.exit(unlink(dest), add = TRUE)
+
+  xet_download_file(client, LIVE_GEO_HASH, LIVE_GEO_SIZE, dest)
+  expect_equal(file.size(dest), LIVE_GEO_SIZE)
+  expect_identical(digest::digest(file = dest, algo = "sha256"), LIVE_GEO_SHA256)
+  # Little-endian "II*\0" or big-endian "MM\0*" TIFF header.
+  expect_true(identical(readBin(dest, "raw", 4), as.raw(c(0x49, 0x49, 0x2a, 0x00))) ||
+    identical(readBin(dest, "raw", 4), as.raw(c(0x4d, 0x4d, 0x00, 0x2a))))
+})
+
+test_that("live xet_stream_raw of LIVE_GEO_HASH matches the downloaded bytes", {
+  skip_if_not(identical(Sys.getenv("RXET_LIVE_TESTS"), "1"), "live tests are opt-in: set RXET_LIVE_TESTS=1")
+  skip_if_not(is_compiled(), "Rust extension not available")
+
+  client <- start_live_client()
+  dest <- tempfile(fileext = ".tif")
+  on.exit(unlink(dest), add = TRUE)
+
+  xet_download_file(client, LIVE_GEO_HASH, LIVE_GEO_SIZE, dest)
+  expect_identical(
+    xet_stream_raw(client, LIVE_GEO_HASH, LIVE_GEO_SIZE),
+    readBin(dest, "raw", LIVE_GEO_SIZE)
+  )
 })
