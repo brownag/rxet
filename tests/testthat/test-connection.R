@@ -23,9 +23,7 @@ test_that("live connection reads the public parquet and closes (RXET_LIVE_TESTS)
   on.exit(unlink(hf_home, recursive = TRUE), add = TRUE)
   on.exit(if (is.na(old_hf_home)) Sys.unsetenv("HF_HOME") else Sys.setenv(HF_HOME = old_hf_home), add = TRUE)
 
-  token <- Sys.getenv("HF_TOKEN")
-  if (!nzchar(token)) token <- "anonymous"
-  client <- xet_client_new("https://cas-cf.huggingface.co", token)
+  client <- xet_client_new("https://cas-server.xethub.hf.co", live_cas_token())
   on.exit(xet_client_close(client), add = TRUE)
 
   # Same constants as test-live-hf.R (LIVE_HASH, LIVE_SIZE, LIVE_SHA256).

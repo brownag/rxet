@@ -12,7 +12,9 @@ LIVE_REPO <- "brownag/rxet-test-data"
 LIVE_HASH <- "4e99cb45a4ad980707548c95f5cc3dadb91e36889c68adbff641e56c53981331"
 LIVE_SIZE <- 2931
 LIVE_SHA256 <- "c25ed568c3f701e640a6d9db7495b8d989ee2f6dbaf3fc0ad2216c6d5cd28bf4"
-LIVE_ENDPOINT <- "https://cas-cf.huggingface.co"
+# CAS endpoint: the casUrl returned by GET /api/datasets/brownag/rxet-test-data/xet-read-token/main
+# (authenticated probe, 5.3.2). The package examples still show cas-cf.huggingface.co, which does not resolve.
+LIVE_ENDPOINT <- "https://cas-server.xethub.hf.co"
 
 # Start a client with a private HF_HOME so the developer's shard cache is never
 # read or written (see test-local-download.R). Cleanup is registered on the
@@ -22,9 +24,7 @@ start_live_client <- function(env = parent.frame()) {
   old_hf_home <- Sys.getenv("HF_HOME", unset = NA)
   hf_home <- tempfile("hf_home_")
   Sys.setenv(HF_HOME = hf_home)
-  token <- Sys.getenv("HF_TOKEN")
-  if (!nzchar(token)) token <- "anonymous"
-  client <- xet_client_new(LIVE_ENDPOINT, token)
+  client <- xet_client_new(LIVE_ENDPOINT, live_cas_token())
   cleanup <- function() {
     xet_client_close(client)
     unlink(hf_home, recursive = TRUE)

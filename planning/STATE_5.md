@@ -166,3 +166,11 @@ Status: **plan drafted; awaiting user approval** (2026-10-15). No task has start
 - Live combined run (`filter = "live-hf|connection|streaming"`): 1 failure (probe), 6 errors, 0 skipped, 7 passing expectations.
 - Deviations: (a) `xet_client_new` rejects an empty token, so unset HF_TOKEN is passed as placeholder "anonymous" (spec said pass empty). (b) Live tests in `test-connection.R`/`test-streaming.R` cannot call `start_live_client()` (separate file scope), so they inline the same setup. (c) Each failing live read takes minutes to error; one combined run hit the 1500 s limit (exit 124) and was rerun.
 - Open decision for the user: the spec endpoint `cas-cf.huggingface.co` is unresolvable here. Either the endpoint must change (e.g. the hub's casUrl, which needs a token to fetch) or `HF_TOKEN` must be set. Left unchanged.
+
+### 5.3.2 live run result (authenticated, supersedes the anonymous probe above)
+- Hub `xet-read-token` with HF_TOKEN: HTTP 200; `casUrl` is `https://cas-server.xethub.hf.co`. The example host `cas-cf.huggingface.co` does not resolve and is not the live endpoint.
+- The CAS server returns HTTP 401 for the raw HF_TOKEN and HTTP 200 for the `accessToken` from the read-token response (status-only checks). Live tests exchange the token in memory via `live_cas_token()` (helper-live-hf.R, processx + curl; nothing written to disk).
+- Live run `RXET_LIVE_TESTS=1`, filter `live-hf|connection|streaming`: pass 22, fail 0, error 0, skip 0.
+- Gate unset, filter `streaming|connection`: pass 7, fail 0, error 0, skip 2 (live tests).
+- Deviation: live endpoint is a fixed constant (confirmed by probe), not a runtime `casUrl` lookup.
+- Residual: package examples still show `cas-cf.huggingface.co`; the accessToken expires, so long live runs may need a refresh.
