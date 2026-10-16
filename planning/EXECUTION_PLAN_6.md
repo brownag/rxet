@@ -10,7 +10,7 @@ Status: DRAFT for approval (2026-10-15). Orchestration 6. Phase 6 (arrow and spa
 - Mid-stream interruption: a loopback fault server that drops a connection mid-body (offline).
 - Token expiry: an offline check that an expired or rejected access token produces a clear error that does not leak the token.
 - Size-mismatch error text: the hf-xet size-mismatch failure surfaces as a panic-style message; map it to a clear R error (product change, user-approved).
-- Larger live fixtures: a 16 MiB multi-chunk binary and a 512x512 Float32 GeoTIFF, uploaded by the user to `brownag/rxet-test-data` under `fixtures/`; live tests pin their hashes.
+- Larger live fixtures: a 16 MiB multi-chunk binary and a 512x512 Float32 GeoTIFF, uploaded by the user to `brownag/rxet-test-data` at the dataset top level (no subfolder); live tests pin their hashes.
 - CI: validate the workflow after push (install, cache, Windows compile, check run); record the result.
 - Docs: README.md stale registry sentence; testing docs for the new fixtures.
 
@@ -64,21 +64,21 @@ Status: DRAFT for approval (2026-10-15). Orchestration 6. Phase 6 (arrow and spa
 |---|---|---|---|---|
 | 0 | `6.0.1.fixture-upload` (user action + orchestrator verification) | none in repo until verified | — | Checkpoint D5. Orchestrator checks hub tree oid and size. |
 | 1 | `6.1.1.spike-cas-format` | `planning/STATE_6.md` only | — | Read-only spike: reconstruction JSON, term URL format, token error responses, size-mismatch error text. |
-| 1 | `6.1.2.size-mismatch-fix` | `src/rust/src/lib.rs`, `R/download.R` (only if needed), `tests/testthat/test-local-failures.R` | 6.1.1 | Product fix (D3). Mapped error with test. |
+| 2 | `6.1.2.size-mismatch-fix` | `src/rust/src/lib.rs`, `R/download.R` (only if needed), `tests/testthat/test-local-failures.R` | 6.1.1 | Product fix (D3). Mapped error with test. |
 | 2 | `6.2.1.fault-server` | `tests/testthat/helper-fault-cas.R` (new), `tests/testthat/test-fault-midstream.R` (new) | 6.1.1 | Loopback fault server; mid-stream drop test. |
 | 3 | `6.2.2.token-expiry` | `tests/testthat/test-fault-token.R` (new) | 6.2.1 | Uses helper-fault-cas.R; rejection status plus no-leak check. |
 | 3 | `6.3.1.live-fixtures` | `tests/testthat/test-live-hf.R`, `tests/testthat/helper-live-hf.R` | 6.0.1, 6.1.2 | Pins hashes from D5. Live run requires the user's `.env` token. |
 | 4 | `6.4.1.docs` | `AGENTS.md`, `README.Rmd`, `README.md` (testing sections and stale registry sentence) | 6.2.2, 6.3.1 | Doc mirror by hand, no re-render. |
 | 4 | `6.4.2.ci-validation-prep` | none (check only) | 6.1.2, 6.2.2 | Confirms workflow YAML and grep acceptance; push is a user checkpoint (D8). |
 
-Waves 1 to 4 run in order. Within a wave, file scopes are disjoint. Wave 0 runs in parallel with wave 1 because it is a user action.
+Waves 1 to 4 run in order; wave 2 holds 6.1.2 and 6.2.1 (disjoint files). Within a wave, file scopes are disjoint. Wave 0 runs in parallel with wave 1 because it is a user action.
 
 ## Task specs
 
 ### 6.0.1.fixture-upload
 
 - **Owner:** user uploads; orchestrator verifies.
-- **Steps:** (1) User uploads `multichunk_16mib.bin` and `geotiff_512x512_utm33n.tif` to `brownag/rxet-test-data` under `fixtures/`. (2) Orchestrator reads the hub tree API (anonymous GET, no token printed) and checks size equals 16777216 and 1051299 bytes, and the oid equals the LFS sha256 in SHA256SUMS.txt. (3) Orchestrator records the Xet hash for each file (via the read-token path, status and hash only) into STATE_6.md.
+- **Steps:** (1) User uploads `multichunk_16mib.bin` and `geotiff_512x512_utm33n.tif` to `brownag/rxet-test-data` at the dataset top level (no subfolder). (2) Orchestrator reads the hub tree API (anonymous GET, no token printed) and checks size equals 16777216 and 1051299 bytes, and the oid equals the LFS sha256 in SHA256SUMS.txt. (3) Orchestrator records the Xet hash for each file (via the read-token path, status and hash only) into STATE_6.md.
 - **Acceptance:** both files listed with matching size and oid; Xet hashes recorded. If storage is not Xet (no Xet hash), STOP and report.
 
 ### 6.1.1.spike-cas-format
@@ -113,14 +113,14 @@ Waves 1 to 4 run in order. Within a wave, file scopes are disjoint. Wave 0 runs 
 
 - **Files:** `tests/testthat/test-live-hf.R`, `tests/testthat/helper-live-hf.R`.
 - **Depends on:** 6.0.1 (user upload verified), 6.1.2 (size-mismatch fix merged).
-- **Spec:** Add live tests for `fixtures/multichunk_16mib.bin` (download, sha256 equal to SHA256SUMS value, range read at a chunk boundary) and `fixtures/geotiff_512x512_utm33n.tif` (download, sha256, first 4 bytes are a TIFF magic `II*\0` or `MM\0*`). Pin hashes and Xet hashes from 6.0.1 as literals with comments (J4). Gate: `RXET_LIVE_TESTS=1`.
+- **Spec:** Add live tests for `multichunk_16mib.bin` (download, sha256 equal to SHA256SUMS value, range read at a chunk boundary) and `geotiff_512x512_utm33n.tif` (download, sha256, first 4 bytes are a TIFF magic `II*\0` or `MM\0*`). Pin hashes and Xet hashes from 6.0.1 as literals with comments (J4). Gate: `RXET_LIVE_TESTS=1`.
 - **Acceptance (gate unset):** `devtools::test(filter = "live-hf")` shows the new tests skipped. **Acceptance (gate set):** the new tests pass with `.env` loaded; token not printed.
 
 ### 6.4.1.docs
 
 - **Files:** `AGENTS.md` (Testing), `README.Rmd` (Testing and the stale registry sentence if present), `README.md` (mirror by hand).
 - **Depends on:** 6.2.2, 6.3.1.
-- **Spec:** Document the fault tests (offline, always run), the fixture paths, and the token-expiry boundary (live expiry is manual). Replace the stale Mutex<HashMap> registry sentence in README.md with the Registry<T> description (ref: `src/rust/src/registry.rs`).
+- **Spec:** Document the fault tests (offline, always run), the fixture file names, and the token-expiry boundary (live expiry is manual). Replace the stale Mutex<HashMap> registry sentence in README.md with the Registry<T> description (ref: `src/rust/src/registry.rs`).
 - **Acceptance:** `grep -n "Mutex<HashMap>" README.md` returns nothing; `git diff -- NAMESPACE DESCRIPTION` is empty; `git diff -- NAMESPACE man/` shows no change to exports or labels.
 
 ### 6.4.2.ci-validation-prep
