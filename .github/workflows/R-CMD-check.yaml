@@ -66,6 +66,7 @@ jobs:
           echo "RXET_LOCAL_CAS_SERVER=$BIN" >> "$GITHUB_ENV"
 
       - name: Build package
+        shell: bash
         run: R CMD build .
 
       - name: Check package
