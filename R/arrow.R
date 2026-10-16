@@ -25,8 +25,8 @@
 #' but not the number of bytes downloaded.
 #'
 #' **Whole-download:** the file is fully read before the call returns. No
-#' temporary file is used. Peak memory is about one copy of the file plus the
-#' parsed object.
+#' temporary file is used. The whole file is read into memory, which holds
+#' about one copy of the bytes, and a parsed object is returned.
 #'
 #' **2 GiB limit:** files larger than 2 GiB (2147483647 bytes) are refused by
 #' [xet_open_connection()] before any network call. The error names
@@ -111,8 +111,8 @@ read_xet_parquet <- function(handle, file_hash, file_size, ...) {
 #' 4. Deletes the temporary file on exit
 #'
 #' **Whole-download:** the file is fully read before the call returns.
-#' Peak memory is about the file bytes, plus the temporary copy, plus the
-#' parsed data frame.
+#' The whole file is held in memory, written to a temporary file, and a data
+#' frame is returned.
 #'
 #' **2 GiB limit:** files larger than 2 GiB (2147483647 bytes) are refused by
 #' [xet_stream_raw()] before any network call. The error names

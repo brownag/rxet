@@ -18,8 +18,9 @@
 #' **Whole-download:** the file is downloaded into memory and written to a
 #' temporary file. terra reads it, and all values are loaded into memory
 #' (`terra::unwrap(terra::wrap(...))`) before the temporary file is removed.
-#' The `ext` crop is applied after that load. Peak memory is about the file
-#' bytes plus the in-memory raster values.
+#' The `ext` crop is applied after that load. The whole file is read into
+#' memory, which holds about one copy of the bytes, and a parsed raster is
+#' returned.
 #'
 #' **2 GiB limit:** files larger than 2 GiB (2147483647 bytes) are refused by
 #' [xet_open_connection()] before any network call. The error names
@@ -115,15 +116,21 @@ read_xet_raster <- function(handle, file_hash, file_size, ext = NULL, ...) {
 #' - KML (.kml)
 #' - GML (.gml)
 #' - OSM (.osm)
-#' - And 80+ other formats
+#'
+#' Only formats whose driver GDAL can identify from the file content, not from
+#' the extension, are reliable here, because the temporary file has no
+#' extension. Formats that detect the driver from the extension may not open.
+#' `read_xet_vector()` has no format argument of its own (extra arguments go to
+#' `sf::st_read()`).
 #'
 #' Multi-file formats such as shapefiles (`.shp` plus `.dbf`, `.shx` and other
 #' sidecars) are not supported, because a single temporary file cannot hold
 #' the sidecars.
 #'
 #' **Whole-download:** the file is downloaded into memory and written to a
-#' temporary file, which is removed on exit. Peak memory is about the file bytes
-#' plus the parsed sf object.
+#' temporary file, which is removed on exit. The whole file is read into
+#' memory, which holds about one copy of the bytes, and a parsed sf object is
+#' returned.
 #'
 #' **2 GiB limit:** files larger than 2 GiB (2147483647 bytes) are refused by
 #' [xet_open_connection()] before any network call. The error names
