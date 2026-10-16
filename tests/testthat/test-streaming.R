@@ -1,22 +1,31 @@
 context("Streaming functions returning actual bytes")
 
-test_that("xet_stream_raw returns raw vector", {
+test_that("live xet_stream_raw returns the public parquet bytes (RXET_LIVE_TESTS)", {
+  skip_if_not(identical(Sys.getenv("RXET_LIVE_TESTS"), "1"), "live tests are opt-in: set RXET_LIVE_TESTS=1")
   skip_if_not(is_compiled(), "Rust extension not available")
-  skip_if(nchar(Sys.getenv("HF_TOKEN")) == 0, "HF_TOKEN not set")
+  skip_if_not_installed("digest")
 
-  # Test with a mock client - real endpoint but fake file hash
-  # The Rust code will attempt to fetch but fail gracefully
-  with_test_client({
-    expect_error(
-      xet_stream_raw(client, "fake_hash_nonexistent", 1024),
-      "could not find|not found|error"
-    )
-  })
+  # Private HF_HOME so the developer's shard cache is not touched (see test-live-hf.R).
+  old_hf_home <- Sys.getenv("HF_HOME", unset = NA)
+  hf_home <- tempfile("hf_home_")
+  Sys.setenv(HF_HOME = hf_home)
+  on.exit(unlink(hf_home, recursive = TRUE), add = TRUE)
+  on.exit(if (is.na(old_hf_home)) Sys.unsetenv("HF_HOME") else Sys.setenv(HF_HOME = old_hf_home), add = TRUE)
+
+  token <- Sys.getenv("HF_TOKEN")
+  if (!nzchar(token)) token <- "anonymous"
+  client <- xet_client_new("https://cas-cf.huggingface.co", token)
+  on.exit(xet_client_close(client), add = TRUE)
+
+  # Same constants as test-live-hf.R (LIVE_HASH, LIVE_SIZE, LIVE_SHA256).
+  got <- xet_stream_raw(client, "4e99cb45a4ad980707548c95f5cc3dadb91e36889c68adbff641e56c53981331", 2931)
+  expect_length(got, 2931L)
+  expect_identical(digest::digest(got, algo = "sha256", serialize = FALSE),
+                   "c25ed568c3f701e640a6d9db7495b8d989ee2f6dbaf3fc0ad2216c6d5cd28bf4")
 })
 
 test_that("xet_stream_raw validates input parameters", {
   skip_if_not(is_compiled(), "Rust extension not available")
-  skip_if(nchar(Sys.getenv("HF_TOKEN")) == 0, "HF_TOKEN not set")
 
   with_test_client({
     # Empty hash should be caught by R validation
@@ -34,7 +43,6 @@ test_that("xet_stream_raw validates input parameters", {
 
 test_that("xet_stream_range validates byte range parameters", {
   skip_if_not(is_compiled(), "Rust extension not available")
-  skip_if(nchar(Sys.getenv("HF_TOKEN")) == 0, "HF_TOKEN not set")
 
   with_test_client({
     # end_byte must be > start_byte

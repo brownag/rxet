@@ -156,3 +156,13 @@ Status: **plan drafted; awaiting user approval** (2026-10-15). No task has start
   - local-failures: 16 passed, 0 failed, 1 skipped (auth, probe reason). Invalid-hash `xet_stream_raw` test now passes.
   - streaming: 0 run, 3 skipped (HF_TOKEN not set, pre-existing skips, not a regression).
 - Log: `/tmp/claude-1000/-home-andrew-workspace-rxet/3f2eea98-4900-4ebe-ace3-43e8966b323c/scratchpad/accept_530.log`
+
+### 5.3.2.live-suite
+- Status: DONE with live FAILURES (finding, not a skip). Not committed. Micro-plan: `planning/tasks/5.3.2.live-suite.todo.md` (APPROVED with answers 1-4).
+- Files: created `tests/testthat/test-live-hf.R` (5 tests: probe, sha256 download, raw sha256, PAR1 head/tail and full range, connection). Edited `test-connection.R` (HF-gated test rewritten as live) and `test-streaming.R` (raw test rewritten as live; the two HF_TOKEN skip lines removed, validation tests otherwise byte-identical). No uploads, no commit, no src/ staging.
+- Probe (scratchpad, no token value printed): `HF_TOKEN` unset. Anonymous `xet_download_file(LIVE_HASH)` FAILED: "error sending request for url (https://cas-cf.huggingface.co/v2/reconstructions/...)". Cause observed: `cas-cf.huggingface.co` does not resolve in DNS from this host. Hub read-token GET returned HTTP 404 (endpoint not confirmed). Hub tree GET returned HTTP 200 with parquet oid c25ed568...28bf4, size 2931 (matches constants). `cas-server.xethub.hf.co` anonymous reconstruction GET returned HTTP 401 (auth required; host resolves).
+- Gate-unset acceptance (`filter = "streaming|connection"`, env -u RXET_LIVE_TESTS): exit 0; 5 tests, 3 run and passed, 2 skipped (live), 0 failed, 0 errors.
+- Live spec command (`RXET_LIVE_TESTS=1`, filter `live-hf`): exit 1; 1 failure (probe), 4 errors, 0 passed.
+- Live combined run (`filter = "live-hf|connection|streaming"`): 1 failure (probe), 6 errors, 0 skipped, 7 passing expectations.
+- Deviations: (a) `xet_client_new` rejects an empty token, so unset HF_TOKEN is passed as placeholder "anonymous" (spec said pass empty). (b) Live tests in `test-connection.R`/`test-streaming.R` cannot call `start_live_client()` (separate file scope), so they inline the same setup. (c) Each failing live read takes minutes to error; one combined run hit the 1500 s limit (exit 124) and was rerun.
+- Open decision for the user: the spec endpoint `cas-cf.huggingface.co` is unresolvable here. Either the endpoint must change (e.g. the hub's casUrl, which needs a token to fetch) or `HF_TOKEN` must be set. Left unchanged.
