@@ -34,8 +34,8 @@ This function:
 }
 
 \strong{Whole-download:} the file is fully read before the call returns.
-Peak memory is about the file bytes, plus the temporary copy, plus the
-parsed data frame.
+The whole file is held in memory, written to a temporary file, and a data
+frame is returned.
 
 \strong{2 GiB limit:} files larger than 2 GiB (2147483647 bytes) are refused by
 \code{\link[=xet_stream_raw]{xet_stream_raw()}} before any network call. The error names

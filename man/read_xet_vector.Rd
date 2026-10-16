@@ -31,16 +31,22 @@ Supports single-file formats that GDAL can read from one temporary file:
 \item KML (.kml)
 \item GML (.gml)
 \item OSM (.osm)
-\item And 80+ other formats
 }
+
+Only formats whose driver GDAL can identify from the file content, not from
+the extension, are reliable here, because the temporary file has no
+extension. Formats that detect the driver from the extension may not open.
+\code{read_xet_vector()} has no format argument of its own (extra arguments go to
+\code{sf::st_read()}).
 
 Multi-file formats such as shapefiles (\code{.shp} plus \code{.dbf}, \code{.shx} and other
 sidecars) are not supported, because a single temporary file cannot hold
 the sidecars.
 
 \strong{Whole-download:} the file is downloaded into memory and written to a
-temporary file, which is removed on exit. Peak memory is about the file bytes
-plus the parsed sf object.
+temporary file, which is removed on exit. The whole file is read into
+memory, which holds about one copy of the bytes, and a parsed sf object is
+returned.
 
 \strong{2 GiB limit:} files larger than 2 GiB (2147483647 bytes) are refused by
 \code{\link[=xet_open_connection]{xet_open_connection()}} before any network call. The error names

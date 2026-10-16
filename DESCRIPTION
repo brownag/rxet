@@ -1,7 +1,7 @@
 Package: rxet
 Type: Package
 Title: Native R Bindings to the Hugging Face Xet Storage Engine
-Version: 0.1.0
+Version: 0.1.1
 Authors@R:
     person("Andrew", "Brown", , "brown.andrewg@gmail.com", role = c("aut", "cre"))
 Description: Provides R bindings to the Hugging Face Xet content-addressed

@@ -1,3 +1,38 @@
+# rxet 0.1.1
+
+Patch release. It fixes documentation and test gaps found in the 0.1.0 review.
+There is no API change: the 13 exports, their ADR 0001 tiers and their
+Experimental labels are unchanged.
+
+## Fixes
+
+- `xet_close_connection()` returns `NULL` without error when the connection is
+  already closed. Non-connection input still errors.
+- The vector helper documentation no longer claims "80+ formats". It names the
+  limit: only single-file formats that GDAL can identify from the file content
+  are reliable, because the temporary file has no extension.
+- The memory notes for `read_xet_raster()`, `read_xet_vector()`,
+  `read_xet_parquet()` and `read_xet_parquet_stream()` state only what the code
+  does: the whole file is read, and about one copy of the bytes is held.
+- DESCRIPTION Suggests no longer lists `jsonlite` or `covr`, which nothing
+  uses.
+- AGENTS.md states the Rust minimum as 1.85.
+
+## Tests
+
+- Token canary checks now cover every offline public path: download, open
+  connection, stream raw, stream range and the four `read_xet_*` helpers. Upload
+  is checked on its offline validation path. Each check confirms that the token never appears in an error or warning.
+- A test checks that `read_xet_parquet()` closes its connection on success.
+
+## Internal
+
+- Removed the unused `make_hf_api_request()`.
+
+## Deferred
+
+- `read_xet_vector()` has no format argument yet. It is planned for 0.2.0.
+
 # rxet 0.1.0
 
 First release of rxet, an R interface to Hugging Face's Xet content-addressed
