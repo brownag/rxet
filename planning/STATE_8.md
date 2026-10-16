@@ -93,7 +93,7 @@ Plan: `planning/EXECUTION_PLAN_8.md` (DRAFT for approval, 2026-10-15). Prompt: `
 - Token claim (NEWS, README) covers the 401 path only in the fault test; static review found no token in error formats.
 - Memory-copy claims in `R/arrow.R` and `R/spatial.R` are unmeasured.
 - `read_xet_vector` temp file has no extension (`R/spatial.R:173`); the "80+ formats" wording at `R/spatial.R:118` is overstated.
-- `uuid` is in Suggests but not installed in CI, so the uuid tests skip silently.
+- `uuid` is now installed in CI (`.github/workflows/R-CMD-check.yaml`, extra-packages). Fixed after the gate.
 - `AGENTS.md:208` says Rust >= 1.70; enforced minimum is 1.85.0.
 - `make_hf_api_request` (`R/utils.R:165`) is dead code.
 - Tag `v0.1.0`, GitHub release, and push: awaiting user approval (master plan Phase 7 item 7; H5).
