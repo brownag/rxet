@@ -81,7 +81,7 @@ Plan: `planning/EXECUTION_PLAN_8.md` (DRAFT for approval, 2026-10-15). Prompt: `
 - [x] Step 5 tarball (94 entries): no `.env`, `local_cas_data/`, `planning/`, `docs/`, `.o`, `Makevars`. Credential scan: only "Bearer token" doc text.
 - [x] Step 6 NEWS.md placeholder filled from steps 2 and 4. Live line says "not yet recorded".
 - [x] Step 7 every task has a todo and report under `planning/tasks/` (8.1.1 to 8.3.1).
-- [ ] Step 8 residual gaps (below). Tag and publication await user approval.
+- [x] Step 8 residual gaps (below). Tag and publication await user approval.
 
 ## Residual gaps (recorded, not fixed in plan 8)
 
@@ -97,3 +97,10 @@ Plan: `planning/EXECUTION_PLAN_8.md` (DRAFT for approval, 2026-10-15). Prompt: `
 - `AGENTS.md:208` says Rust >= 1.70; enforced minimum is 1.85.0.
 - `make_hf_api_request` (`R/utils.R:165`) is dead code.
 - Tag `v0.1.0`, GitHub release, and push: awaiting user approval (master plan Phase 7 item 7; H5).
+
+## 8.5.1 (push and CI)
+
+- Pushed `main` to origin: 17f615f..f413122 (user approved the push).
+- CI run 38859595783 for f413122: completed, success on all three jobs: ubuntu-latest, windows-latest, macos-latest.
+- The uuid install (7e1d3eb) ran in this CI run.
+- Tag `v0.1.0` and the GitHub release: not done; awaiting user approval.
