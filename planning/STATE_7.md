@@ -1,6 +1,6 @@
 # STATE 7: Phase 6 — optional integrations and memory behaviour
 
-Plan: `planning/EXECUTION_PLAN_7.md` (draft, awaiting approval). Prompt: `planning/PROMPT_TEMPLATE_7.md`.
+Plan: `planning/EXECUTION_PLAN_7.md` (APPROVED 2026-10-16 by the user; D8 amended: CI installs arrow, terra and sf). Prompt: `planning/PROMPT_TEMPLATE_7.md`.
 
 ## Baseline (2026-10-16)
 
@@ -22,3 +22,9 @@ Plan: `planning/EXECUTION_PLAN_7.md` (draft, awaiting approval). Prompt: `planni
 ## Task reports
 
 (Empty. Workers append reports here.)
+
+## Handoff (2026-10-16)
+- Next: wave 1 (7.1.1 spike, 7.1.2 fixtures). Each worker drafts a micro-plan; orchestrator approves with SendMessage; verify before committing.
+- Pushed: main at e43f59a, including 3f0b447 (streaming token test accepts the upstream writer error).
+- Pending: CI run for e43f59a (arrow, terra, sf now installed in CI) is not yet reviewed.
+- Pending, not done: the upstream xet-core report for the "Data sender was dropped" race (needs the user's go-ahead to file).
