@@ -65,9 +65,16 @@ read_xet_parquet <- function(handle, file_hash, file_size, ...) {
   stopifnot(is.numeric(file_size), length(file_size) == 1, file_size > 0)
 
   conn <- xet_open_connection(handle, file_hash, file_size)
-  on.exit(close(conn), add = TRUE)
 
-  arrow::read_parquet(conn, ...)
+  # arrow::read_parquet() closes the connection it reads, so close it here
+  # only when reading fails before arrow gets to it.
+  tryCatch(
+    arrow::read_parquet(conn, ...),
+    error = function(e) {
+      tryCatch(close(conn), error = function(e2) NULL)
+      stop(e)
+    }
+  )
 }
 
 #' Read a Parquet file from Xet via a temporary file
