@@ -79,8 +79,8 @@ read_xet_raster <- function(handle, file_hash, file_size, ext = NULL, ...) {
   stopifnot(is.numeric(file_size), length(file_size) == 1, file_size > 0)
 
   conn <- xet_open_connection(handle, file_hash, file_size)
+  on.exit(close(conn), add = TRUE)
   bytes <- readBin(conn, "raw", file_size)
-  close(conn)
 
   path <- tempfile()
   on.exit(unlink(path), add = TRUE)
@@ -167,8 +167,8 @@ read_xet_vector <- function(handle, file_hash, file_size, ...) {
   stopifnot(is.numeric(file_size), length(file_size) == 1, file_size > 0)
 
   conn <- xet_open_connection(handle, file_hash, file_size)
+  on.exit(close(conn), add = TRUE)
   bytes <- readBin(conn, "raw", file_size)
-  close(conn)
 
   path <- tempfile()
   on.exit(unlink(path), add = TRUE)

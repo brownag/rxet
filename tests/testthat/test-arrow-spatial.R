@@ -120,3 +120,20 @@ test_that("read_xet_vector requires sf package", {
     "sf.*required"
   )
 })
+
+test_that("read_xet_raster and read_xet_vector close the connection when they error", {
+  skip_without_local_cas()
+  skip_if_not_installed("terra")
+  skip_if_not_installed("sf")
+
+  # A write-only file connection makes readBin fail before any close, so the
+  # helpers error after xet_open_connection and only on.exit can close it.
+  n_before <- nrow(showConnections(all = TRUE))
+  testthat::local_mocked_bindings(
+    xet_open_connection = function(...) file(tempfile(), open = "w"),
+    .package = "rxet"
+  )
+  expect_error(read_xet_raster("h", "x", 1024))
+  expect_error(read_xet_vector("h", "x", 1024))
+  expect_equal(nrow(showConnections(all = TRUE)), n_before)
+})
