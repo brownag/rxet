@@ -31,7 +31,7 @@ jobs:
         uses: r-lib/actions/setup-r-dependencies@v2
         with:
           dependencies: '"hard"'
-          extra-packages: any::testthat, any::digest, any::processx, any::future.apply
+          extra-packages: any::testthat, any::digest, any::processx, any::future.apply, any::arrow, any::terra, any::sf
 
       - name: Set up Rust toolchain
         uses: dtolnay/rust-toolchain@stable

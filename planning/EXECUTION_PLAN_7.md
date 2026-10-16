@@ -35,7 +35,7 @@ Status: DRAFT for approval (2026-10-16). Orchestration 7 implements master plan 
 | D5 | arrow, terra and sf remain Suggests; every use is behind `requireNamespace()`; tests skip cleanly when absent. | User answer, 2026-10-16 |
 | D6 | Workers: Haiku, two in parallel per wave, file scopes disjoint. | Carried from orchestration 4 |
 | D7 | `roxygen2::roxygenise()` is run only by the orchestrator in the docs task, never by a worker. | Carried from orchestration 4 (task 4.4.1) |
-| D8 | CI does not install arrow, terra or sf in this plan. Their tests skip in CI and run locally. This is recorded as a gap, and revisited only if the user asks. | Planner (sf/GDAL build cost); see Question Q1 |
+| D8 | CI installs arrow, terra and sf (`extra-packages` in `.github/workflows/R-CMD-check.yaml`), so their tests run on all three platforms. Build time increases; sf needs GDAL/PROJ on Linux, which setup-r-dependencies resolves. | User: "we should install arrow terra and sf in CI" (2026-10-16) |
 
 ## Judgment calls (flagged for review)
 
@@ -105,7 +105,7 @@ Within each wave, file scopes are disjoint. `7.2.1` and `7.2.2` both edit `test-
 3. Clean-archive `R CMD build` and `R CMD check --no-manual` with `_R_CHECK_FORCE_SUGGESTS_=false` and no server or live variables; Status OK.
 4. Confirm `tests/testthat/fixtures/` files are under 100 KB each and the fixture hashes match `PROVENANCE.md`.
 5. Confirm every task has a todo in `planning/tasks/` and a STATE_7 report.
-6. Record residual gaps in STATE_7: CI does not run arrow, terra, sf tests (D8); range-backed connection deferred; Phase 7.
+6. Record residual gaps in STATE_7: the CI run with arrow, terra and sf is unvalidated until pushed (D8); range-backed connection deferred; Phase 7.
 
 ## Cross-task notes
 
@@ -114,4 +114,4 @@ Within each wave, file scopes are disjoint. `7.2.1` and `7.2.2` both edit `test-
 
 ## Questions (for approval)
 
-- **Q1.** CI does not install arrow, terra or sf (D8). Options: leave CI as is (the helper tests skip there), or add arrow, terra and sf to CI with the sf and GDAL build cost. Planner recommendation: leave as is for now.
+- **Q1.** Resolved by D8: CI installs arrow, terra and sf.
