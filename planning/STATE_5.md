@@ -174,3 +174,34 @@ Status: **plan drafted; awaiting user approval** (2026-10-15). No task has start
 - Gate unset, filter `streaming|connection`: pass 7, fail 0, error 0, skip 2 (live tests).
 - Deviation: live endpoint is a fixed constant (confirmed by probe), not a runtime `casUrl` lookup.
 - Residual: package examples still show `cas-cf.huggingface.co`; the accessToken expires, so long live runs may need a refresh.
+
+### 5.4.1.ci-local-server (committed fd7996e)
+- Status: done (local checks only). Files: `.github/workflows/R-CMD-check.yaml` (four steps added after the Rust toolchain step; check step unchanged).
+- Install step: `cargo install xet-client --version 1.7.0 --features simulation --bin local_cas_server --locked` when the binary is absent; 45-minute timeout; exports `RXET_LOCAL_CAS_SERVER` via `$GITHUB_ENV` (cygpath -m on Windows). No RXET_LIVE_TESTS, HF_TOKEN or secrets.
+- Deviation: cache key includes `runner.os` (binary is OS-specific).
+- Checks: YAML parses (python3 and ruby); grep for forbidden terms empty; windows-latest present.
+- DEFERRED: CI install time, cache hit/miss, Windows compile (H1), `~` expansion on Windows, and the check run are not validated until the first push.
+
+### 5.4.2.docs-testing (uncommitted at time of writing; see commit)
+- Status: done. Files: AGENTS.md `## Testing` (lines ~138-165), README.Rmd `## Testing` and FAQ sentence, README.md hand-mirrored (not re-rendered).
+- Removed "No formal test suite yet", the mock-backend file list (helper-mock-backend.R, test-stream-range.R, test-concurrent.R, none present), and the FAQ mock-backend claim.
+- Documents: offline suite, local server install and RXET_LOCAL_CAS_SERVER, live gate (RXET_LIVE_TESTS=1, HF_TOKEN required, fails without it), CI runs the local-server suite only (after first push).
+- Not run: the cargo install line was not re-run in this task; the server binary at ~/.cargo/bin/local_cas_server was used by the gate.
+
+### Phase 5 final gate (2026-10-15)
+- Routine suite with RXET_LOCAL_CAS_SERVER=/home/andrew/.cargo/bin/local_cas_server (`devtools::test()`): pass 194, fail 0, error 0, skip 13 (live gate, server-auth probe, arrow/sf/terra/uuid missing or present-but-test-needs-missing).
+- Live run (RXET_LIVE_TESTS=1, HF_TOKEN from .env, filter live-hf|connection|streaming): pass 22, fail 0, error 0, skip 0 (recorded in the 5.3.2 live result section above; no code change since).
+- Clean archive (git archive HEAD into scratchpad), `R CMD build --no-manual` and `R CMD check --no-manual` with `_R_CHECK_FORCE_SUGGESTS_=false`, RXET_LOCAL_CAS_SERVER / RXET_LIVE_TESTS / HF_TOKEN unset: Status OK; testthat 147 pass, 0 fail, 32 skip (server and live gates only).
+- Repo hygiene: no `local_cas_data/` in the repo; `git status` clean after gate; src/Makevars and src/entrypoint.o restored.
+- Writes outside tempdir: tests use tempfile()/HF_HOME isolation. Exception: earlier 5.2.1 probes wrote entries into the developer shard cache (~/.cache/huggingface/xet) before per-test HF_HOME isolation was added; those entries were not removed.
+- Task files: planning/tasks/ has a todo for every task (5.4.1 file is named `5.4.1.todo.md`, not the id-slug form).
+
+### Residual gaps (carried to Phase 6 or user decisions)
+- Live multi-chunk, mid-chunk and GeoTIFF evidence: the live dataset has one 2.9 KB Parquet file (H10). A larger fixture in brownag/rxet-test-data is a user decision.
+- Token lifetime: the accessToken expires; long live runs may fail mid-run. Not tested.
+- Mid-stream interruption: not tested (needs fault injection).
+- Windows and macOS server runs: CI-gated; unvalidated locally (H1). First push will show whether the Windows cargo build fits 45 minutes.
+- Upload stays experimental; no live write is tested (D4).
+- hf-xet size mismatch surfaces a panic-style message (product observation, not fixed).
+- README.md still names the old Mutex<HashMap> registry in one sentence (pre-existing from Phase 4).
+- arrow and spatial paths: Phase 6.
