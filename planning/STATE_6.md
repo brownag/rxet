@@ -165,3 +165,9 @@ Hygiene: `grep HF_TOKEN` on the new file is empty; the token-shaped grep `hf_[A-
 - README.md is a hand copy of README.Rmd; a re-render would overwrite the edits.
 - Known leftovers: AGENTS.md "Why lazy_static + Mutex + Arc?" rationale (lines ~222-225) and the README.md design-principles line collapse (line ~222).
 - Phase 6 arrow and spatial: orchestration 7.
+
+## CI feedback after the gate (2026-10-16)
+- CI on 88a146d: macOS pass, Windows pass, Ubuntu fail. The single failure was `test-fault-token.R` (stream, 401 message check): the stream returned "Data sender was dropped before sending data" instead of the 401 message. Reproduced locally at 1 in 15 runs.
+- Cause (upstream, not rxet): xet-data's stream writer reports its own "Data sender was dropped" error (sequential_writer.rs:107,124; download_stream.rs:133,175) when a failed fetch closes the channel, and the fetch's 401 does not reach the caller. The download path reports the 401 correctly.
+- Change: the streaming test accepts either message. The 401 request-log assertion, the error, no-data, no-token and time bounds are unchanged. Result after change: 10 of 10 runs passing (17 expectations each).
+- Action: report upstream to xet-core with the reproducer (not yet filed).

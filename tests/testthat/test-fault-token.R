@@ -155,7 +155,10 @@ test_that("term fetch 401: xet_stream_raw errors and returns no value", {
   expect_s3_class(out$res, "error")
   msg <- conditionMessage(out$res)
   expect_false(is.raw(out$res))
-  expect_match(msg, "401")
+  # Race in upstream xet-data (sequential_writer.rs, download_stream.rs): the stream writer can
+  # report "Data sender was dropped" before the failed fetch's 401 reaches the caller. Either
+  # message is accepted; the 401 request in the log below is still required.
+  expect_match(msg, "401|Data sender was dropped before sending data")
   expect_false(grepl(TOKEN_CANARY, msg, fixed = TRUE))
   expect_lt(out$elapsed, 60)
   expect_true(any(grepl("^GET /xorb/", out$reqs)))
