@@ -29,18 +29,32 @@ rxet provides native access to files stored in [Hugging Face Hub](https://huggin
 
 ### From source
 
-Building from source compiles the Rust `hf-xet` client and downloads crates from crates.io, so it requires network access and a Rust toolchain (≥ 1.85).
+Prerequisites:
+
+- R (>= 4.2)
+- Rust toolchain (>= 1.85.0), installed from [rustup.rs](https://rustup.rs/)
+- Cargo (included with the Rust toolchain)
+- Network access to crates.io on the first build, which compiles the Rust `hf-xet` client
+
+From a source checkout, run:
+
+```sh
+R CMD INSTALL .
+```
+
+Alternatively, from an R session in the checkout:
 
 ```r
-# Install Rust (if needed)
-# https://rustup.rs/
-
 # Build and install
 devtools::install()
 
 # Or run tests first
 devtools::test()
 ```
+
+## Authentication
+
+rxet uses the bearer token you pass to `xet_client_new()`. The examples read it from the `HF_TOKEN` environment variable. Set `HF_TOKEN` in your session or in `~/.Renviron`, not in code you commit. rxet does not write the token into its error output; the token-expiry fault test checks this.
 
 ## Quick Start
 
@@ -250,24 +264,26 @@ This release documents two tiers of API. All 13 exported functions are listed; t
 
 **Supported:**
 
-- `xet_client_new()` — create a client handle
-- `xet_client_close()` — release a client handle
-- `xet_config_environment()` — set Xet client environment variables
+- `xet_client_new` — create a client handle
+- `xet_client_close` — release a client handle
+- `xet_config_environment` — set Xet client environment variables
 
 **Experimental (pending live evidence):**
 
-- `xet_download_file()` — download a file to a destination path
-- `xet_upload_file()` — upload a local file
-- `xet_stream_raw()` — download a whole file into a `raw()` vector
-- `xet_stream_range()` — download a byte range into a `raw()` vector
-- `xet_open_connection()` — expose downloaded bytes as an R connection
-- `xet_close_connection()` — close that connection
-- `read_xet_parquet()` — read a Parquet file through Arrow
-- `read_xet_parquet_stream()` — read Parquet via a temporary file
-- `read_xet_raster()` — read a raster through terra
-- `read_xet_vector()` — read a vector layer through sf/GDAL
+- `xet_download_file` — download a file to a destination path
+- `xet_upload_file` — upload a local file
+- `xet_stream_raw` — download a whole file into a `raw()` vector (in memory; 2 GiB cap)
+- `xet_stream_range` — download a byte range into a `raw()` vector (in memory; 2 GiB cap)
+- `xet_open_connection` — expose downloaded bytes as an R connection (in memory; 2 GiB cap)
+- `xet_close_connection` — close that connection
+- `read_xet_parquet` — experimental helper; read a Parquet file through Arrow from an in-memory connection (2 GiB cap)
+- `read_xet_parquet_stream` — experimental helper; downloads the whole file, then reads a temporary Parquet file (2 GiB cap)
+- `read_xet_raster` — experimental helper; downloads the whole file to a temporary file, then reads it through terra
+- `read_xet_vector` — experimental helper; downloads the whole file to a temporary file, then reads it through sf/GDAL (single-file formats only)
 
-The experimental functions are exported and usable, but their end-to-end behavior against a live Xet endpoint has not yet been verified in this repository.
+The experimental functions are exported and usable, but their end-to-end behavior against a live Xet endpoint has not yet been verified in this repository. The optional helpers read whole files: they are not streaming, and in-memory reads are capped at 2 GiB. Use `xet_download_file()` for larger files.
+
+See [NEWS.md](NEWS.md) for release notes.
 
 ## Contributing
 
