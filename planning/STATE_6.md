@@ -149,3 +149,19 @@ Hygiene: `grep HF_TOKEN` on the new file is empty; the token-shaped grep `hf_[A-
 - Gate set: `RXET_LIVE_TESTS=1` with `.env` loaded in a subshell, output through a `sed` redaction. Result: 9 tests, 18 expectations, FAIL 0, ERROR 0, SKIP 0. The probe line reported `HF_TOKEN set`.
 - Timings (JUnit reporter, scratchpad `live-hf-junit.xml`, per test including its expectations): (a) multi download about 2.19 s; (b) multi range about 1.83 s (includes the second 16 MiB download); (c) GeoTIFF download about 1.95 s; (d) GeoTIFF stream about 1.55 s. Existing live tests ran in the same run (probe about 1.0 s, LIVE_HASH download about 1.0 s).
 - Xet read timings for the 16 MiB file: one download about 2.1 s, measured on a cold private `HF_HOME` per test.
+
+## Phase 6 (orchestration 6) final gate (2026-10-15)
+- Routine suite with RXET_LOCAL_CAS_SERVER (`devtools::test()`, debug build): pass 224, fail 0, error 0, skip 17 (live gate, server-auth probe, optional packages).
+- Live suite with the user's `.env` token (`RXET_LIVE_TESTS=1`, filter `live-hf|connection|streaming`; token never printed): pass 30, fail 0, error 0, skip 0. Includes the 16 MiB and GeoTIFF fixtures.
+- Clean archive (git archive HEAD into scratchpad), `R CMD check --no-manual` with `_R_CHECK_FORCE_SUGGESTS_=false` and no server/live/token variables: Status OK; testthat pass 175, fail 0, skip 36 (server and live gates only).
+- No `local_cas_data/` in the repo; `git status` clean apart from task todo files, committed with this record.
+- Finding during the gate: the size-mismatch panic reappeared in the debug build (assertion in progress_types.rs:521). Fixed in 059bacd so both build profiles return the plain message.
+
+## Residual gaps after orchestration 6
+- CI: the workflow fix (3787429) was pushed on main; the new run after the 6.x commits is not yet recorded. Windows and macOS server runs remain unvalidated until a run completes.
+- Token expiry against the real CAS is manual; the offline test covers the 401 response, not a real expired token.
+- Mid-stream drop uses an offline fault server that ends the body early; it does not reproduce a real network interruption.
+- Live access token expires; very long live runs may fail mid-run.
+- README.md is a hand copy of README.Rmd; a re-render would overwrite the edits.
+- Known leftovers: AGENTS.md "Why lazy_static + Mutex + Arc?" rationale (lines ~222-225) and the README.md design-principles line collapse (line ~222).
+- Phase 6 arrow and spatial: orchestration 7.
