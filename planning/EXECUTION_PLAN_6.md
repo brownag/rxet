@@ -44,7 +44,7 @@ Status: DRAFT for approval (2026-10-15). Orchestration 6. Phase 6 (arrow and spa
 ## Judgment calls (flagged for review)
 
 - **J1.** The fault server is written in R (serverSocket) because the local `local_cas_server` cannot inject faults. Spike 6.1.1 confirms the reconstruction response format from `xet-client-1.7.0` source before the server is written.
-- **J2.** The token-expiry test uses the server's rejection status (401/403) plus an expired-token payload; it does not wait for real expiry. Live expiry is manual.
+- **J2 (amended by 6.1.1).** The CAS client has no 401 or expiry mapping. Term fetch retries on 403 and every other error is fatal. The token-expiry test asserts that the error is raised, that it contains no token value, and that no destination file remains. It does not wait for real expiry. Live expiry is manual.
 - **J3.** The size-mismatch fix maps the specific hf-xet failure to an R error in `R/` or `src/rust/src/lib.rs` (decided by the spike). Error text changes are called out in STATE_6.
 - **J4.** Live fixture constants are pinned as literals in `test-live-hf.R`, with a comment naming the generation seed and the `SHA256SUMS.txt` values.
 
@@ -106,7 +106,7 @@ Waves 1 to 4 run in order; wave 2 holds 6.1.2 and 6.2.1 (disjoint files). Within
 
 - **Files:** `tests/testthat/test-fault-token.R` (new).
 - **Depends on:** 6.2.1 (uses helper-fault-cas.R; does not edit it).
-- **Spec:** Fault server answers with the rejection status from 6.1.1 for an expired token. Assert: a clear error (contains "401" or "403" or "unauthorized"), the token value does not appear in the message, no destination file. J2 applies: no waiting for real expiry.
+- **Spec:** Fault server answers 401 for an expired token (not 403: term fetch retries on 403). Assert: an error is raised, the token value does not appear in the message, no destination file. J2 applies: no waiting for real expiry.
 - **Acceptance:** `devtools::test(filter = "fault-token")` passes; `grep -n "HF_TOKEN" tests/testthat/test-fault-token.R` is empty.
 
 ### 6.3.1.live-fixtures
