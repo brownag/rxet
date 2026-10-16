@@ -45,3 +45,17 @@ Plan: `planning/EXECUTION_PLAN_7.md` (APPROVED 2026-10-16 by the user; D8 amende
 - Pushed: main at e43f59a, including 3f0b447 (streaming token test accepts the upstream writer error).
 - Pending: CI run for e43f59a (arrow, terra, sf now installed in CI) is not yet reviewed.
 - Pending, not done: the upstream xet-core report for the "Data sender was dropped" race (needs the user's go-ahead to file).
+
+## 7.1.2
+
+- Status: done. Acceptance passed: fresh-dir regeneration matches committed SHA-256 for all three files; each file under 100 KB.
+- Files changed (new, untracked): `tests/testthat/fixtures/make_fixtures.R`, `tests/testthat/fixtures/PROVENANCE.md`, `tests/testthat/fixtures/small.parquet`, `tests/testthat/fixtures/small.geojson`, `tests/testthat/fixtures/small.tif`. Also the plan file `planning/tasks/7.1.2.todo.md`. Nothing staged or committed.
+- Versions: R 4.6.1, arrow 25.0.1, terra 1.9.51, sf 1.1.2 (not used by generator).
+- SHA-256 and size:
+  - small.parquet 1204 B, b2304007dff06e49999a4f203e256f24c513f58a38b0c51e3f0b4468b6deacee
+  - small.geojson 529 B, 547fbd685ad0685b0ad59fded27ebe4003419e0b295d3073d8f07ce09349b4fd
+  - small.tif 2240 B, b926f2c071b5eb1ce2b474698f305422c991f5069545c3afb91cc126dacfc7a9
+- Validation: `Rscript -e 'parse(...)'` PARSE_OK; two fresh scratch runs identical (diff empty); acceptance run in a third scratch dir diffed against committed files (empty); PROVENANCE lists all three hashes.
+- Scope: `git status --short` shows only the fixtures dir and the plan file as untracked; `git check-ignore` none; `src/` clean.
+- Deviations: none from the approved plan. Raster uses a second fixed seed (20260102) alongside 20260101 for Parquet, which is one seed per output.
+- Discovered: none beyond the plan's noted risk that Parquet and GeoTIFF bytes depend on library versions (recorded in PROVENANCE.md).
