@@ -49,7 +49,7 @@ CAS protocol + Tokio runtime (internal to hf-xet)
 **Handle-Based Session Management** (`src/rust/src/lib.rs`)
 - Character UUID handles (v4 strings) map to `XetClient` structs
 - Each `XetClient` owns: `XetSession` + auth credentials (endpoint, token)
-- Stored in lazy_static `Mutex<HashMap<String, Arc<XetClient>>>` keyed by that UUID
+- Stored in a `Registry<T>` (`src/rust/src/registry.rs`), keyed by that UUID; the lock is released before each method returns
 - Avoids passing credentials on every operation
 
 **R Wrapper Layer** (`R/`)
@@ -145,6 +145,8 @@ Rscript -e 'devtools::test()'
 
 Tests tied to the compiled Rust extension skip when it is not available.
 
+**Fault tests** (always run, offline): `test-fault-midstream.R` and `test-fault-token.R` use a loopback fault server (127.0.0.1, run in a processx child process, helper `helper-fault-cas.R`). They need no `RXET_LOCAL_CAS_SERVER`, no network and no `HF_TOKEN`. The mid-stream test ends the response body early and expects an error, no destination file and no `.part` file. The token-expiry test answers 401 and checks that the token does not appear in the error. Real token expiry is checked manually and is never waited for. These files skip only when the compiled extension is absent.
+
 **Local-server tests** (uploads and local round trips) run against the upstream `local_cas_server`. Install it once and point `RXET_LOCAL_CAS_SERVER` at the binary:
 
 ```bash
@@ -156,6 +158,7 @@ Without `RXET_LOCAL_CAS_SERVER` (and no `local_cas_server` on `PATH`), these tes
 
 **Live tests** (on demand only, never in public CI):
 - Gate: `RXET_LIVE_TESTS=1` and `HF_TOKEN` set in the environment. The token needs fine-grained read access to the dataset `brownag/rxet-test-data`.
+- Fixtures: `multichunk_16mib.bin` and `geotiff_512x512_utm33n.tif` at the top level of `brownag/rxet-test-data`. Their size and SHA-256 are pinned in `test-live-hf.R`.
 - `HF_TOKEN` is required. The helper exchanges it in memory for the short-lived accessToken from the Hub's xet-read-token endpoint, because the CAS server rejects the raw token. Without `HF_TOKEN` the live tests fail; they do not skip.
 - Run: `RXET_LIVE_TESTS=1 Rscript -e 'devtools::test(filter = "live-hf")'`
 

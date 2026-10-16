@@ -219,8 +219,9 @@ rxet is built in three layers:
 **Design principles:** - Panic recovery via
 `std::panic::catch_unwind()` - Synchronous design: each network
 operation calls xet-core’s `*.blocking()` API on the calling R thread -
-A global client registry (`Mutex<HashMap<String, Arc<XetClient>>>`)
-serializes access and returns a character UUID handle to R - Whole-file
+A `Registry<T>` (`src/rust/src/registry.rs`) maps each character UUID
+handle to its client behind a mutex, and reports a poisoned lock as an
+error rather than as an unknown handle - Whole-file
 buffering: downloads materialize the complete file in memory or on disk;
 there is no remote partial-read path; in-memory reads
 (`xet_stream_raw()`, `xet_stream_range()`, `xet_open_connection()`) are
@@ -235,6 +236,16 @@ Routine offline suite (no credentials, no server, no network):
 devtools::test()
 ```
 
+Fault tests (always run, offline): `test-fault-midstream.R` and
+`test-fault-token.R` use a loopback fault server (127.0.0.1, run in a
+processx child process, helper `helper-fault-cas.R`). They need no
+`RXET_LOCAL_CAS_SERVER`, no network and no `HF_TOKEN`. The mid-stream test
+ends the response body early and expects an error, no destination file and
+no `.part` file. The token-expiry test answers 401 and checks that the token
+does not appear in the error. Real token expiry is checked manually and is
+never waited for. These files skip only when the compiled extension is
+absent.
+
 Local-server tests (uploads and local round trips) run against the
 upstream `local_cas_server`. Install it with
 `cargo install xet-client --version 1.7.0 --features simulation --bin local_cas_server --locked`,
@@ -244,6 +255,8 @@ tests skip.
 Live tests are on demand only and never run in public CI. They require
 `RXET_LIVE_TESTS=1` and `HF_TOKEN` (fine-grained read on the dataset
 `brownag/rxet-test-data`). Without `HF_TOKEN` they fail rather than skip.
+The live fixtures are `multichunk_16mib.bin` and `geotiff_512x512_utm33n.tif`
+at the top level of that dataset.
 
 Public CI runs the local-server suite once task 5.4.1 lands; CI
 execution is not yet validated until the first push.
