@@ -10,3 +10,5 @@ src/rxet.so
 .cargo/
 rxet.Rcheck/
 rxet_*.tar.gz
+src/Makevars
+src/Makevars.win
