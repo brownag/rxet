@@ -72,6 +72,14 @@ No token values were printed or written. Repo files changed: this section only.
 - Counts: `cargo test --lib tests::` 7 passed, 0 failed. `devtools::test(filter="local-failures")` PASS 18, FAIL 0, SKIP 1 (token test, skipped by design). First reinstall attempt hit a transient Rust dep-info error and was retried; second install succeeded.
 - Not committed. `src/Makevars` and `src/entrypoint.o` show as modified in the worktree and were not staged.
 
+#### 6.1.2 addendum: debug-build panic form
+- Step 1 (assert site, from a debug run with `EXTENDR_BACKTRACE=1 RUST_BACKTRACE=1`): `xet-data-1.7.0/src/progress_tracking/progress_types.rs:521:17`, a `debug_assert_eq!(self.item.total_bytes, total)` in `ItemProgressUpdater::update_item_size`, called from `xet-data-1.7.0/src/file_reconstruction/reconstruction_terms/manager.rs:180`. Left is the size set from `file_info` (the expected size), right is the total downloaded. The debug-only assert fires only in `debug_assertions` builds.
+- Some debug runs also show `left: 65536 right: 0` in another task; it is not produced by this test's path and the cross-check returns None for it.
+- Helper change: `size_mismatch_message` also matches `panicked with message` plus ``assertion `left == right` failed``. It parses `left:` and `right:` with `number_after`, takes the operand equal to `expected` as trusted, and uses the other as the actual count. Neither equal to `expected` returns None. Release output is unchanged in content: the same helper runs in both builds.
+- Tests: `cargo test --lib tests::` 11 passed (7 prior, 4 new: debug panic form, swapped operands, neither operand expected, other panic text).
+- Counts: step 8 `cargo check` clean. Step 9 `cargo test --lib tests::` 11 passed, 0 failed. Step 10 `R CMD INSTALL .` exit 0. Step 11 `devtools::test(filter="local-failures")` debug build: PASS 18, FAIL 0, SKIP 1. `tests/testthat/test-local-failures.R` unchanged in this addendum.
+- Not committed; `src/Makevars` and `src/entrypoint.o` not staged.
+
 ### Plan amendments from 6.1.1 (2026-10-15)
 - 6.2.2 token-expiry: the "rejection status from 6.1.1" does not exist (no 401 or expiry mapping in xet-client 1.7.0 or the local server). The fault server returns 401 and the test asserts a fatal error with no token value and no destination file. A 403 would be retried by term fetch, so do not use 403.
 - 6.1.2 size-mismatch: the premise "panic-style message" is not supported by source. The check is `xet-data` `File size mismatch: expected N bytes but downloaded M bytes`, wrapped by `hf-xet` as `Internal error: ...` and by rxet as `download error:` or `finish error:` (`src/rust/src/lib.rs:266,270`). Decision needed from the user: fix the wording (a clean R message) or record it as-is. 6.1.2 is held until the user decides.

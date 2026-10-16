@@ -236,14 +236,33 @@ fn xet_stream_range(
     }))
 }
 
+/// Parses the unsigned integer that follows `label` in `text`.
+fn number_after(text: &str, label: &str) -> Option<u64> {
+    text.split(label).nth(1)?.split(|c: char| !c.is_ascii_digit()).next()?.parse().ok()
+}
+
 /// Maps an hf-xet size-mismatch error to a plain message naming both sizes.
 /// Returns None for any other error text, or when the downloaded count cannot be parsed.
 fn size_mismatch_message(expected: u64, err_text: &str) -> Option<String> {
-    if !err_text.contains("File size mismatch") {
+    let actual: u64 = if err_text.contains("File size mismatch") {
+        err_text.split("downloaded ").nth(1)?.split_whitespace().next()?.parse().ok()?
+    } else if err_text.contains("panicked with message")
+        && err_text.contains("assertion `left == right` failed")
+    {
+        // Debug-build panic form (xet-data progress_types.rs:521). Only `expected` is trusted;
+        // whichever operand equals it, the other is the downloaded count.
+        let left = number_after(err_text, "left: ")?;
+        let right = number_after(err_text, "right: ")?;
+        if left == expected {
+            right
+        } else if right == expected {
+            left
+        } else {
+            return None;
+        }
+    } else {
         return None;
-    }
-    let after = err_text.split("downloaded ").nth(1)?;
-    let actual: u64 = after.split_whitespace().next()?.parse().ok()?;
+    };
     Some(format!(
         "downloaded size does not match file_size: expected {expected} bytes, got {actual} bytes"
     ))

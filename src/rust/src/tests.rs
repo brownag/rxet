@@ -70,3 +70,33 @@ fn size_mismatch_message_ignores_other_errors() {
 fn size_mismatch_message_unparseable_count_is_none() {
     assert!(crate::size_mismatch_message(10, "File size mismatch: expected 10 bytes but downloaded many bytes").is_none());
 }
+
+#[test]
+fn size_mismatch_message_maps_debug_panic_form() {
+    let raw = "task 245 panicked with message \"assertion `left == right` failed\n  left: 65537\n right: 65536\"";
+    assert_eq!(
+        crate::size_mismatch_message(65537, raw).as_deref(),
+        Some("downloaded size does not match file_size: expected 65537 bytes, got 65536 bytes")
+    );
+}
+
+#[test]
+fn size_mismatch_message_debug_panic_swapped_operands() {
+    let raw = "task 9 panicked with message \"assertion `left == right` failed\n  left: 65536\n right: 65537\"";
+    assert_eq!(
+        crate::size_mismatch_message(65537, raw).as_deref(),
+        Some("downloaded size does not match file_size: expected 65537 bytes, got 65536 bytes")
+    );
+}
+
+#[test]
+fn size_mismatch_message_debug_panic_neither_operand_is_expected_is_none() {
+    let raw = "task 9 panicked with message \"assertion `left == right` failed\n  left: 65536\n right: 0\"";
+    assert!(crate::size_mismatch_message(65537, raw).is_none());
+}
+
+#[test]
+fn size_mismatch_message_other_panic_is_none() {
+    let raw = "task 9 panicked with message \"index out of bounds: the len is 3\"";
+    assert!(crate::size_mismatch_message(65537, raw).is_none());
+}
