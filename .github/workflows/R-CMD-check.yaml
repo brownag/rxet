@@ -35,6 +35,35 @@ jobs:
       - name: Set up Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Get rustc version
+        id: rustc
+        shell: bash
+        run: echo "version=$(rustc -V | tr ' ' '_')" >> "$GITHUB_OUTPUT"
+
+      - name: Cache local CAS server
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/local_cas_server
+            ~/.cargo/bin/local_cas_server.exe
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: xet-client-1.7.0-${{ runner.os }}-${{ steps.rustc.outputs.version }}
+
+      - name: Install local CAS server
+        shell: bash
+        timeout-minutes: 45
+        run: |
+          EXE=""
+          if [ "$RUNNER_OS" = "Windows" ]; then EXE=".exe"; fi
+          BIN="$HOME/.cargo/bin/local_cas_server$EXE"
+          if [ ! -f "$BIN" ]; then
+            cargo install xet-client --version 1.7.0 --features simulation --bin local_cas_server --locked
+          fi
+          test -f "$BIN"
+          if command -v cygpath >/dev/null 2>&1; then BIN="$(cygpath -m "$BIN")"; fi
+          echo "RXET_LOCAL_CAS_SERVER=$BIN" >> "$GITHUB_ENV"
+
       - name: Build package
         run: R CMD build .
 
