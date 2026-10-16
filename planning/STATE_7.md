@@ -13,9 +13,9 @@ Plan: `planning/EXECUTION_PLAN_7.md` (APPROVED 2026-10-16 by the user; D8 amende
 
 | Task | Wave | Status |
 |---|---|---|
-| 7.1.1.spike-helper-paths | 1 | pending |
-| 7.1.2.fixtures | 1 | pending |
-| 7.2.1.arrow-tests | 2 | pending |
+| 7.1.1.spike-helper-paths | 1 | done (a7011b5) |
+| 7.1.2.fixtures | 1 | done (7dedc9c) |
+| 7.2.1.arrow-tests | 2 | done (test commit below; product fix 5f764c1) |
 | 7.2.2.spatial-tests | 3 | pending |
 | 7.3.1.helper-docs | 4 | pending |
 
@@ -59,3 +59,15 @@ Plan: `planning/EXECUTION_PLAN_7.md` (APPROVED 2026-10-16 by the user; D8 amende
 - Scope: `git status --short` shows only the fixtures dir and the plan file as untracked; `git check-ignore` none; `src/` clean.
 - Deviations: none from the approved plan. Raster uses a second fixed seed (20260102) alongside 20260101 for Parquet, which is one seed per output.
 - Discovered: none beyond the plan's noted risk that Parquet and GeoTIFF bytes depend on library versions (recorded in PROVENANCE.md).
+
+## 7.2.1
+
+- Status: STOP. Product defect found in `read_xet_parquet` (`R/arrow.R:67-70`). Not fixed (product code is out of scope).
+- Files changed: `tests/testthat/helper-fixtures.R` (new, 1-37); `tests/testthat/test-arrow-spatial.R` lines 14-26 replaced by four arrow tests (approx. 14-54). Plan file `planning/tasks/7.2.1.todo.md`. Nothing committed.
+- Validation: `RXET_LOCAL_CAS_SERVER=$HOME/.cargo/bin/local_cas_server Rscript -e 'devtools::test(filter="arrow-spatial")'`: FAIL 1, SKIP 3, PASS 4. Skips: first arrow test (HF_TOKEN gate, untouched), terra and sf "required" tests (installed, untouched). Local server: `$HOME/.cargo/bin/local_cas_server`.
+- Failure: "read_xet_parquet returns the data frame written by make_fixtures.R" errors `invalid connection` in `close(conn)` at `R/arrow.R:67`. Cause: `arrow::read_parquet()` closes a rawConnection it reads (scratch check: `isOpen(conn)` after read gives "invalid connection"). `read_xet_parquet` then calls `close(conn)` again in its `on.exit`. Every success path fails.
+- Deviations (approved): spec's "returns a connection" wording does not match the product (`R/arrow.R:134` returns a data frame); stream test checks the data frame, byte equality is checked through `xet_open_connection`. Lines 14-26 (HF_TOKEN test) replaced with local-server tests.
+- Discovered: `read_xet_parquet` needs the close-after-read removed or guarded (e.g. `tryCatch(close(conn), error = function(e) NULL)` or drop the `on.exit`), a product fix requiring a separate task. The 2 GiB refusal test passes, with no client and no network.
+- Blockers: the product defect above. Awaiting orchestrator decision on the fix task.
+- Orchestrator (after 7.2.1): product defect fixed in `R/arrow.R` (commit 5f764c1): `read_xet_parquet` no longer closes the connection in `on.exit`; it closes it only on the error path. Re-run `devtools::test(filter="arrow-spatial")` with `RXET_LOCAL_CAS_SERVER=$HOME/.cargo/bin/local_cas_server`: 5 pass, 0 fail, 3 skip (first arrow test and the terra/sf absence checks).
+- Note: the old `read_xet_parquet handles nonexistent files gracefully` test (HF_TOKEN-gated) was replaced by the approved local-server tests.
