@@ -63,6 +63,26 @@ cfg <- if (is_debug) "debug" else "release"
 # there may be use cases later where this can be adapted or expanded
 .target <- ifelse(is_wasm, paste0("--target=", webr_target), "")
 
+# On macOS, Rust objects must not claim a newer minimum OS than R links with,
+# or ld warns and the .so can need symbols R's own target lacks. Take that
+# minimum from R's libR.dylib, so nothing is hard-coded. A
+# MACOSX_DEPLOYMENT_TARGET set by the user always wins.
+.macos_target <- ""
+if (Sys.info()[["sysname"]] == "Darwin" &&
+  Sys.getenv("MACOSX_DEPLOYMENT_TARGET") == "") {
+  libr <- file.path(R.home("lib"), "libR.dylib")
+  otool <- Sys.which("otool")
+  if (file.exists(libr) && nzchar(otool)) {
+    lines <- system2(otool, c("-l", libr), stdout = TRUE)
+    # LC_BUILD_VERSION has "minos X.Y"; LC_VERSION_MIN_MACOSX has "version X.Y"
+    minos <- sub("^\\s*(minos|version) ([0-9.]+)\\s*$", "\\2",
+      grep("^\\s*(minos|version) [0-9.]+\\s*$", lines, value = TRUE))
+    if (length(minos) > 0) {
+      .macos_target <- paste0("MACOSX_DEPLOYMENT_TARGET=", minos[1], " ")
+    }
+  }
+}
+
 # add panic exports only for WASM builds
 .panic_exports <- ifelse(
   is_wasm,
@@ -113,7 +133,8 @@ new_txt <- gsub("@CRAN_FLAGS@", .cran_flags, mv_txt) |>
   gsub("@CLEAN_TARGET@", .clean_targets, x = _) |>
   gsub("@LIBDIR@", .libdir, x = _) |>
   gsub("@TARGET@", .target, x = _) |>
-  gsub("@PANIC_EXPORTS@", .panic_exports, x = _)
+  gsub("@PANIC_EXPORTS@", .panic_exports, x = _) |>
+  gsub("@MACOSX_TARGET@", .macos_target, x = _)
 
 message("Writing `", mv_ofp, "`.")
 con <- file(mv_ofp, open = "wb")
