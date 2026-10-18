@@ -116,6 +116,26 @@ test_that("read_xet_vector returns the three-feature GeoJSON fixture", {
   expect_length(setdiff(after, before), 0)
 })
 
+test_that("read_xet_vector accepts ext and returns the three-feature GeoJSON fixture", {
+  skip_without_local_cas()
+  skip_if_not_installed("sf")
+  client <- start_fixture_client()
+  info <- serve_fixture(client, "small.geojson")
+
+  v <- read_xet_vector(client, info$hash, info$file_size, ext = "geojson")
+
+  expect_s3_class(v, "sf")
+  expect_equal(nrow(v), 3L)
+})
+
+test_that("read_xet_vector rejects ext with a dot before any download", {
+  skip_if_not_installed("sf")
+  expect_error(
+    read_xet_vector("client", "geojson_hash", 1024, ext = "geo.json"),
+    "ext"
+  )
+})
+
 test_that("read_xet_raster requires terra package", {
   skip_if_not(is_compiled())
   if (requireNamespace("terra", quietly = TRUE)) {
