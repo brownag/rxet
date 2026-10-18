@@ -95,8 +95,9 @@ Serial wave-end suite: wave 1 PASS 239, FAIL 0, ERROR 0, SKIP 16 (`devtools::tes
 - G3: `R CMD build` then `R CMD check --no-manual` on the tarball: Status OK after the `.env` fix.
 - G4: grep gate passes outside NEWS. In NEWS, hits are only in the 0.2.0 section and in the 0.1.1 and 0.1.0 history (J6).
 - G6: release commit `028a303 chore: release 0.2.0 metadata and regenerated docs`. It also carries the J6 plan note, a doc-only change.
-- G5 (live suite, user-run): pending. Needs `RXET_LIVE_TESTS=1` and `HF_TOKEN`.
+- G5 (live suite): PASS 18, FAIL 0, ERROR 0, SKIP 0 (`devtools::test(filter = "live-hf")`, 2026-10-18). `HF_TOKEN` was read from `.env` into the process only; output was checked for the token value before display (none found).
 - G7 (tag v0.2.0 and push): not done; needs your approval.
+- Cleanup: 10 agent worktrees removed (all content already on v0.2.0). Their branches `worktree-agent-*` remain.
 
 ## T6 (10.1.6): dropped (D6)
 - Blocked on 2026-10-18: `tools/benchmark.R` sources `xet-sync.R`; README and `tools/README.md` document `models.json`. User chose to keep the root files and `tools/`. No changes made; the worker was told to stop.
