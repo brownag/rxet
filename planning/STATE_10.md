@@ -79,6 +79,25 @@ Serial wave-end suite: wave 1 PASS 239, FAIL 0, ERROR 0, SKIP 16 (`devtools::tes
 - Tests: `filter = "arrow-spatial"` FAIL 0, ERROR 0, SKIP 3, PASS 23.
 - Gotcha: `ext` means a file extension for `read_xet_vector` and a crop extent for `read_xet_raster`.
 
+## T9 (10.3.1)
+- Status: done, merged as `a5334ad`. Worker first planned on the old base; it fast-forwarded to v0.2.0 and replanned.
+- Files: README.Rmd, README.md, AGENTS.md. Removed the three names, the `ext` on raster, added `ext` on vector, new `xet_client_new` args, 10 exports. README.md is hand-edited, not re-knit.
+- Extra: `HF_XET_HIGH_PERFORMANCE` row no longer says it disables the cache (same false claim as the ADR corrects).
+- Acceptance: grep for removed names returns nothing in the three files; bullet export set identical and equal to the 10 exports.
+
+## T10 (10.3.2)
+- Status: done, merged as `14451ab`. NEWS 0.2.0 section, lines 1-31; 0.1.1 entry unchanged.
+
+## Gate (orchestrator)
+- Extra fix: `.env` was in the built tarball (R CMD build packages it; not in .Rbuildignore). Excluded in `c807e52`. Verified by name only; contents not read.
+- G1: DESCRIPTION 0.2.0; `roxygenise()` exit 0; NAMESPACE diff removes exactly the three exports; man/ removes 7 Rd and updates 4.
+- G2: routine suite against the installed build: PASS 246, FAIL 0, ERROR 0, SKIP 16 (live-gated only).
+- G3: `R CMD build` then `R CMD check --no-manual` on the tarball: Status OK after the `.env` fix.
+- G4: grep gate passes outside NEWS. In NEWS, hits are only in the 0.2.0 section and in the 0.1.1 and 0.1.0 history (J6).
+- G6: release commit `028a303 chore: release 0.2.0 metadata and regenerated docs`. It also carries the J6 plan note, a doc-only change.
+- G5 (live suite, user-run): pending. Needs `RXET_LIVE_TESTS=1` and `HF_TOKEN`.
+- G7 (tag v0.2.0 and push): not done; needs your approval.
+
 ## T6 (10.1.6): dropped (D6)
 - Blocked on 2026-10-18: `tools/benchmark.R` sources `xet-sync.R`; README and `tools/README.md` document `models.json`. User chose to keep the root files and `tools/`. No changes made; the worker was told to stop.
 
