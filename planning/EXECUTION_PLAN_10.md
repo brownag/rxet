@@ -6,7 +6,7 @@ Orchestration 10 follows `planning/PROMPT_TEMPLATE_10.md` and `planning/STATE_10
 
 ## Goal & Scope
 
-**Goal.** Ship rxet 0.2.0 with the breaking API changes in ADR 0004: remove three misleading or redundant public functions, move client configuration onto the client, and drop one unused argument. Add the `ext` argument to `read_xet_vector()`. Clean up dead code, dependencies, and root files.
+**Goal.** Ship rxet 0.2.0 with the breaking API changes in ADR 0004: remove three misleading or redundant public functions, move client configuration onto the client, and drop one unused argument. Add the `ext` argument to `read_xet_vector()`. Clean up dead code and dependencies. Root model-sync files and `tools/` stay (D6).
 
 **In scope**
 - Remove `read_xet_parquet_stream()`, `xet_close_connection()`, `xet_config_environment()`.
@@ -17,7 +17,7 @@ Orchestration 10 follows `planning/PROMPT_TEMPLATE_10.md` and `planning/STATE_10
 - Remove the six unused helpers in `R/utils.R` and their tests.
 - Remove unused Rust crates: `tokio`, `byteorder`, `lru`, `crossbeam-channel`, `futures-util`.
 - Set crate version 0.2.0 in `src/rust/Cargo.toml` (task T5) and `DESCRIPTION` (gate).
-- Delete root files: `TODO.md`, `models.json`, `xet-sync.R`, `xet-sync.sh`, `check-updates.sh` (user agreed 2026-10-17). Each is tracked and listed in `.Rbuildignore`. They reference each other and look like a GGUF model-sync tool, not rxet. T6 checks for outside references first.
+- Root model-sync files (`TODO.md`, `models.json`, `xet-sync.R`, `xet-sync.sh`, `check-updates.sh`) are kept. Removal was dropped 2026-10-18 (D6): `tools/benchmark.R` sources `xet-sync.R` and the README documents `models.json`.
 - Docs: `README.Rmd`, `README.md`, `AGENTS.md` describe the 10-export surface (T9). `NEWS.md` gets a 0.2.0 section with a "Breaking changes" heading (T10).
 - Final gate: roxygen, routine suite, clean-archive `R CMD check`, live suite (user-run), grep gate, release commit.
 
@@ -31,7 +31,7 @@ Orchestration 10 follows `planning/PROMPT_TEMPLATE_10.md` and `planning/STATE_10
 - An exact-export `NAMESPACE` test. User decided 2026-10-18 it is brittle and unnecessary.
 
 **Verbatim constraints**
-- User, 2026-10-17: agreed to the five breaking-change recommendations, the 0.2.0 scope, and root cleanup. Per-client config was conditional on hf-xet support. Verified: `XetConfig::with_config`, `XetConfig::with_high_performance`, `XetSessionBuilder::new_with_config` in hf-xet 1.7.0.
+- User, 2026-10-17: agreed to the five breaking-change recommendations and the 0.2.0 scope. The root cleanup part was withdrawn 2026-10-18 (D6). Per-client config was conditional on hf-xet support. Verified: `XetConfig::with_config`, `XetConfig::with_high_performance`, `XetSessionBuilder::new_with_config` in hf-xet 1.7.0.
 - User, 2026-10-18: branch `v0.2.0`; worker models as listed in D8 below; default concurrency of at most 2 workers per wave; acceptance as in the Gate section; no exact-export test; plan 9 committed as its own commit.
 - User, 2026-10-18: ADR 0004 committed as its own commit (`a78d552`).
 
@@ -67,7 +67,7 @@ Orchestration 10 follows `planning/PROMPT_TEMPLATE_10.md` and `planning/STATE_10
 | D3 | `high_perf = TRUE` applies hf-xet's preset after the environment. The help text says so. | ADR 0004, "Configuration rules". |
 | D4 | Vector argument named `ext`, not `format`. | ADR 0004. Value is a file extension. |
 | D5 | Range, multi-file, vendoring deferred to 0.3.0 or later. | User agreed to scope 2026-10-17. |
-| D6 | Root files deleted in this release. | User agreed 2026-10-17. Checked in T6. |
+| D6 | Root model-sync files and `tools/` are kept in 0.2.0. T6 is dropped. | Superseded 2026-10-18. The 2026-10-17 agreement to delete them was wrong: T6 found `tools/benchmark.R` sources `xet-sync.R`, and README and `tools/README.md` document `models.json`. User chose to keep them. |
 | D7 | `DESCRIPTION` becomes 0.2.0 at the gate, not in a worker task. `Cargo.toml` becomes 0.2.0 in T5 (it is not published, `publish = false`). | Revised 2026-10-18 from plan 9 D12 so that the crate version and DESCRIPTION can match at release. |
 | D8 | Worker models: Haiku for T1, T2, T3, T4, T6, T8. Sonnet for T7. T5, T9 and T10 are not in the approved list; picked here: T5 Sonnet (Cargo lock and dependency removal), T9 Sonnet (several doc files must agree), T10 Haiku (one file). Escalation: Sonnet. | User approved the first list 2026-10-18. The other three are my picks; flagged in Judgment calls. |
 | D9 | Concurrency: at most 2 workers at once. Each worker runs in its own worktree when its wave has more than one task. | User agreed to the default 2026-10-18. |
@@ -98,7 +98,7 @@ Orchestration 10 follows `planning/PROMPT_TEMPLATE_10.md` and `planning/STATE_10
 
 | Wave | Tasks | Files (disjoint within the wave) | Batches (max 2 at once) |
 |---|---|---|---|
-| 1 | T1, T2, T3, T4, T5, T6 | see tasks | [T1, T2], [T3, T4], [T5, T6] |
+| 1 | T1, T2, T3, T4, T5 | see tasks | [T1, T2], [T3, T4], [T5] |
 | 2 | T7, T8 | T7: Rust lib, tests.rs, R/client.R, test-config.R, test-input-validation.R. T8: R/spatial.R, test-arrow-spatial.R. | [T7, T8] |
 | 3 | T9, T10 | T9: README.Rmd, README.md, AGENTS.md. T10: NEWS.md. | [T9, T10] |
 
@@ -155,7 +155,7 @@ Every task is one commit. Each worker's micro-plan has at most 12 steps.
 - Acceptance: `cd src/rust && cargo check --tests` exits 0. `grep -rn "tokio\|byteorder\|lru\|crossbeam\|futures_util" src/rust/src` returns nothing.
 - Commit: `chore(rust): drop unused crates and set crate version to 0.2.0`.
 
-**T6. Remove root model-sync files.**
+**T6. (Dropped 2026-10-18, D6.)** Remove root model-sync files. The spec below is kept for the record only and is not executed.
 - Repo: rxet. Model: Haiku. Depends on: none.
 - Files, must edit: `.Rbuildignore`. Files, must delete: `TODO.md`, `models.json`, `xet-sync.R`, `xet-sync.sh`, `check-updates.sh`.
 - Spec: for each deleted file, grep the repo (excluding `planning/`, `rxet.Rcheck/`, and the file itself) for its name. If any reference is found outside those, STOP and report the file and line. Otherwise delete the five files and remove their five lines from `.Rbuildignore` (`^xet-sync\.R$`, `^xet-sync\.sh$`, `^check-updates\.sh$`, `^models\.json$`, `^TODO\.md$`). Keep all other lines.
@@ -209,7 +209,7 @@ Every task is one commit. Each worker's micro-plan has at most 12 steps.
 **T10. NEWS.**
 - Repo: rxet. Model: Haiku (J1). Depends on: wave 2 complete.
 - Files, must edit: `NEWS.md`.
-- Spec: add `# rxet 0.2.0` above `# rxet 0.1.1`. Sections: "Breaking changes" (each removed function with its replacement: `read_xet_parquet_stream()` to `read_xet_parquet()`; `xet_close_connection()` to `close()`; `xet_config_environment()` to the `xet_client_new()` arguments; `ext` on `read_xet_raster()` to `terra::crop()`). "Features" (`timeout_sec`, `cache_bytes`, `high_perf` on `xet_client_new()`; `ext` on `read_xet_vector()`). "Fixes" (`high_perf` help text; the cache claim is removed). "Internal" (dead helpers removed; unused Rust crates removed; root files removed). Use the existing 0.1.1 entry's style. Do not edit the 0.1.1 entry.
+- Spec: add `# rxet 0.2.0` above `# rxet 0.1.1`. Sections: "Breaking changes" (each removed function with its replacement: `read_xet_parquet_stream()` to `read_xet_parquet()`; `xet_close_connection()` to `close()`; `xet_config_environment()` to the `xet_client_new()` arguments; `ext` on `read_xet_raster()` to `terra::crop()`). "Features" (`timeout_sec`, `cache_bytes`, `high_perf` on `xet_client_new()`; `ext` on `read_xet_vector()`). "Fixes" (`high_perf` help text; the cache claim is removed). "Internal" (dead helpers removed; unused Rust crates removed). Use the existing 0.1.1 entry's style. Do not edit the 0.1.1 entry.
 - Acceptance: `grep -n "^# rxet 0.2.0" NEWS.md` returns one line, above `^# rxet 0.1.1`.
 - Commit: `docs(news): add 0.2.0 breaking changes`.
 
@@ -239,7 +239,7 @@ The R help said `high_perf` "disables chunk cache". hf-xet's `with_high_performa
 
 Two passes, run by the planner, not sub-agents.
 
-- **Spec axis.** Every ADR 0004 item maps to a task: three removals (T1, T2, T7), raster `ext` (T3), per-client config and the `high_perf` text (T7), vector `ext` (T8), dead helpers (T4), crates and version (T5, gate), root files (T6), docs (T9), NEWS (T10). Every user answer maps to a decision (D1-D12). Deferred items are listed under out of scope. No task adds work the user did not ask for.
+- **Spec axis.** Every ADR 0004 item maps to a task: three removals (T1, T2, T7), raster `ext` (T3), per-client config and the `high_perf` text (T7), vector `ext` (T8), dead helpers (T4), crates and version (T5, gate), root files (dropped, D6), docs (T9), NEWS (T10). Every user answer maps to a decision (D1-D12). Deferred items are listed under out of scope. No task adds work the user did not ask for.
 - **Standards axis.** Each task names its files, anchors, acceptance command, and commit message. Wave 1 files are disjoint (checked against the anchor list). Wave 2 files are disjoint, and T8 starts after T3. Wave 3 files are disjoint. Acceptance greps are scoped to specific patterns. Serial suite rule, escalation rule, and no-`R CMD INSTALL`-by-workers rule are present.
 - **Fixed in review:** an over-broad `ext` grep in T3; a dropped `expect_null` wrapper in T2; a README count check that compared against a moving baseline in T9; the ADR 0004 validation bullet that still required an export count (now the gate's `NAMESPACE` review).
 - **Judgment calls flagged:** J1-J4.
