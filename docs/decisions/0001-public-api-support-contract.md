@@ -12,6 +12,11 @@ source_context: "EXECUTION_PLAN_2"
 
 # 1. Preserve the 13-Function Public API and Label Unverified Functions Experimental
 
+> **Partially superseded by [ADR 0004](0004-v0-2-0-breaking-api-changes.md) (2026-10-17).**
+> From v0.2.0 the export count is 10, not 13. The "no removal" rule and the
+> "exactly 13 exports" validation below apply to v0.1.x only. The support tiers
+> and experimental labels still apply.
+
 ## Context and Problem Statement
 
 By v0.1, `rxet` exported 13 functions through `NAMESPACE`, but the shipped
