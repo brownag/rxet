@@ -81,6 +81,7 @@ Orchestration 10 follows `planning/PROMPT_TEMPLATE_10.md` and `planning/STATE_10
 - **J2.** T4 deletes `test-utils.R` and `test-parallel-downloads.R` whole, and only line ranges from `test-edge-cases.R`. If a deleted file contains a test of live code, the worker stops and reports (see T4).
 - **J3.** `ext` validation rule in T8: one non-empty string, letters and digits only. Stricter than "no dot or path separator", which the draft allowed. Simpler to explain and prevents path tricks.
 - **J4.** T7 maps the R arguments to hf-xet config keys with `with_config`. The string format for `client.read_timeout` is confirmed by the worker in Analysis (Duration parser), not assumed.
+- **J5.** T9's README acceptance check compared bullet line counts. Baseline counts differ (29 vs 26) because `README.md` is hard-wrapped. The check now compares the set of export names in the bullets. Recorded at the pre-wave step, 2026-10-18.
 
 ## Hazards
 
@@ -202,7 +203,7 @@ Every task is one commit. Each worker's micro-plan has at most 12 steps.
   In `AGENTS.md`: remove `read_xet_parquet_stream` from the optional-integrations table (`:176`) and from the memory and 2 GiB bullets (`:181-182`). Replace them with `read_xet_parquet()`. Remove any mention of `xet_config_environment`. Update the Experimental list and the API surface, if present.
 - Do not touch: `R/`, `tests/`, `NEWS.md`, `man/`.
 - Grep anchors: `README.Rmd` lines above; `AGENTS.md:170-190`.
-- Acceptance: `grep -n "read_xet_parquet_stream\|xet_close_connection\|xet_config_environment" README.Rmd README.md AGENTS.md` returns nothing. The count of lines starting with ``- `` is equal in `README.Rmd` and `README.md` (the two files stay in step).
+- Acceptance: `grep -n "read_xet_parquet_stream\|xet_close_connection\|xet_config_environment" README.Rmd README.md AGENTS.md` returns nothing. The set of export names in the ``- `name(` `` bullets matches between `README.Rmd` and `README.md`. Do not compare line counts: `README.md` is hard-wrapped (baseline 29 vs 26 bullet lines, J5).
 - Commit: `docs: update README and AGENTS for the 0.2.0 API`.
 
 **T10. NEWS.**

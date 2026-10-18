@@ -1,14 +1,16 @@
 # STATE 10: rxet 0.2.0 breaking changes
 
-Plan: `planning/EXECUTION_PLAN_10.md`. Branch `v0.2.0`. Status: plan drafted, awaiting approval. No pre-wave step has run.
+Plan: `planning/EXECUTION_PLAN_10.md`. Branch `v0.2.0`. Status: approved by the user; pre-wave baseline recorded 2026-10-18; wave 1 next.
 
-## Baseline (pre-wave, to be recorded)
+## Baseline (pre-wave, recorded 2026-10-18)
 
-- [ ] P1. Plan committed: `docs(planning): add 0.2.0 orchestration plan 10`.
-- [ ] P2. `R CMD INSTALL .` exit 0. Routine suite with `RXET_LOCAL_CAS_SERVER`: pass ___ fail ___ error ___ skip ___. Failing test names: ___. `test-parallel-downloads.R` test 1 passes: yes / no. Line count of `^- \`` in README.Rmd ___ and README.md ___.
-- [ ] P3. `cd src/rust && cargo check --tests` exit ___. `cargo test --lib` links: yes / no.
-- [ ] P4. `pkgbuild` honors `CARGO_TARGET_DIR`: yes / no. Effect on worktrees: ___.
-- [ ] P5. `git status` clean on `v0.2.0` except planning files from P1.
+- [x] P1. Plan already committed in `b6d9ab9` (`docs(planning): add 0.2.0 execution plan, worker prompt and state`). No new commit.
+- [x] P2. `R CMD INSTALL .` exit 0. Routine suite with `RXET_LOCAL_CAS_SERVER=$HOME/.cargo/bin/local_cas_server`: pass 305, fail 0, error 0, skip 16. Failing tests: none. `test-parallel-downloads.R` test 1 passes: yes. Bullet lines `^- \`` in README.Rmd 29, README.md 26. The counts differ because README.md is hard-wrapped; T9's count check is replaced by a name-set check (see J5).
+- [x] P3. `cd src/rust && cargo check --tests` exit 0. `cargo test --lib` exit 0, 11 passed. Test binary links: yes. T7 runs `cargo test build_config`.
+- [x] P4. pkgbuild 1.4.8 never references `CARGO_TARGET_DIR`. Cargo reads the variable from the environment itself, but this is untested. Worktree builds are cold (5-10 min each); accepted.
+- [x] P5. `git status` clean on `v0.2.0`.
+
+Note: `command -v local_cas_server` returns nothing in the orchestrator shell. The binary is at `~/.cargo/bin/local_cas_server`; export the full path.
 
 Reference baseline from plan 9 (recorded, not re-verified): 305 passed, 0 failed, 16 skipped on `main`.
 
