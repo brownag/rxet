@@ -28,3 +28,4 @@
 ^\.cursor
 ^Makefile$
 ^\.DS_Store$
+^\.env$
