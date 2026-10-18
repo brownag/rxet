@@ -24,8 +24,8 @@ Reference baseline from plan 9 (recorded, not re-verified): 305 passed, 0 failed
 | 1 | T4 remove dead helpers | Haiku | done | f0e3a3c |
 | 1 | T5 cargo cleanup and version | Sonnet | done | (see T5 report) |
 | 1 | T6 remove root model-sync files | Haiku | dropped (D6) | - |
-| 2 | T7 per-client configuration | Sonnet | pending | - |
-| 2 | T8 read_xet_vector ext | Haiku | pending | - |
+| 2 | T7 per-client configuration | Sonnet | done | 35b4e03 |
+| 2 | T8 read_xet_vector ext | Haiku | done | 32919a6 |
 | 3 | T9 docs and surface | Sonnet | pending | - |
 | 3 | T10 NEWS | Haiku | pending | - |
 | Gate | G1-G4, G6 | orchestrator | pending | - |
@@ -65,6 +65,19 @@ Serial wave-end suite: wave 1 PASS 239, FAIL 0, ERROR 0, SKIP 16 (`devtools::tes
 - Files: `src/rust/Cargo.toml` (five crates removed, version 0.2.0); `src/rust/Cargo.lock` (110 lines removed, transitive).
 - Commands: `cd src/rust && cargo check --tests` exit 0; grep for the five crate names in `src/rust/src` returned nothing.
 - Gotcha: lock entries for the five crates remain where hf-xet depends on them transitively; expected.
+
+## T7 (10.2.1)
+- Status: done, merged as `35b4e03`. Helper fix `bc1596f` (see below).
+- Files: `src/rust/src/lib.rs` (`build_config`, `whole_u64`, `xet_init_client` takes three new args); `src/rust/src/tests.rs` (5 `build_config` tests); `R/client.R` (args, validation, roxygen per ADR 0004, `xet_config_environment` deleted); `R/extendr-wrappers.R` (stub); `tests/testthat/test-config.R`, `test-input-validation.R`.
+- Tests: `cargo test build_config` 5 pass. R suite in the worker worktree skipped the Rust tests because load_all did not compile the extension there; not a pass.
+- Defect found at the orchestrator check: `tests/testthat/helper-local-cas.R:14` `is_compiled()` called `wrap__xet_init_client` with two args, so every Rust test skipped. Fixed in `bc1596f` (five args).
+- Verification (scratch copy of v0.2.0 HEAD, roxygenise then R CMD INSTALL into a private lib, then `test_dir` against the installed package): PASS 246, FAIL 0, ERROR 0, SKIP 16 (live-gated). Client create with `timeout_sec=30, cache_bytes=0, high_perf=TRUE` returns a handle.
+
+## T8 (10.2.2)
+- Status: done, merged as `32919a6`.
+- Files: `R/spatial.R` (`ext = NULL` on `read_xet_vector`, validation `^[A-Za-z0-9]+$` before connection, `tempfile(fileext=)`, roxygen `@param ext`); `tests/testthat/test-arrow-spatial.R` (2 tests).
+- Tests: `filter = "arrow-spatial"` FAIL 0, ERROR 0, SKIP 3, PASS 23.
+- Gotcha: `ext` means a file extension for `read_xet_vector` and a crop extent for `read_xet_raster`.
 
 ## T6 (10.1.6): dropped (D6)
 - Blocked on 2026-10-18: `tools/benchmark.R` sources `xet-sync.R`; README and `tools/README.md` document `models.json`. User chose to keep the root files and `tools/`. No changes made; the worker was told to stop.
