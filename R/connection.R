@@ -62,29 +62,3 @@ xet_open_connection <- function(handle, file_hash, file_size) {
   # Wrap as R connection (base R function)
   rawConnection(raw_bytes, open = "r")
 }
-
-#' Close an R connection to a Xet file
-#'
-#' Closes the connection and releases resources.
-#' Since [xet_open_connection()] returns a standard R connection created
-#' via [rawConnection()], you can use base R's `close()` function directly.
-#' This function is provided for convenience and compatibility.
-#'
-#' **Status:** Experimental pending live evidence.
-#'
-#' @param conn An R connection object created by [xet_open_connection()]
-#'
-#' @return `NULL` invisibly
-#'
-#' @seealso [close()], [xet_open_connection()]
-#' @export
-xet_close_connection <- function(conn) {
-  if (inherits(conn, "connection")) {
-    is_open <- tryCatch(isOpen(conn), error = function(e) {
-      if (grepl("invalid connection", conditionMessage(e))) FALSE else stop(e)
-    })
-    if (!is_open) return(invisible(NULL))
-  }
-  close(conn)
-  invisible(NULL)
-}

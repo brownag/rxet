@@ -95,7 +95,7 @@ test_that("xet_open_connection reads 64 KiB byte-identical and closes cleanly", 
 
   conn <- xet_open_connection(client, info$hash, 65536)
   expect_identical(readBin(conn, "raw", 65536L), bytes)
-  expect_no_error(xet_close_connection(conn))
+  expect_no_error(close(conn))
 })
 
 test_that("disk download leaves no .part file beside dest", {
