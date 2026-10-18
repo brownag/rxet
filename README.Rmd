@@ -138,27 +138,28 @@ dem_roi <- terra::crop(dem, roi)
 
 ## Configuration
 
-### Environment variables
+### Per-client settings
 
-Control client behavior before initialization:
+Set client behavior when you create the client:
 
 ```r
-# Increase timeout for slow networks
-xet_config_environment(timeout_sec = 600)
-
-# Disable cache for one-shot downloads
-xet_config_environment(cache_bytes = 0)
-
-# Enable high-performance mode
-xet_config_environment(high_perf = TRUE)
-
-client <- xet_client_new(endpoint, token)
+client <- xet_client_new(
+  endpoint, token,
+  timeout_sec = 600,  # longer network read timeout for slow networks
+  cache_bytes = 0,    # disable the chunk cache for one-shot downloads
+  high_perf = TRUE    # hf-xet high-performance preset
+)
 ```
 
-Options:
+Rules:
+- `NULL` for `timeout_sec` or `cache_bytes` (the default) leaves hf-xet's value alone, so the `HF_XET_*` environment variable or hf-xet's default applies.
+- An explicit argument overrides the environment for the field it sets.
+- `high_perf = TRUE` raises concurrency and download buffer sizes. It does not change the cache. It is applied after the environment, so it overrides `HF_XET_*` values for the fields it sets.
+
+Environment variables hf-xet reads when the matching argument is `NULL`:
 - `HF_XET_CLIENT_READ_TIMEOUT` — Network read timeout (default 300s)
 - `HF_XET_CHUNK_CACHE_SIZE_BYTES` — Chunk cache size (default 10 GiB)
-- `HF_XET_HIGH_PERFORMANCE` — Disable cache for throughput (default false)
+- `HF_XET_HIGH_PERFORMANCE` — High-performance preset (default false)
 
 ## Performance
 
@@ -185,9 +186,8 @@ See `tools/README.md` for interpretation guide.
 
 ### Client Management
 
-- `xet_client_new(endpoint, token)` — Initialize a client handle
+- `xet_client_new(endpoint, token, timeout_sec, cache_bytes, high_perf)` — Initialize a client handle
 - `xet_client_close(handle)` — Release a client handle
-- `xet_config_environment(...)` — Configure client behavior via environment variables
 
 ### Download and upload
 
@@ -198,15 +198,13 @@ See `tools/README.md` for interpretation guide.
 
 ### Connections
 
-- `xet_open_connection(handle, file_hash, file_size)` — Wrap downloaded bytes in an R connection
-- `xet_close_connection(conn)` — Close the connection
+- `xet_open_connection(handle, file_hash, file_size)` — Wrap downloaded bytes in an R connection. Close it with `close()`.
 
 ### Integrations
 
 - `read_xet_parquet(handle, file_hash, file_size, ...)` — Arrow/Parquet
-- `read_xet_parquet_stream(handle, file_hash, file_size, ...)` — Arrow/Parquet via a temporary file
-- `read_xet_raster(handle, file_hash, file_size, ext = NULL, ...)` — Raster (terra)
-- `read_xet_vector(handle, file_hash, file_size, ...)` — Vector (sf/GDAL)
+- `read_xet_raster(handle, file_hash, file_size, ...)` — Raster (terra)
+- `read_xet_vector(handle, file_hash, file_size, ext = NULL, ...)` — Vector (sf/GDAL)
 
 ## Architecture
 
@@ -260,13 +258,12 @@ A: rxet calls are synchronous and block the calling R thread. In a standard sing
 
 ## v0.1 status
 
-This release documents two tiers of API. All 13 exported functions are listed; the split reflects available evidence, not intent.
+This release documents two tiers of API. All 10 exported functions are listed; the split reflects available evidence, not intent.
 
 **Supported:**
 
 - `xet_client_new` — create a client handle
 - `xet_client_close` — release a client handle
-- `xet_config_environment` — set Xet client environment variables
 
 **Experimental (pending live evidence):**
 
@@ -275,9 +272,7 @@ This release documents two tiers of API. All 13 exported functions are listed; t
 - `xet_stream_raw` — download a whole file into a `raw()` vector (in memory; 2 GiB cap)
 - `xet_stream_range` — download a byte range into a `raw()` vector (in memory; 2 GiB cap)
 - `xet_open_connection` — expose downloaded bytes as an R connection (in memory; 2 GiB cap)
-- `xet_close_connection` — close that connection
 - `read_xet_parquet` — experimental helper; read a Parquet file through Arrow from an in-memory connection (2 GiB cap)
-- `read_xet_parquet_stream` — experimental helper; downloads the whole file, then reads a temporary Parquet file (2 GiB cap)
 - `read_xet_raster` — experimental helper; downloads the whole file to a temporary file, then reads it through terra
 - `read_xet_vector` — experimental helper; downloads the whole file to a temporary file, then reads it through sf/GDAL (single-file formats only)
 
