@@ -62,15 +62,59 @@ fn acquire_client(handle: &str) -> extendr_api::Result<Arc<XetClient>> {
         .ok_or_else(|| Error::Other(format!("invalid or closed client handle")))
 }
 
-/// Initialize a Xet storage client with endpoint and authentication token
-/// Applies configuration from environment variables: HF_XET_CLIENT_READ_TIMEOUT,
-/// HF_XET_CHUNK_CACHE_SIZE_BYTES, and HF_XET_HIGH_PERFORMANCE.
+/// Convert an R-supplied number to a whole u64, or fail naming only the field.
+fn whole_u64(field: &str, v: f64) -> extendr_api::Result<u64> {
+    if v.is_finite() && v >= 0.0 && v.fract() == 0.0 && v <= u64::MAX as f64 {
+        Ok(v as u64)
+    } else {
+        Err(Error::Other(format!(
+            "{} must be a finite non-negative whole number",
+            field
+        )))
+    }
+}
+
+/// Build the per-client configuration. Starts from the environment
+/// (`XetConfig::new()`), applies the high-performance preset if requested,
+/// then lets explicit arguments override the fields they set.
+fn build_config(
+    timeout_sec: Option<f64>,
+    cache_bytes: Option<f64>,
+    high_perf: bool,
+) -> extendr_api::Result<XetConfig> {
+    let mut config = XetConfig::new();
+    if high_perf {
+        config = config.with_high_performance();
+    }
+    if let Some(t) = timeout_sec {
+        let n = whole_u64("timeout_sec", t)?;
+        config = config
+            .with_config("client.read_timeout", format!("{}s", n))
+            .map_err(|_| Error::Other("could not apply timeout_sec".to_string()))?;
+    }
+    if let Some(c) = cache_bytes {
+        let n = whole_u64("cache_bytes", c)?;
+        config = config
+            .with_config("chunk_cache.size_bytes", n)
+            .map_err(|_| Error::Other("could not apply cache_bytes".to_string()))?;
+    }
+    Ok(config)
+}
+
+/// Initialize a Xet storage client with endpoint and authentication token.
+/// Configuration starts from the HF_XET_* environment, then the optional
+/// arguments are applied (high-performance preset first, explicit values last).
 /// Returns a UUID string handle that identifies the client session.
 #[extendr]
-fn xet_init_client(endpoint: &str, token: &str) -> extendr_api::Result<String> {
+fn xet_init_client(
+    endpoint: &str,
+    token: &str,
+    timeout_sec: Option<f64>,
+    cache_bytes: Option<f64>,
+    high_perf: bool,
+) -> extendr_api::Result<String> {
     safe_exec(panic::AssertUnwindSafe(|| {
-        // Load configuration from environment variables (HF_XET_* env vars)
-        let config = XetConfig::new();
+        let config = build_config(timeout_sec, cache_bytes, high_perf)?;
 
         let session = XetSessionBuilder::new_with_config(config)
             .build()

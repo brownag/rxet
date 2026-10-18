@@ -1,8 +1,8 @@
 # Auto-generated wrappers for extendr functions
 # These dispatch to the compiled Rust functions via .Call()
 
-.xet_init_client <- function(endpoint, token) {
-  .Call("wrap__xet_init_client", endpoint, token, PACKAGE = "rxet")
+.xet_init_client <- function(endpoint, token, timeout_sec, cache_bytes, high_perf) {
+  .Call("wrap__xet_init_client", endpoint, token, timeout_sec, cache_bytes, high_perf, PACKAGE = "rxet")
 }
 
 .xet_close_client <- function(handle) {

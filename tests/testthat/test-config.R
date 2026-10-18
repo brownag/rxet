@@ -1,49 +1,35 @@
-context("Configuration via xet_config_environment()")
+context("Per-client configuration arguments of xet_client_new()")
 
-test_that("xet_config_environment sets HF_XET_CLIENT_READ_TIMEOUT", {
-  xet_config_environment(timeout_sec = 600)
-  expect_equal(Sys.getenv("HF_XET_CLIENT_READ_TIMEOUT"), "600")
+ep <- "https://cas-cf.huggingface.co"
+
+test_that("timeout_sec rejects invalid values", {
+  expect_error(xet_client_new(ep, "t", timeout_sec = -1), "timeout_sec")
+  expect_error(xet_client_new(ep, "t", timeout_sec = 1.5), "timeout_sec")
+  expect_error(xet_client_new(ep, "t", timeout_sec = Inf), "timeout_sec")
+  expect_error(xet_client_new(ep, "t", timeout_sec = NA_real_), "timeout_sec")
+  expect_error(xet_client_new(ep, "t", timeout_sec = "60"), "timeout_sec")
+  expect_error(xet_client_new(ep, "t", timeout_sec = c(1, 2)), "timeout_sec")
 })
 
-test_that("xet_config_environment sets HF_XET_CHUNK_CACHE_SIZE_BYTES", {
-  xet_config_environment(cache_bytes = 2e9)
-  expect_equal(Sys.getenv("HF_XET_CHUNK_CACHE_SIZE_BYTES"), "2000000000")
+test_that("cache_bytes rejects invalid values", {
+  expect_error(xet_client_new(ep, "t", cache_bytes = -1), "cache_bytes")
+  expect_error(xet_client_new(ep, "t", cache_bytes = 0.5), "cache_bytes")
+  expect_error(xet_client_new(ep, "t", cache_bytes = NaN), "cache_bytes")
+  expect_error(xet_client_new(ep, "t", cache_bytes = "1"), "cache_bytes")
 })
 
-test_that("xet_config_environment sets HF_XET_HIGH_PERFORMANCE to 1", {
-  xet_config_environment(high_perf = TRUE)
-  expect_equal(Sys.getenv("HF_XET_HIGH_PERFORMANCE"), "1")
+test_that("high_perf rejects non-logical values", {
+  expect_error(xet_client_new(ep, "t", high_perf = "yes"), "high_perf")
+  expect_error(xet_client_new(ep, "t", high_perf = NA), "high_perf")
+  expect_error(xet_client_new(ep, "t", high_perf = c(TRUE, FALSE)), "high_perf")
+  expect_error(xet_client_new(ep, "t", high_perf = NULL), "high_perf")
 })
 
-test_that("xet_config_environment unsets HF_XET_HIGH_PERFORMANCE when high_perf=FALSE", {
-  xet_config_environment(high_perf = TRUE)
-  expect_equal(Sys.getenv("HF_XET_HIGH_PERFORMANCE"), "1")
-
-  xet_config_environment(high_perf = FALSE)
-  expect_equal(Sys.getenv("HF_XET_HIGH_PERFORMANCE"), "")
-})
-
-test_that("xet_config_environment returns NULL invisibly", {
-  result <- xet_config_environment()
-  expect_null(result)
-})
-
-test_that("xet_config_environment applies defaults", {
-  # Reset env vars
-  Sys.unsetenv("HF_XET_CLIENT_READ_TIMEOUT")
-  Sys.unsetenv("HF_XET_CHUNK_CACHE_SIZE_BYTES")
-  Sys.unsetenv("HF_XET_HIGH_PERFORMANCE")
-
-  xet_config_environment()
-
-  expect_equal(Sys.getenv("HF_XET_CLIENT_READ_TIMEOUT"), "300")
-  expect_equal(Sys.getenv("HF_XET_CHUNK_CACHE_SIZE_BYTES"), "10000000000")
-  expect_equal(Sys.getenv("HF_XET_HIGH_PERFORMANCE"), "")
-})
-
-test_that("xet_config_environment accepts mixed parameters", {
-  xet_config_environment(timeout_sec = 1200, cache_bytes = 5e9, high_perf = TRUE)
-  expect_equal(Sys.getenv("HF_XET_CLIENT_READ_TIMEOUT"), "1200")
-  expect_equal(Sys.getenv("HF_XET_CHUNK_CACHE_SIZE_BYTES"), "5000000000")
-  expect_equal(Sys.getenv("HF_XET_HIGH_PERFORMANCE"), "1")
+test_that("valid configuration arguments create a client", {
+  skip_if_not(is.loaded("wrap__xet_init_client"), "compiled extension not loaded")
+  h <- xet_client_new(ep, "t", timeout_sec = 600, cache_bytes = 0, high_perf = TRUE)
+  on.exit(xet_client_close(h))
+  expect_type(h, "character")
+  h2 <- xet_client_new(ep, "t", timeout_sec = NULL, cache_bytes = NULL)
+  xet_client_close(h2)
 })

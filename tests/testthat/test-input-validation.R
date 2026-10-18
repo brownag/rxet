@@ -180,16 +180,20 @@ describe("xet_upload_file", {
   })
 })
 
-describe("xet_config_environment", {
-  it("rejects negative timeout", {
-    expect_error(xet_config_environment(timeout_sec = -1))
+describe("xet_client_new configuration arguments", {
+  it("rejects negative timeout_sec", {
+    expect_error(xet_client_new("https://example.com", "token", timeout_sec = -1))
   })
 
   it("rejects negative cache_bytes", {
-    expect_error(xet_config_environment(cache_bytes = -1))
+    expect_error(xet_client_new("https://example.com", "token", cache_bytes = -1))
+  })
+
+  it("rejects non-whole timeout_sec", {
+    expect_error(xet_client_new("https://example.com", "token", timeout_sec = 1.5))
   })
 
   it("rejects non-logical high_perf", {
-    expect_error(xet_config_environment(high_perf = "yes"))
+    expect_error(xet_client_new("https://example.com", "token", high_perf = "yes"))
   })
 })
