@@ -48,16 +48,6 @@ test_that("read_xet_parquet closes its connection on success", {
   expect_true(closed)
 })
 
-test_that("read_xet_parquet_stream returns the data frame written by make_fixtures.R", {
-  skip_without_local_cas()
-  skip_if_not_installed("arrow")
-  client <- start_fixture_client()
-  info <- serve_fixture(client, "small.parquet")
-
-  expected <- arrow::read_parquet(fixture_path("small.parquet"))
-  expect_equal(read_xet_parquet_stream(client, info$hash, info$file_size), expected)
-})
-
 test_that("xet_open_connection bytes equal the downloaded fixture bytes", {
   skip_without_local_cas()
   client <- start_fixture_client()

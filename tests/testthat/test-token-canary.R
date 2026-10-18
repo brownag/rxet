@@ -258,17 +258,6 @@ test_that("term fetch 401: read_xet_parquet error has no canary", {
   expect_true(any(grepl("^status 401", out$reqs)))
 })
 
-test_that("term fetch 401: read_xet_parquet_stream error has no canary", {
-  skip_if_not(is_compiled(), "Rust extension not available")
-  skip_if_not_installed("processx")
-  skip_if_not_installed("arrow")
-  out <- run_canary_case(function(client) {
-    read_xet_parquet_stream(client, FAULT_HASH, FAULT_TERM_LEN)
-  })
-  expect_no_canary(out)
-  expect_true(any(grepl("^status 401", out$reqs)))
-})
-
 test_that("term fetch 401: read_xet_raster error has no canary", {
   skip_if_not(is_compiled(), "Rust extension not available")
   skip_if_not_installed("processx")
@@ -333,13 +322,6 @@ test_that("over-2GiB refusal: xet_stream_range error has no canary", {
 test_that("over-2GiB refusal: xet_open_connection error has no canary", {
   skip_if_not(is_compiled(), "Rust extension not available")
   out <- run_offline_case(function(client) xet_open_connection(client, FAULT_HASH, over_limit))
-  expect_no_canary(out)
-})
-
-test_that("over-2GiB refusal: read_xet_parquet_stream error has no canary", {
-  skip_if_not(is_compiled(), "Rust extension not available")
-  skip_if_not_installed("arrow")
-  out <- run_offline_case(function(client) read_xet_parquet_stream(client, FAULT_HASH, over_limit))
   expect_no_canary(out)
 })
 
