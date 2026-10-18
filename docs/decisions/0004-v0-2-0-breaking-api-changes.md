@@ -125,7 +125,7 @@ Each needs its own decision and evidence.
 
 ## Validation & Compliance
 
-* `NAMESPACE` exports exactly the 10 functions listed above, with no others.
+* The gate reviews the `NAMESPACE` diff from roxygen. No exact-export test (decided 2026-10-18: brittle and unnecessary).
 * `xet_client_new()` with no optional arguments produces the same client as
   0.1.1 (test: no `XetConfig` field changes from its environment value).
 * `high_perf` help text contains no claim that the cache is disabled.
