@@ -215,7 +215,7 @@ Every task is one commit. Each worker's micro-plan has at most 12 steps.
 
 ### Gate (orchestrator, serial)
 
-- G1. Set `DESCRIPTION` version to `0.2.0` (D7). Run `R CMD INSTALL .`. Run `Rscript -e 'roxygen2::roxygenise()'`. Expect: `man/read_xet_parquet_stream.Rd`, `man/xet_close_connection.Rd`, `man/xet_config_environment.Rd` deleted; `man/make_result.Rd` and the other five helper pages deleted; `man/xet_client_new.Rd` and `man/read_xet_raster.Rd`, `man/read_xet_vector.Rd` updated; `NAMESPACE` loses the three exports. Read the `NAMESPACE` diff. No exact-count test (D11).
+- G1. Set `DESCRIPTION` version to `0.2.0` (D7). Run `Rscript -e 'roxygen2::roxygenise()'` first, then `R CMD INSTALL .`. Install must come after roxygen: until `NAMESPACE` drops the removed exports, `R CMD INSTALL` fails with "undefined exports" (found at the wave 1 check, 2026-10-18). Expect: `man/read_xet_parquet_stream.Rd`, `man/xet_close_connection.Rd`, `man/xet_config_environment.Rd` deleted; `man/make_result.Rd` and the other five helper pages deleted; `man/xet_client_new.Rd` and `man/read_xet_raster.Rd`, `man/read_xet_vector.Rd` updated; `NAMESPACE` loses the three exports. Read the `NAMESPACE` diff. No exact-count test (D11).
 - G2. Routine suite (serial): `RXET_LOCAL_CAS_SERVER=$(command -v local_cas_server) Rscript -e 'devtools::test()'`. Record counts. Baseline is P2.
 - G3. Clean-archive `R CMD check --no-manual` (`_R_CHECK_FORCE_SUGGESTS_=false`). Record Status.
 - G4. Grep gate: `grep -rn "read_xet_parquet_stream\|xet_close_connection\|xet_config_environment\|make_hf_api_request" R tests README.Rmd README.md AGENTS.md NEWS.md` returns hits only inside the 0.2.0 "Breaking changes" section of `NEWS.md`.

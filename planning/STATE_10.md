@@ -30,7 +30,7 @@ Reference baseline from plan 9 (recorded, not re-verified): 305 passed, 0 failed
 | 3 | T10 NEWS | Haiku | pending | - |
 | Gate | G1-G4, G6 | orchestrator | pending | - |
 
-Serial wave-end suite: wave 1 ___, wave 2 ___, wave 3 ___.
+Serial wave-end suite: wave 1 PASS 239, FAIL 0, ERROR 0, SKIP 16 (`devtools::test()`, 2026-10-18; drop from 305 is the deleted tests). `R CMD INSTALL .` fails at this point with "undefined exports: read_xet_parquet_stream, xet_close_connection" until the gate's roxygen pass regenerates NAMESPACE (plan G1 order corrected). Wave 2 ___, wave 3 ___.
 
 ## Task reports
 
