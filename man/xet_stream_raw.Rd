@@ -25,7 +25,7 @@ fit in available RAM.
 The file bytes are returned as a \code{raw()} vector, with the whole file buffered
 in memory. This vector can be passed to \code{\link[=xet_open_connection]{xet_open_connection()}}
 to create an R connection, or used directly with downstream functions
-like \code{arrow::read_parquet()} via a temporary file (see \code{\link[=read_xet_parquet_stream]{read_xet_parquet_stream()}}).
+like \code{arrow::read_parquet()} via a temporary file.
 
 \code{file_size} must be a finite whole number of bytes, and at most 2^31 - 1
 bytes (2 GiB). Larger files error before any network access; use

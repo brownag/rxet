@@ -81,6 +81,7 @@ Orchestration 10 follows `planning/PROMPT_TEMPLATE_10.md` and `planning/STATE_10
 - **J2.** T4 deletes `test-utils.R` and `test-parallel-downloads.R` whole, and only line ranges from `test-edge-cases.R`. If a deleted file contains a test of live code, the worker stops and reports (see T4).
 - **J3.** `ext` validation rule in T8: one non-empty string, letters and digits only. Stricter than "no dot or path separator", which the draft allowed. Simpler to explain and prevents path tricks.
 - **J4.** T7 maps the R arguments to hf-xet config keys with `with_config`. The string format for `client.read_timeout` is confirmed by the worker in Analysis (Duration parser), not assumed.
+- **J6.** The G4 gate as first written required NEWS hits only in the 0.2.0 section. Older entries (0.1.1, 0.1.0) must keep the removed names as history, so G4 now allows them. Found at the gate, 2026-10-18.
 - **J5.** T9's README acceptance check compared bullet line counts. Baseline counts differ (29 vs 26) because `README.md` is hard-wrapped. The check now compares the set of export names in the bullets. Recorded at the pre-wave step, 2026-10-18.
 
 ## Hazards
@@ -218,7 +219,7 @@ Every task is one commit. Each worker's micro-plan has at most 12 steps.
 - G1. Set `DESCRIPTION` version to `0.2.0` (D7). Run `Rscript -e 'roxygen2::roxygenise()'` first, then `R CMD INSTALL .`. Install must come after roxygen: until `NAMESPACE` drops the removed exports, `R CMD INSTALL` fails with "undefined exports" (found at the wave 1 check, 2026-10-18). Expect: `man/read_xet_parquet_stream.Rd`, `man/xet_close_connection.Rd`, `man/xet_config_environment.Rd` deleted; `man/make_result.Rd` and the other five helper pages deleted; `man/xet_client_new.Rd` and `man/read_xet_raster.Rd`, `man/read_xet_vector.Rd` updated; `NAMESPACE` loses the three exports. Read the `NAMESPACE` diff. No exact-count test (D11).
 - G2. Routine suite (serial): `RXET_LOCAL_CAS_SERVER=$(command -v local_cas_server) Rscript -e 'devtools::test()'`. Record counts. Baseline is P2.
 - G3. Clean-archive `R CMD check --no-manual` (`_R_CHECK_FORCE_SUGGESTS_=false`). Record Status.
-- G4. Grep gate: `grep -rn "read_xet_parquet_stream\|xet_close_connection\|xet_config_environment\|make_hf_api_request" R tests README.Rmd README.md AGENTS.md NEWS.md` returns hits only inside the 0.2.0 "Breaking changes" section of `NEWS.md`.
+- G4. Grep gate: `grep -rn "read_xet_parquet_stream\|xet_close_connection\|xet_config_environment\|make_hf_api_request" R tests README.Rmd README.md AGENTS.md NAMESPACE man` returns nothing. In `NEWS.md`, hits are allowed only in the 0.2.0 section (lines 1-31) and in the 0.1.1 and 0.1.0 history sections, which are not edited (J6).
 - G5. Live suite: user runs `RXET_LIVE_TESTS=1 Rscript -e 'devtools::test(filter = "live-hf")'` with `HF_TOKEN` exported. Required before tagging. Orchestrator does not run it.
 - G6. Commit the gate: `chore: release 0.2.0 metadata and regenerated docs`.
 - G7. Tag `v0.2.0` and push only after the user approves. Not in this plan's default path.
