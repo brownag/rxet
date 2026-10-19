@@ -4,7 +4,7 @@
 \alias{read_xet_vector}
 \title{Read a vector file from Xet storage using sf/GDAL}
 \usage{
-read_xet_vector(handle, file_hash, file_size, ...)
+read_xet_vector(handle, file_hash, file_size, ext = NULL, ...)
 }
 \arguments{
 \item{handle}{Character string handle from \code{\link[=xet_client_new]{xet_client_new()}}}
@@ -12,6 +12,9 @@ read_xet_vector(handle, file_hash, file_size, ...)
 \item{file_hash}{Character string, the content hash of the vector file}
 
 \item{file_size}{Numeric scalar, total file size in bytes}
+
+\item{ext}{Optional file extension without the dot (e.g. \code{"geojson"}),
+letters and digits only. Used as the temporary file's extension.}
 
 \item{...}{Additional arguments passed to \code{\link[sf:st_read]{sf::st_read()}}}
 }
@@ -36,8 +39,9 @@ Supports single-file formats that GDAL can read from one temporary file:
 Only formats whose driver GDAL can identify from the file content, not from
 the extension, are reliable here, because the temporary file has no
 extension. Formats that detect the driver from the extension may not open.
-\code{read_xet_vector()} has no format argument of its own (extra arguments go to
-\code{sf::st_read()}).
+Pass \code{ext} (for example \code{ext = "geojson"}) when the format cannot be
+identified from the content alone. It sets the temporary file's extension so
+GDAL can pick the driver. Extra arguments still go to \code{sf::st_read()}.
 
 Multi-file formats such as shapefiles (\code{.shp} plus \code{.dbf}, \code{.shx} and other
 sidecars) are not supported, because a single temporary file cannot hold

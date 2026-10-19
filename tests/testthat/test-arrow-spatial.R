@@ -48,16 +48,6 @@ test_that("read_xet_parquet closes its connection on success", {
   expect_true(closed)
 })
 
-test_that("read_xet_parquet_stream returns the data frame written by make_fixtures.R", {
-  skip_without_local_cas()
-  skip_if_not_installed("arrow")
-  client <- start_fixture_client()
-  info <- serve_fixture(client, "small.parquet")
-
-  expected <- arrow::read_parquet(fixture_path("small.parquet"))
-  expect_equal(read_xet_parquet_stream(client, info$hash, info$file_size), expected)
-})
-
 test_that("xet_open_connection bytes equal the downloaded fixture bytes", {
   skip_without_local_cas()
   client <- start_fixture_client()
@@ -124,6 +114,26 @@ test_that("read_xet_vector returns the three-feature GeoJSON fixture", {
   expect_equal(nrow(v), 3L)
   expect_equal(nrow(v), nrow(sf::st_read(fixture_path("small.geojson"), quiet = TRUE)))
   expect_length(setdiff(after, before), 0)
+})
+
+test_that("read_xet_vector accepts ext and returns the three-feature GeoJSON fixture", {
+  skip_without_local_cas()
+  skip_if_not_installed("sf")
+  client <- start_fixture_client()
+  info <- serve_fixture(client, "small.geojson")
+
+  v <- read_xet_vector(client, info$hash, info$file_size, ext = "geojson")
+
+  expect_s3_class(v, "sf")
+  expect_equal(nrow(v), 3L)
+})
+
+test_that("read_xet_vector rejects ext with a dot before any download", {
+  skip_if_not_installed("sf")
+  expect_error(
+    read_xet_vector("client", "geojson_hash", 1024, ext = "geo.json"),
+    "ext"
+  )
 })
 
 test_that("read_xet_raster requires terra package", {

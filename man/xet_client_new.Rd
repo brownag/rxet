@@ -4,13 +4,36 @@
 \alias{xet_client_new}
 \title{Create a Xet storage client}
 \usage{
-xet_client_new(endpoint, token)
+xet_client_new(
+  endpoint,
+  token,
+  timeout_sec = NULL,
+  cache_bytes = NULL,
+  high_perf = FALSE
+)
 }
 \arguments{
 \item{endpoint}{URL of the Xet CAS endpoint. Must use \verb{https://}; \verb{http://} is
 accepted only for \code{localhost} or \verb{127.0.0.1}.}
 
 \item{token}{Bearer token for authentication with the CAS endpoint}
+
+\item{timeout_sec}{\code{NULL} or a single finite non-negative whole number.
+Network read timeout in seconds (hf-xet \code{client.read_timeout}). \code{NULL}
+leaves hf-xet's value alone, so the \code{HF_XET_CLIENT_READ_TIMEOUT}
+environment variable or hf-xet's default applies.}
+
+\item{cache_bytes}{\code{NULL} or a single finite non-negative whole number.
+Local chunk cache size in bytes (hf-xet \code{chunk_cache.size_bytes}). \code{0}
+disables the cache. \code{NULL} leaves hf-xet's value alone, so the
+\code{HF_XET_CHUNK_CACHE_SIZE_BYTES} environment variable or hf-xet's default
+applies.}
+
+\item{high_perf}{Single logical, default \code{FALSE}. If \code{TRUE}, applies hf-xet's
+high-performance preset, which raises concurrency and download buffer
+sizes. It does not change the chunk cache; to run without a cache pass
+\code{cache_bytes = 0}. The preset is applied after the \verb{HF_XET_*} environment,
+so for the fields it sets it overrides an environment value.}
 }
 \value{
 A character string handle that identifies the client session. Pass this handle
@@ -20,6 +43,13 @@ even if an error occurs. Use \code{on.exit()} to ensure cleanup in production co
 \description{
 Initializes a client session for interacting with a Xet content-addressed
 storage endpoint.
+}
+\details{
+The client starts from hf-xet's configuration, which reads \verb{HF_XET_*}
+environment variables when the client is created. \code{high_perf} is applied
+next, then \code{timeout_sec} and \code{cache_bytes}, so explicit arguments override
+the environment for the fields they set. Configuration is per client; no
+process-wide state is changed.
 }
 \examples{
 \dontrun{

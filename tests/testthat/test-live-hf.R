@@ -115,7 +115,7 @@ test_that("live connection reads LIVE_HASH byte-identical to the raw read and cl
   raw_bytes <- xet_stream_raw(client, LIVE_HASH, LIVE_SIZE)
   conn <- xet_open_connection(client, LIVE_HASH, LIVE_SIZE)
   expect_identical(readBin(conn, "raw", LIVE_SIZE), raw_bytes)
-  expect_no_error(xet_close_connection(conn))
+  expect_no_error(close(conn))
 })
 
 test_that("live download of LIVE_MULTI_HASH is 16777216 bytes with the hub LFS sha256", {

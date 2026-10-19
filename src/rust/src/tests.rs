@@ -100,3 +100,43 @@ fn size_mismatch_message_other_panic_is_none() {
     let raw = "task 9 panicked with message \"index out of bounds: the len is 3\"";
     assert!(crate::size_mismatch_message(65537, raw).is_none());
 }
+
+#[test]
+fn build_config_none_leaves_defaults() {
+    let base = xet::xet_session::XetConfig::new();
+    let cfg = crate::build_config(None, None, false).unwrap();
+    assert_eq!(cfg.chunk_cache.size_bytes, base.chunk_cache.size_bytes);
+    assert_eq!(cfg.client.read_timeout, base.client.read_timeout);
+}
+
+#[test]
+fn build_config_zero_cache_sets_zero() {
+    let cfg = crate::build_config(None, Some(0.0), false).unwrap();
+    assert_eq!(cfg.chunk_cache.size_bytes, 0);
+}
+
+#[test]
+fn build_config_timeout_sets_read_timeout() {
+    let cfg = crate::build_config(Some(45.0), None, false).unwrap();
+    assert_eq!(cfg.client.read_timeout, Duration::from_secs(45));
+}
+
+#[test]
+fn build_config_high_perf_changes_concurrency() {
+    let base = xet::xet_session::XetConfig::new();
+    let cfg = crate::build_config(None, None, true).unwrap();
+    assert_eq!(cfg.data.max_concurrent_file_ingestion, 100);
+    assert_ne!(
+        cfg.data.max_concurrent_file_ingestion,
+        base.data.max_concurrent_file_ingestion
+    );
+    assert_eq!(cfg.client.ac_max_download_concurrency, 124);
+    assert_eq!(cfg.chunk_cache.size_bytes, base.chunk_cache.size_bytes);
+}
+
+#[test]
+fn build_config_rejects_bad_numbers() {
+    assert!(crate::build_config(Some(-1.0), None, false).is_err());
+    assert!(crate::build_config(None, Some(1.5), false).is_err());
+    assert!(crate::build_config(None, Some(f64::NAN), false).is_err());
+}

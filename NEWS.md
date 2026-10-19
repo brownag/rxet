@@ -1,3 +1,34 @@
+# rxet 0.2.0
+
+Minor release with breaking changes. Each removed function or argument
+has a replacement, listed below.
+
+## Breaking changes
+
+- `read_xet_parquet_stream()` is removed. Use `read_xet_parquet()`.
+- `xet_close_connection()` is removed. Use `close()` on the connection.
+- `xet_config_environment()` is removed. Use the `timeout_sec`,
+  `cache_bytes` and `high_perf` arguments of `xet_client_new()`.
+- The `ext` argument of `read_xet_raster()` is removed. Use `terra::crop()`.
+
+## Features
+
+- `xet_client_new()` gains `timeout_sec`, `cache_bytes` and `high_perf`
+  arguments.
+- `read_xet_vector()` gains an `ext` argument.
+
+## Fixes
+
+- The `high_perf` help text now says that it applies hf-xet's
+  high-performance preset and does not disable the chunk cache. The cache
+  claim is removed. Use `cache_bytes = 0` for no cache.
+
+## Internal
+
+- Removed the unused helpers in `R/utils.R` and their tests.
+- Removed the unused Rust crates `tokio`, `byteorder`, `lru`,
+  `crossbeam-channel` and `futures-util`.
+
 # rxet 0.1.1
 
 Patch release. It fixes documentation and test gaps found in the 0.1.0 review.
