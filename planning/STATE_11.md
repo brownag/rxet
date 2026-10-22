@@ -40,3 +40,13 @@ Baseline results: P1 planning files committed (79208ad). P2 install exit 0; `dev
 
 ## Wave 1 gate
 Install exit 0; full suite no failures, same skips as baseline.
+
+## T3 (done by orchestrator, workers quota-blocked)
+- Status: done. Commit `refactor(validate): use shared validation in transfer functions`.
+- Files: R/download.R, R/stream.R, R/connection.R, R/upload.R, tests/testthat/test-input-validation.R; plus test-connection.R and test-streaming.R regexes (spec gap: they matched old `nchar`/`is.character` text).
+- `devtools::test(filter="input-validation|token-canary|connection|streaming|whole-download")`: no failures.
+- Gotcha for T5: `tests/testthat/test-arrow-spatial.R:9-10` still match `nchar.*handle`/`nchar.*file_hash`; T5 must update them.
+
+## T4 (done by orchestrator)
+- Status: done. Commit `refactor(reader): add internal whole-download module`.
+- Files: R/whole_download.R, tests/testthat/test-whole-download.R (new). Tests pass in the run above.
