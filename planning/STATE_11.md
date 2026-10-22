@@ -1,6 +1,6 @@
 # STATE 11: validation module and whole-download reader module
 
-Plan: `planning/EXECUTION_PLAN_11.md`. Status: approved by user 2026-10-22 ("run plan 11"); baseline recorded; wave 1 next.
+Plan: `planning/EXECUTION_PLAN_11.md`. Status: ALL DONE. Approved by user 2026-10-22 ("run plan 11"); baseline recorded; wave 1 next.
 
 ## Baseline (pre-wave)
 
@@ -19,8 +19,8 @@ Baseline results: P1 planning files committed (79208ad). P2 install exit 0; `dev
 | T2 Rust converter merge | 1 | done |
 | T3 migrate transfer functions | 2 | done |
 | T4 whole-download module | 2 | done |
-| T5 migrate readers | 3 | pending |
-| T6 docs | 4 | pending |
+| T5 migrate readers | 3 | done |
+| T6 docs | 4 | done |
 
 ## Task reports
 
@@ -53,3 +53,10 @@ Install exit 0; full suite no failures, same skips as baseline.
 
 ## Wave 2 gate
 Install exit 0; full suite no failures. (Readers not yet migrated, so arrow-spatial tests still pass on old messages.)
+
+## T5 / T6 (done by orchestrator)
+- T5 commit `refactor(reader): route readers through whole-download module`: R/arrow.R, R/spatial.R, test-arrow-spatial.R. Targeted tests pass; one canary flake (test-token-canary.R:203) passed on two reruns.
+- T6 commit `docs: record validation and whole-download modules`: NEWS.md, AGENTS.md. README.Rmd unchanged (no matching rule).
+
+## Final gate
+Install exit 0; `document()` left NAMESPACE/man unchanged (git clean); full suite no failures.
