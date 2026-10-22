@@ -191,6 +191,8 @@ rxet/
 │   ├── client.R                # xet_client_new/close + docs
 │   ├── download.R              # xet_download_file
 │   ├── upload.R                # xet_upload_file
+│   ├── validate.R              # internal request validation (handle, hash, size, range)
+│   ├── whole_download.R        # internal shared lifecycle for the three whole-download readers
 │   ├── extendr-wrappers.R      # .Call() dispatch stubs
 │   └── rxet-package.R          # Package metadata
 ├── src/

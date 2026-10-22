@@ -1,3 +1,13 @@
+# rxet (development version)
+
+- `read_xet_parquet()`, `read_xet_raster()` and `read_xet_vector()` now accept
+  `file_size = 0` at the argument check. An empty file fails inside the format
+  reader instead.
+- Argument errors from the transfer functions and readers now use shared,
+  clearer messages (for example "`handle` must be a non-empty string").
+- Rust converter error messages for byte counts changed to
+  "<field> must be a finite non-negative whole number".
+
 # rxet 0.2.0
 
 Minor release with breaking changes. Each removed function or argument
