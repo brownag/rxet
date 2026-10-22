@@ -69,25 +69,13 @@
 #'   `terra::rast()` for raster operations
 #' @export
 read_xet_raster <- function(handle, file_hash, file_size, ...) {
-  if (!requireNamespace("terra", quietly = TRUE)) {
-    stop("The 'terra' package is required. Install it with: install.packages('terra')")
-  }
+  require_pkg("terra", "read_xet_raster")
 
-  stopifnot(is.character(handle), length(handle) == 1, nchar(handle) > 0)
-  stopifnot(is.character(file_hash), length(file_hash) == 1, nchar(file_hash) > 0)
-  stopifnot(is.numeric(file_size), length(file_size) == 1, file_size > 0)
-
-  conn <- xet_open_connection(handle, file_hash, file_size)
-  on.exit(close(conn), add = TRUE)
-  bytes <- readBin(conn, "raw", file_size)
-
-  path <- tempfile()
-  on.exit(unlink(path), add = TRUE)
-  writeBin(bytes, path)
-
-  rast <- terra::rast(path, ...)
-  rast <- terra::unwrap(terra::wrap(rast))
-  rast
+  whole_download(
+    handle, file_hash, file_size,
+    reader = function(path) terra::unwrap(terra::wrap(terra::rast(path, ...))),
+    via = "file"
+  )
 }
 
 #' Read a vector file from Xet storage using sf/GDAL
@@ -162,24 +150,18 @@ read_xet_raster <- function(handle, file_hash, file_size, ...) {
 #' @seealso `sf::st_read()` for sf package details
 #' @export
 read_xet_vector <- function(handle, file_hash, file_size, ext = NULL, ...) {
-  if (!requireNamespace("sf", quietly = TRUE)) {
-    stop("The 'sf' package is required. Install it with: install.packages('sf')")
-  }
+  require_pkg("sf", "read_xet_vector")
 
-  stopifnot(is.character(handle), length(handle) == 1, nchar(handle) > 0)
-  stopifnot(is.character(file_hash), length(file_hash) == 1, nchar(file_hash) > 0)
-  stopifnot(is.numeric(file_size), length(file_size) == 1, file_size > 0)
   if (!is.null(ext)) {
-    stopifnot(is.character(ext), length(ext) == 1, grepl("^[A-Za-z0-9]+$", ext))
+    if (!is.character(ext) || length(ext) != 1L || is.na(ext) || !grepl("^[A-Za-z0-9]+$", ext)) {
+      stop("`ext` must be a single string of letters and digits only", call. = FALSE)
+    }
   }
 
-  conn <- xet_open_connection(handle, file_hash, file_size)
-  on.exit(close(conn), add = TRUE)
-  bytes <- readBin(conn, "raw", file_size)
-
-  path <- if (is.null(ext)) tempfile() else tempfile(fileext = paste0(".", ext))
-  on.exit(unlink(path), add = TRUE)
-  writeBin(bytes, path)
-
-  sf::st_read(path, ...)
+  whole_download(
+    handle, file_hash, file_size,
+    reader = function(path) sf::st_read(path, ...),
+    ext = ext,
+    via = "file"
+  )
 }
