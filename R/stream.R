@@ -37,20 +37,9 @@
 #' )
 #' }
 xet_stream_raw <- function(handle, file_hash, file_size) {
-  stopifnot(is.character(handle), length(handle) == 1, nchar(handle) > 0)
-  stopifnot(is.character(file_hash), length(file_hash) == 1, nchar(file_hash) > 0)
-  stopifnot(is.numeric(file_size), length(file_size) == 1)
-  if (!is.finite(file_size) || file_size != floor(file_size)) {
-    stop("file_size must be a finite whole number of bytes")
-  }
-  stopifnot(file_size >= 0)
-  max_in_memory <- .Machine$integer.max
-  if (file_size > max_in_memory) {
-    stop(sprintf(
-      "in-memory read of %.0f bytes exceeds the 2 GiB limit (2147483647 bytes); use xet_download_file() for larger files",
-      file_size
-    ))
-  }
+  check_handle(handle)
+  check_hash(file_hash)
+  check_file_size(file_size, in_memory = TRUE)
 
   .Call(
     "wrap__xet_stream_raw",
@@ -103,23 +92,10 @@ xet_stream_raw <- function(handle, file_hash, file_size) {
 #' )
 #' }
 xet_stream_range <- function(handle, file_hash, file_size, start_byte, end_byte) {
-  stopifnot(is.character(handle), length(handle) == 1, nchar(handle) > 0)
-  stopifnot(is.character(file_hash), length(file_hash) == 1, nchar(file_hash) > 0)
-  stopifnot(is.numeric(file_size), length(file_size) == 1)
-  if (!is.finite(file_size) || file_size != floor(file_size)) {
-    stop("file_size must be a finite whole number of bytes")
-  }
-  stopifnot(file_size >= 0)
-  stopifnot(is.numeric(start_byte), length(start_byte) == 1, start_byte >= 0)
-  stopifnot(is.numeric(end_byte), length(end_byte) == 1, end_byte > start_byte)
-  stopifnot(end_byte <= file_size)
-  max_in_memory <- .Machine$integer.max
-  if (end_byte - start_byte > max_in_memory) {
-    stop(sprintf(
-      "in-memory requested range of %.0f bytes exceeds the 2 GiB limit (2147483647 bytes); use xet_download_file() for larger files",
-      end_byte - start_byte
-    ))
-  }
+  check_handle(handle)
+  check_hash(file_hash)
+  check_file_size(file_size)
+  check_range(start_byte, end_byte, file_size)
 
   .Call(
     "wrap__xet_stream_range",

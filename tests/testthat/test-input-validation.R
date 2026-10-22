@@ -63,7 +63,7 @@ describe("xet_client_new", {
 
 describe("xet_download_file", {
   it("rejects empty handle", {
-    expect_error(xet_download_file("", "abc", 1024, "/tmp/file"), "nchar.*handle")
+    expect_error(xet_download_file("", "abc", 1024, "/tmp/file"), "handle")
   })
 
   it("rejects empty hash", {
@@ -117,7 +117,7 @@ describe("xet_stream_raw", {
 
 describe("xet_stream_range", {
   it("rejects empty handle", {
-    expect_error(xet_stream_range("", "abc", 1e9, 100, 200), "nchar.*handle")
+    expect_error(xet_stream_range("", "abc", 1e9, 100, 200), "handle")
   })
 
   it("rejects end <= start", {
@@ -144,7 +144,7 @@ describe("xet_stream_range", {
 
 describe("xet_open_connection", {
   it("rejects empty handle", {
-    expect_error(xet_open_connection("", "abc", 1024), "nchar.*handle")
+    expect_error(xet_open_connection("", "abc", 1024), "handle")
   })
 
   it("rejects negative file_size", {
@@ -152,7 +152,7 @@ describe("xet_open_connection", {
   })
 
   it("rejects empty hash", {
-    expect_error(xet_open_connection("handle", "", 1024), "nchar")
+    expect_error(xet_open_connection("handle", "", 1024), "file_hash")
   })
 
   it("rejects non-finite and fractional file_size", {
@@ -164,8 +164,8 @@ describe("xet_open_connection", {
   it("returns valid R connection object", {
     skip_if_not(is_compiled(), "Rust extension not available")
     # Parameter validation - xet_open_connection should reject invalid parameters
-    expect_error(xet_open_connection("", "hash", 1024), "nchar.*handle")
-    expect_error(xet_open_connection("client", "", 1024), "nchar.*file_hash")
+    expect_error(xet_open_connection("", "hash", 1024), "handle")
+    expect_error(xet_open_connection("client", "", 1024), "file_hash")
     expect_error(xet_open_connection("client", "hash", -1), "file_size")
   })
 })
@@ -176,7 +176,7 @@ describe("xet_upload_file", {
     tmp <- tempfile(fileext = ".bin")
     writeBin(raw(10), tmp)
     on.exit(unlink(tmp), add = TRUE)
-    expect_error(xet_upload_file("", tmp), "nchar.*handle")
+    expect_error(xet_upload_file("", tmp), "handle")
   })
 })
 

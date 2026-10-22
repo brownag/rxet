@@ -28,13 +28,10 @@
 #' )
 #' }
 xet_download_file <- function(handle, hash, file_size, dest_path) {
-  stopifnot(is.character(handle), length(handle) == 1, nchar(handle) > 0)
-  stopifnot(is.character(hash), length(hash) == 1, nchar(hash) > 0)
-  stopifnot(is.numeric(file_size), length(file_size) == 1, file_size >= 0, file_size <= .Machine$double.xmax)
-  if (!(is.finite(file_size) && file_size == floor(file_size))) {
-    stop("file_size must be a finite whole number of bytes")
-  }
-  stopifnot(is.character(dest_path), length(dest_path) == 1)
+  check_handle(handle)
+  check_hash(hash, "hash")
+  check_file_size(file_size)
+  check_string(dest_path, "dest_path")
 
   if (dir.exists(dest_path)) {
     stop(sprintf("dest_path is a directory, not a file: %s", dest_path))

@@ -22,8 +22,8 @@
 #' cat("Size:", result$file_size, "\n")
 #' }
 xet_upload_file <- function(handle, src_path) {
-  stopifnot(is.character(handle), length(handle) == 1, nchar(handle) > 0)
-  stopifnot(is.character(src_path), length(src_path) == 1)
+  check_handle(handle)
+  check_string(src_path, "src_path")
 
   if (!file.exists(src_path)) {
     stop(sprintf("source file does not exist: %s", src_path))

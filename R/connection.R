@@ -48,13 +48,9 @@
 #' df <- arrow::read_parquet(conn)
 #' }
 xet_open_connection <- function(handle, file_hash, file_size) {
-  stopifnot(is.character(handle), length(handle) == 1, nchar(handle) > 0)
-  stopifnot(is.character(file_hash), length(file_hash) == 1, nchar(file_hash) > 0)
-  stopifnot(is.numeric(file_size), length(file_size) == 1)
-  if (!is.finite(file_size) || file_size != floor(file_size)) {
-    stop("file_size must be a finite whole number of bytes")
-  }
-  stopifnot(file_size >= 0)
+  check_handle(handle)
+  check_hash(file_hash)
+  check_file_size(file_size, in_memory = TRUE)
 
   # Stream file into memory
   raw_bytes <- xet_stream_raw(handle, file_hash, file_size)

@@ -4,9 +4,9 @@ test_that("xet_open_connection validates input parameters", {
   skip_if_not(is_compiled(), "Rust extension not available")
 
   # Should validate handle is character
-  expect_error(xet_open_connection(123, "hash", 1024), "is.character")
+  expect_error(xet_open_connection(123, "hash", 1024), "handle")
   # Should validate file_hash is not empty
-  expect_error(xet_open_connection("handle", "", 1024), "nchar")
+  expect_error(xet_open_connection("handle", "", 1024), "file_hash")
   # Should validate file_size is non-negative
   expect_error(xet_open_connection("handle", "hash", -1), "file_size")
 })
