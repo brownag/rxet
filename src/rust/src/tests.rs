@@ -139,4 +139,19 @@ fn build_config_rejects_bad_numbers() {
     assert!(crate::build_config(Some(-1.0), None, false).is_err());
     assert!(crate::build_config(None, Some(1.5), false).is_err());
     assert!(crate::build_config(None, Some(f64::NAN), false).is_err());
+    assert!(crate::build_config(Some(18446744073709551616.0), None, false).is_err());
+}
+
+#[test]
+fn whole_bytes_accepts_whole_numbers() {
+    assert_eq!(crate::whole_bytes("f", 0.0).unwrap(), 0);
+    assert_eq!(crate::whole_bytes("f", 42.0).unwrap(), 42);
+}
+
+#[test]
+fn whole_bytes_rejects_bad_values_with_field_message() {
+    for v in [-1.0, 1.5, f64::NAN, f64::INFINITY, f64::NEG_INFINITY, 18446744073709551616.0] {
+        let e = crate::whole_bytes("file_size", v).unwrap_err().to_string();
+        assert!(e.contains("file_size must be a finite non-negative whole number"), "{e}");
+    }
 }
