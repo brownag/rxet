@@ -17,8 +17,8 @@ Baseline results: P1 planning files committed (79208ad). P2 install exit 0; `dev
 |---|---|---|
 | T1 validation module | 1 | done |
 | T2 Rust converter merge | 1 | done |
-| T3 migrate transfer functions | 2 | pending |
-| T4 whole-download module | 2 | pending |
+| T3 migrate transfer functions | 2 | done |
+| T4 whole-download module | 2 | done |
 | T5 migrate readers | 3 | pending |
 | T6 docs | 4 | pending |
 
@@ -50,3 +50,6 @@ Install exit 0; full suite no failures, same skips as baseline.
 ## T4 (done by orchestrator)
 - Status: done. Commit `refactor(reader): add internal whole-download module`.
 - Files: R/whole_download.R, tests/testthat/test-whole-download.R (new). Tests pass in the run above.
+
+## Wave 2 gate
+Install exit 0; full suite no failures. (Readers not yet migrated, so arrow-spatial tests still pass on old messages.)
