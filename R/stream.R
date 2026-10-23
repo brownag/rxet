@@ -41,13 +41,7 @@ xet_stream_raw <- function(handle, file_hash, file_size) {
   .rxet_check_hash(file_hash)
   .rxet_check_file_size(file_size, in_memory = TRUE)
 
-  .Call(
-    "wrap__xet_stream_raw",
-    handle,
-    file_hash,
-    as.double(file_size),
-    PACKAGE = "rxet"
-  )
+  .xet_stream_raw(handle, file_hash, file_size)
 }
 
 #' Stream a byte range of a file from Xet storage
@@ -97,13 +91,5 @@ xet_stream_range <- function(handle, file_hash, file_size, start_byte, end_byte)
   .rxet_check_file_size(file_size)
   .rxet_check_range(start_byte, end_byte, file_size)
 
-  .Call(
-    "wrap__xet_stream_range",
-    handle,
-    file_hash,
-    as.double(file_size),
-    as.double(start_byte),
-    as.double(end_byte),
-    PACKAGE = "rxet"
-  )
+  .xet_stream_range(handle, file_hash, file_size, start_byte, end_byte)
 }

@@ -29,5 +29,5 @@ xet_upload_file <- function(handle, src_path) {
     stop(sprintf("source file does not exist: %s", src_path))
   }
 
-  .Call("wrap__xet_upload_file", handle, src_path, PACKAGE = "rxet")
+  .xet_upload_file(handle, src_path)
 }
