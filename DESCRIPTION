@@ -21,7 +21,6 @@ Suggests:
     digest,
     future.apply,
     processx,
-    rprojroot,
     sf,
     terra,
     uuid,
