@@ -28,10 +28,10 @@
 #' )
 #' }
 xet_download_file <- function(handle, hash, file_size, dest_path) {
-  check_handle(handle)
-  check_hash(hash, "hash")
-  check_file_size(file_size)
-  check_string(dest_path, "dest_path")
+  .rxet_check_handle(handle)
+  .rxet_check_hash(hash, "hash")
+  .rxet_check_file_size(file_size)
+  .rxet_check_string(dest_path, "dest_path")
 
   if (dir.exists(dest_path)) {
     stop(sprintf("dest_path is a directory, not a file: %s", dest_path))

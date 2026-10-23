@@ -69,9 +69,9 @@
 #'   `terra::rast()` for raster operations
 #' @export
 read_xet_raster <- function(handle, file_hash, file_size, ...) {
-  require_pkg("terra", "read_xet_raster")
+  .rxet_require_pkg("terra", "read_xet_raster")
 
-  whole_download(
+  .rxet_whole_download(
     handle, file_hash, file_size,
     reader = function(path) terra::unwrap(terra::wrap(terra::rast(path, ...))),
     via = "file"
@@ -150,7 +150,7 @@ read_xet_raster <- function(handle, file_hash, file_size, ...) {
 #' @seealso `sf::st_read()` for sf package details
 #' @export
 read_xet_vector <- function(handle, file_hash, file_size, ext = NULL, ...) {
-  require_pkg("sf", "read_xet_vector")
+  .rxet_require_pkg("sf", "read_xet_vector")
 
   if (!is.null(ext)) {
     if (!is.character(ext) || length(ext) != 1L || is.na(ext) || !grepl("^[A-Za-z0-9]+$", ext)) {
@@ -158,7 +158,7 @@ read_xet_vector <- function(handle, file_hash, file_size, ext = NULL, ...) {
     }
   }
 
-  whole_download(
+  .rxet_whole_download(
     handle, file_hash, file_size,
     reader = function(path) sf::st_read(path, ...),
     ext = ext,

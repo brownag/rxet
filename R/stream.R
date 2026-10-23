@@ -37,9 +37,9 @@
 #' )
 #' }
 xet_stream_raw <- function(handle, file_hash, file_size) {
-  check_handle(handle)
-  check_hash(file_hash)
-  check_file_size(file_size, in_memory = TRUE)
+  .rxet_check_handle(handle)
+  .rxet_check_hash(file_hash)
+  .rxet_check_file_size(file_size, in_memory = TRUE)
 
   .Call(
     "wrap__xet_stream_raw",
@@ -92,10 +92,10 @@ xet_stream_raw <- function(handle, file_hash, file_size) {
 #' )
 #' }
 xet_stream_range <- function(handle, file_hash, file_size, start_byte, end_byte) {
-  check_handle(handle)
-  check_hash(file_hash)
-  check_file_size(file_size)
-  check_range(start_byte, end_byte, file_size)
+  .rxet_check_handle(handle)
+  .rxet_check_hash(file_hash)
+  .rxet_check_file_size(file_size)
+  .rxet_check_range(start_byte, end_byte, file_size)
 
   .Call(
     "wrap__xet_stream_range",

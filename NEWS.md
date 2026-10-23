@@ -1,5 +1,7 @@
 # rxet 0.3.0
 
+- Internal helpers now use the `.rxet_` prefix (for example
+  `.rxet_check_handle()` and `.rxet_whole_download()`). No exported name changed.
 - Packaging: the batch sync scripts moved to `tools/sync/` and are no longer
   part of the package root. `models.json` is a local, git-ignored file;
   `tools/sync/models.example.json` is the tracked template.

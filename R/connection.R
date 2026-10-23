@@ -48,9 +48,9 @@
 #' df <- arrow::read_parquet(conn)
 #' }
 xet_open_connection <- function(handle, file_hash, file_size) {
-  check_handle(handle)
-  check_hash(file_hash)
-  check_file_size(file_size, in_memory = TRUE)
+  .rxet_check_handle(handle)
+  .rxet_check_hash(file_hash)
+  .rxet_check_file_size(file_size, in_memory = TRUE)
 
   # Stream file into memory
   raw_bytes <- xet_stream_raw(handle, file_hash, file_size)

@@ -1,9 +1,10 @@
 # Internal request validation shared by the transfer functions and readers.
-# Not exported: names deliberately lack the `xet_` prefix (exportPattern "^xet_").
+# Not exported: names carry the `.rxet_` prefix and `@noRd`.
+# Messages never echo `handle` values.
 # Messages never echo `handle` values.
 
 #' @noRd
-check_handle <- function(handle) {
+.rxet_check_handle <- function(handle) {
   if (!is.character(handle) || length(handle) != 1L || is.na(handle) || !nzchar(handle)) {
     stop("`handle` must be a non-empty string", call. = FALSE)
   }
@@ -11,7 +12,7 @@ check_handle <- function(handle) {
 }
 
 #' @noRd
-check_hash <- function(file_hash, arg = "file_hash") {
+.rxet_check_hash <- function(file_hash, arg = "file_hash") {
   if (!is.character(file_hash) || length(file_hash) != 1L || is.na(file_hash) || !nzchar(file_hash)) {
     stop(sprintf("`%s` must be a non-empty string", arg), call. = FALSE)
   }
@@ -19,7 +20,7 @@ check_hash <- function(file_hash, arg = "file_hash") {
 }
 
 #' @noRd
-check_file_size <- function(file_size, in_memory = FALSE) {
+.rxet_check_file_size <- function(file_size, in_memory = FALSE) {
   if (!is.numeric(file_size) || length(file_size) != 1L) {
     stop("`file_size` must be a single number", call. = FALSE)
   }
@@ -39,7 +40,7 @@ check_file_size <- function(file_size, in_memory = FALSE) {
 }
 
 #' @noRd
-check_range <- function(start_byte, end_byte, file_size) {
+.rxet_check_range <- function(start_byte, end_byte, file_size) {
   for (nm in c("start_byte", "end_byte")) {
     v <- get(nm)
     if (!is.numeric(v) || length(v) != 1L || !is.finite(v) || v != floor(v)) {
@@ -65,7 +66,7 @@ check_range <- function(start_byte, end_byte, file_size) {
 }
 
 #' @noRd
-check_string <- function(x, arg) {
+.rxet_check_string <- function(x, arg) {
   if (!is.character(x) || length(x) != 1L || is.na(x)) {
     stop(sprintf("`%s` must be a single non-NA string", arg), call. = FALSE)
   }
@@ -73,7 +74,7 @@ check_string <- function(x, arg) {
 }
 
 #' @noRd
-require_pkg <- function(pkg, fn) {
+.rxet_require_pkg <- function(pkg, fn) {
   if (!requireNamespace(pkg, quietly = TRUE)) {
     stop(sprintf(
       "The '%s' package is required for %s(). Install it with: install.packages('%s')",
