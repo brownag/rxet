@@ -162,7 +162,7 @@ Without `RXET_LOCAL_CAS_SERVER` (and no `local_cas_server` on `PATH`), these tes
 - `HF_TOKEN` is required. The helper exchanges it in memory for the short-lived accessToken from the Hub's xet-read-token endpoint, because the CAS server rejects the raw token. Without `HF_TOKEN` the live tests fail; they do not skip.
 - Run: `RXET_LIVE_TESTS=1 Rscript -e 'devtools::test(filter = "live-hf")'`
 
-**CI:** public CI runs the local-server suite once task 5.4.1 lands (it installs `local_cas_server` and sets `RXET_LOCAL_CAS_SERVER`). It never runs the live suite. CI execution is not yet validated until the first push.
+**CI:** public CI runs the local-server suite (it installs `local_cas_server` and sets `RXET_LOCAL_CAS_SERVER`). It never runs the live suite. CI execution has not yet been validated on a push.
 
 ---
 
@@ -191,6 +191,10 @@ rxet/
 │   ├── client.R                # xet_client_new/close + docs
 │   ├── download.R              # xet_download_file
 │   ├── upload.R                # xet_upload_file
+│   ├── stream.R                # xet_stream_raw, xet_stream_range
+│   ├── connection.R            # xet_open_connection
+│   ├── arrow.R                 # read_xet_parquet
+│   ├── spatial.R               # read_xet_raster, read_xet_vector
 │   ├── validate.R              # internal request validation (handle, hash, size, range)
 │   ├── whole_download.R        # internal shared lifecycle for the three whole-download readers
 │   ├── extendr-wrappers.R      # .Call() dispatch stubs
@@ -200,13 +204,22 @@ rxet/
 │   ├── Makevars.in             # Build rules template
 │   └── rust/
 │       ├── Cargo.toml          # Rust deps + extendr-api
-│       └── src/lib.rs          # 4 core Rust bindings + handle map
+│       └── src/
+│           ├── lib.rs          # 6 Rust bindings, config, panic recovery
+│           ├── registry.rs     # handle → client map behind a mutex
+│           └── tests.rs        # Rust unit tests
 ├── configure{,.win}            # Calls tools/config.R
 ├── DESCRIPTION                 # Package metadata
 ├── NAMESPACE                   # Exports (patterns: ^xet_)
+├── tests/
+│   ├── testthat.R              # R CMD check entry point
+│   └── testthat/               # suite plus fault/local-CAS/live helpers
 └── tools/
     ├── config.R                # Generate src/Makevars
-    └── msrv.R                  # Validate Rust version >= 1.85
+    ├── msrv.R                  # Validate Rust version >= 1.85
+    ├── benchmark*.R            # Sync benchmarks (developer only)
+    ├── README.md               # Benchmark and sync usage
+    └── sync/                   # xet-sync.R, wrappers, models.example.json
 ```
 
 ---
