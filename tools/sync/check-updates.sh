@@ -2,7 +2,7 @@
 # check-updates: Monitor for upstream model changes
 # Run periodically (e.g., via cron) to detect when models are updated
 
-CONFIG="${1:-.models.json}"
+CONFIG="${1:-models.json}"
 LOG_FILE="${2:-model-updates.log}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 

@@ -1,10 +1,10 @@
 #!/bin/bash
 # xet-sync: Simple wrapper for batch model downloading/syncing
-# Usage: ./xet-sync.sh models.json [--force] [--check-only]
+# Usage: ./tools/sync/xet-sync.sh models.json [--force] [--check-only]
 
 set -e
 
-CONFIG="${1:-.models.json}"
+CONFIG="${1:-models.json}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Check prerequisites
