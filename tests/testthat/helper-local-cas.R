@@ -36,7 +36,7 @@ skip_without_local_cas <- function() {
   skip_if_not(is_compiled(), "Rust extension not available")
   skip_if_not_installed("processx")
   if (is.na(local_cas_binary())) {
-    skip("local_cas_server not found: set RXET_LOCAL_CAS_SERVER (see planning/EXECUTION_PLAN_5.md)")
+    skip("local_cas_server not found: set RXET_LOCAL_CAS_SERVER (see AGENTS.md, Testing)")
   }
   invisible(NULL)
 }
