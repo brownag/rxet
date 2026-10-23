@@ -3,7 +3,9 @@ Type: Package
 Title: Native R Bindings to the Hugging Face Xet Storage Engine
 Version: 0.2.0
 Authors@R:
-    person("Andrew", "Brown", , "brown.andrewg@gmail.com", role = c("aut", "cre"))
+    person("Andrew", "Brown", , "brown.andrewg@gmail.com",
+           role = c("aut", "cre"),
+           comment = c(ORCID = "0000-0002-4565-533X"))
 Description: Provides R bindings to the Hugging Face Xet content-addressed
     storage system via native Rust integration using the extendr framework,
     without Python dependencies.
