@@ -1,0 +1,20 @@
+{
+  "sync_dir": "~/models",
+  "repos": [
+    {
+      "repo_id": "org/model-repo",
+      "branch": "main",
+      "files": [
+        "model-Q4_K_M.gguf",
+        "model-Q5_K_M.gguf"
+      ]
+    },
+    {
+      "repo_id": "org/another-repo",
+      "branch": "main",
+      "files": [
+        "weights.safetensors"
+      ]
+    }
+  ]
+}
