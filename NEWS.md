@@ -1,4 +1,8 @@
-# rxet (development version)
+# rxet 0.3.0
+
+- Packaging: the batch sync scripts moved to `tools/sync/` and are no longer
+  part of the package root. `models.json` is a local, git-ignored file;
+  `tools/sync/models.example.json` is the tracked template.
 
 - `read_xet_parquet()`, `read_xet_raster()` and `read_xet_vector()` now accept
   `file_size = 0` at the argument check. An empty file fails inside the format

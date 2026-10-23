@@ -3,7 +3,7 @@
 Open work only. Shipped behaviour is recorded in [`NEWS.md`](../NEWS.md) and in
 the decisions under [`docs/decisions/`](../docs/decisions/).
 
-Current release: v0.2.0. The package exposes 10 functions, all whole-file or
+Current release: v0.3.0. The package exposes 10 functions, all whole-file or
 byte-range reads through a single blocking client per handle.
 
 ## Reliability
