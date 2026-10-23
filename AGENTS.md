@@ -146,6 +146,8 @@ Rscript -e 'devtools::test()'
 
 Tests tied to the compiled Rust extension skip when it is not available.
 
+**Never use `rxet:::` in tests.** The test environment inherits the package namespace, so internal helpers are called directly (`.rxet_check_handle()`, `.rxet_whole_download()`). Reaching for `:::` means the namespace is not being loaded properly, so fix the loading rather than the call.
+
 **Fault tests** (always run, offline): `test-fault-midstream.R` and `test-fault-token.R` use a loopback fault server (127.0.0.1, run in a processx child process, helper `helper-fault-cas.R`). They need no `RXET_LOCAL_CAS_SERVER`, no network and no `HF_TOKEN`. The mid-stream test ends the response body early and expects an error, no destination file and no `.part` file. The token-expiry test answers 401 and checks that the token does not appear in the error. Real token expiry is checked manually and is never waited for. These files skip only when the compiled extension is absent.
 
 **Local-server tests** (uploads and local round trips) run against the upstream `local_cas_server`. Install it once and point `RXET_LOCAL_CAS_SERVER` at the binary:
