@@ -1,3 +1,22 @@
+# rxet 0.3.0
+
+- Internal helpers now use the `.rxet_` prefix (for example
+  `.rxet_check_handle()` and `.rxet_whole_download()`). No exported name changed.
+- Public wrappers now call the rextendr-generated `.xet_*` stubs instead of
+  hand-written `.Call()` calls, so native symbols and coercions stay in sync
+  with the Rust signatures.
+- Packaging: the batch sync scripts moved to `tools/sync/` and are no longer
+  part of the package root. `models.json` is a local, git-ignored file;
+  `tools/sync/models.example.json` is the tracked template.
+
+- `read_xet_parquet()`, `read_xet_raster()` and `read_xet_vector()` now accept
+  `file_size = 0` at the argument check. An empty file fails inside the format
+  reader instead.
+- Argument errors from the transfer functions and readers now use shared,
+  clearer messages (for example "`handle` must be a non-empty string").
+- Rust converter error messages for byte counts changed to
+  "<field> must be a finite non-negative whole number".
+
 # rxet 0.2.0
 
 Minor release with breaking changes. Each removed function or argument

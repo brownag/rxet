@@ -74,10 +74,7 @@ xet_client_new <- function(endpoint, token, timeout_sec = NULL, cache_bytes = NU
   if (!(is.logical(high_perf) && length(high_perf) == 1 && !is.na(high_perf))) {
     stop("high_perf must be a single TRUE or FALSE", call. = FALSE)
   }
-  .Call("wrap__xet_init_client", endpoint, token,
-        if (is.null(timeout_sec)) NULL else as.double(timeout_sec),
-        if (is.null(cache_bytes)) NULL else as.double(cache_bytes),
-        high_perf, PACKAGE = "rxet")
+  .xet_init_client(endpoint, token, timeout_sec, cache_bytes, high_perf)
 }
 
 #' Close and free a Xet client session
@@ -93,6 +90,6 @@ xet_client_new <- function(endpoint, token, timeout_sec = NULL, cache_bytes = NU
 #' @export
 xet_client_close <- function(handle) {
   stopifnot(is.character(handle), length(handle) == 1)
-  .Call("wrap__xet_close_client", handle, PACKAGE = "rxet")
+  .xet_close_client(handle)
   invisible(NULL)
 }

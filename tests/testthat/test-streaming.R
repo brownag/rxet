@@ -29,7 +29,7 @@ test_that("xet_stream_raw validates input parameters", {
     # Empty hash should be caught by R validation
     expect_error(
       xet_stream_raw(client, "", 1024),
-      "nchar"
+      "file_hash"
     )
     # Negative size should be caught
     expect_error(

@@ -22,12 +22,12 @@
 #' cat("Size:", result$file_size, "\n")
 #' }
 xet_upload_file <- function(handle, src_path) {
-  stopifnot(is.character(handle), length(handle) == 1, nchar(handle) > 0)
-  stopifnot(is.character(src_path), length(src_path) == 1)
+  .rxet_check_handle(handle)
+  .rxet_check_string(src_path, "src_path")
 
   if (!file.exists(src_path)) {
     stop(sprintf("source file does not exist: %s", src_path))
   }
 
-  .Call("wrap__xet_upload_file", handle, src_path, PACKAGE = "rxet")
+  .xet_upload_file(handle, src_path)
 }

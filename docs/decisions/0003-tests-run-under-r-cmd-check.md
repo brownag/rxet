@@ -61,5 +61,5 @@ stay unexported.
 * `R CMD check --no-manual` reports `checking tests ... OK` (runs
   `tests/testthat.R`).
 * `devtools::test(stop_on_failure = TRUE)` reports 0 failures.
-* `DESCRIPTION` declares `rprojroot` (used by `tests/hf_test_setup.R`); `withr`
-  and `future` were removed as unused.
+* `DESCRIPTION` no longer declares `rprojroot`: the only consumer,
+  `tests/hf_test_setup.R`, was unused and has been removed.

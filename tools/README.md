@@ -2,6 +2,27 @@
 
 This directory contains utility scripts for benchmarking, configuration, and maintenance.
 
+## Syncing models
+
+The sync scripts live in `tools/sync/`. They are developer tooling and are not
+part of the installed package. They need `jsonlite`, `httr2`, `future` and
+`future.apply` in addition to `rxet`.
+
+```bash
+# Copy the example config, then edit repos and files
+cp tools/sync/models.example.json models.json
+
+# Download or update every listed file
+tools/sync/xet-sync.sh models.json
+
+# Only report upstream changes (append to model-updates.log)
+tools/sync/check-updates.sh models.json
+```
+
+`xet-sync.R` also accepts `--force` (re-download even when the hash matches),
+`--check-only` (report only) and `--retry-failures` (retry the previous run's
+failures). Both shell wrappers read `HF_TOKEN` from the environment.
+
 ## Benchmarking
 
 ### Quick Benchmark
@@ -241,4 +262,5 @@ Improvement: 33% faster (1 worker), 27% faster (4 workers)
 
 - `config.R` — Configuration helpers
 - `msrv.R` — Minimum Supported R Version checker
-- `../xet-sync.R` — Main sync script (measured by benchmarks)
+- `sync/xet-sync.R` — Main sync script (measured by benchmarks)
+- `sync/models.example.json` — Example sync config; copy to `models.json` in the repo root and edit

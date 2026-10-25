@@ -6,8 +6,8 @@ test_that("read_xet_parquet validates input parameters", {
   skip_if(nchar(Sys.getenv("HF_TOKEN")) == 0, "HF_TOKEN not set")
 
   # Validate parameter requirements
-  expect_error(read_xet_parquet("", "hash", 1024), "nchar.*handle")
-  expect_error(read_xet_parquet("client", "", 1024), "nchar.*file_hash")
+  expect_error(read_xet_parquet("", "hash", 1024), "handle")
+  expect_error(read_xet_parquet("client", "", 1024), "file_hash")
   expect_error(read_xet_parquet("client", "hash", -1), "file_size")
 })
 
@@ -173,4 +173,22 @@ test_that("read_xet_raster and read_xet_vector close the connection when they er
   expect_error(read_xet_raster("h", "x", 1024))
   expect_error(read_xet_vector("h", "x", 1024))
   expect_equal(nrow(showConnections(all = TRUE)), n_before)
+})
+
+test_that("file_size = 0 reaches the reader and fails there, not at argument validation", {
+  testthat::local_mocked_bindings(
+    xet_open_connection = function(...) rawConnection(raw(0), "r"),
+    .package = "rxet"
+  )
+  not_arg <- function(expr) {
+    msg <- tryCatch({ expr; "" }, error = conditionMessage)
+    expect_true(nzchar(msg))
+    expect_false(grepl("file_size", msg))
+  }
+  skip_if_not_installed("arrow")
+  not_arg(read_xet_parquet("h", "abc", 0))
+  skip_if_not_installed("terra")
+  not_arg(read_xet_raster("h", "abc", 0))
+  skip_if_not_installed("sf")
+  not_arg(read_xet_vector("h", "abc", 0))
 })

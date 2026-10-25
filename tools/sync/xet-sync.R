@@ -1,6 +1,6 @@
 #!/usr/bin/env Rscript
 # xet-sync: Batch download/sync with update detection
-# Usage: Rscript xet-sync.R models.json [--force] [--check-only]
+# Usage: Rscript tools/sync/xet-sync.R models.json [--force] [--check-only]
 
 library(rxet)
 library(future)
@@ -11,7 +11,7 @@ library(jsonlite)
 # Parse command line args
 args <- commandArgs(trailingOnly = TRUE)
 if (length(args) == 0) {
-  cat("Usage: Rscript xet-sync.R <config.json> [--force] [--check-only] [--retry-failures]\n")
+  cat("Usage: Rscript tools/sync/xet-sync.R <config.json> [--force] [--check-only] [--retry-failures]\n")
   cat("\nOptions:\n")
   cat("  --force           Re-download all files even if hash matches\n")
   cat("  --check-only      Only check for updates, don't download\n")
@@ -404,7 +404,7 @@ if (cache_dirty) {
 if (length(failures) > 0) {
   jsonlite::write_json(failures, failures_file, pretty = FALSE)
   cat(sprintf("Failures saved to: %s\n", failures_file))
-  cat("  To retry only failed files: Rscript xet-sync.R --retry-failures models.json\n")
+  cat("  To retry only failed files: Rscript tools/sync/xet-sync.R --retry-failures models.json\n")
 }
 
 # Summary

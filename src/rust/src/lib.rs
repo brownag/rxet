@@ -18,16 +18,6 @@ struct XetClient {
 /// In-memory reads are capped at 2^31 - 1 bytes (decision D2).
 const MAX_IN_MEMORY_BYTES: u64 = i32::MAX as u64;
 
-/// Converts an R double to a byte count, rejecting anything that is not a finite whole number.
-fn to_whole_bytes(value: f64, what: &str) -> extendr_api::Result<u64> {
-    if !value.is_finite() || value < 0.0 || value.fract() != 0.0 || value >= 18446744073709551616.0 {
-        return Err(Error::Other(format!(
-            "{what} must be a finite whole number of bytes, got {value}"
-        )));
-    }
-    Ok(value as u64)
-}
-
 /// Wraps a closure in panic::catch_unwind and converts panics to readable R errors.
 fn safe_exec<F, T>(f: F) -> extendr_api::Result<T>
 where
@@ -62,14 +52,14 @@ fn acquire_client(handle: &str) -> extendr_api::Result<Arc<XetClient>> {
         .ok_or_else(|| Error::Other(format!("invalid or closed client handle")))
 }
 
-/// Convert an R-supplied number to a whole u64, or fail naming only the field.
-fn whole_u64(field: &str, v: f64) -> extendr_api::Result<u64> {
-    if v.is_finite() && v >= 0.0 && v.fract() == 0.0 && v <= u64::MAX as f64 {
+/// Converts an R double to a whole u64, rejecting non-finite, negative, fractional or >= 2^64 values.
+/// The error names only the field, never the value.
+fn whole_bytes(field: &str, v: f64) -> extendr_api::Result<u64> {
+    if v.is_finite() && v >= 0.0 && v.fract() == 0.0 && v < 18446744073709551616.0 {
         Ok(v as u64)
     } else {
         Err(Error::Other(format!(
-            "{} must be a finite non-negative whole number",
-            field
+            "{field} must be a finite non-negative whole number"
         )))
     }
 }
@@ -87,13 +77,13 @@ fn build_config(
         config = config.with_high_performance();
     }
     if let Some(t) = timeout_sec {
-        let n = whole_u64("timeout_sec", t)?;
+        let n = whole_bytes("timeout_sec", t)?;
         config = config
             .with_config("client.read_timeout", format!("{}s", n))
             .map_err(|_| Error::Other("could not apply timeout_sec".to_string()))?;
     }
     if let Some(c) = cache_bytes {
-        let n = whole_u64("cache_bytes", c)?;
+        let n = whole_bytes("cache_bytes", c)?;
         config = config
             .with_config("chunk_cache.size_bytes", n)
             .map_err(|_| Error::Other("could not apply cache_bytes".to_string()))?;
@@ -156,7 +146,7 @@ fn xet_stream_raw(
     file_size: f64,
 ) -> extendr_api::Result<Robj> {
     safe_exec(panic::AssertUnwindSafe(|| {
-        let size_bytes = to_whole_bytes(file_size, "file_size")?;
+        let size_bytes = whole_bytes("file_size", file_size)?;
         if size_bytes > MAX_IN_MEMORY_BYTES {
             return Err(Error::Other(format!(
                 "in-memory read of {size_bytes} bytes exceeds the 2 GiB limit (2147483647 bytes); use xet_download_file() for larger files"
@@ -215,9 +205,9 @@ fn xet_stream_range(
 ) -> extendr_api::Result<Robj> {
     safe_exec(panic::AssertUnwindSafe(|| {
         // Validate inputs
-        let total = to_whole_bytes(total_size, "file_size")?;
-        let start = to_whole_bytes(start_offset, "start_offset")?;
-        let end = to_whole_bytes(end_offset, "end_offset")?;
+        let total = whole_bytes("file_size", total_size)?;
+        let start = whole_bytes("start_offset", start_offset)?;
+        let end = whole_bytes("end_offset", end_offset)?;
         if start > total {
             return Err(Error::Other(format!(
                 "invalid start offset: {} (file size: {})",
@@ -321,7 +311,7 @@ fn xet_download_file(
     dest_path: &str,
 ) -> extendr_api::Result<()> {
     safe_exec(panic::AssertUnwindSafe(|| {
-        let size = to_whole_bytes(file_size, "file_size")?;
+        let size = whole_bytes("file_size", file_size)?;
 
         let client = acquire_client(handle)?;
 

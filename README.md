@@ -169,10 +169,10 @@ Environment variables hf-xet reads when the matching argument is `NULL`:
 
 ## Performance
 
-rxet v0.1 makes no throughput or concurrency claims. Each handle holds a
+rxet makes no throughput or concurrency claims. Each handle holds a
 single blocking client, and calls are serialized; caching and network
-behaviour come from the underlying Xet engine and are not benchmarked
-here.
+behaviour come from the underlying Xet engine. `tools/README.md`
+describes how to benchmark your own workload.
 
 ## Benchmarking
 
@@ -236,12 +236,12 @@ rxet is built in three layers:
 operation calls xet-core’s `*.blocking()` API on the calling R thread -
 A `Registry<T>` (`src/rust/src/registry.rs`) maps each character UUID
 handle to its client behind a mutex, and reports a poisoned lock as an
-error rather than as an unknown handle - Whole-file
-buffering: downloads materialize the complete file in memory or on disk;
-there is no remote partial-read path; in-memory reads
-(`xet_stream_raw()`, `xet_stream_range()`, `xet_open_connection()`) are
-capped at 2 GiB (2^31 − 1 bytes) and error above that, so use
-`xet_download_file()` for larger files
+error rather than as an unknown handle - Whole-file buffering:
+`xet_download_file()` materializes the complete file on disk, while
+`xet_stream_raw()` and `xet_open_connection()` buffer the whole file in
+memory. `xet_stream_range()` requests only the given byte range.
+In-memory reads are capped at 2 GiB (2^31 − 1 bytes) and error above
+that, so use `xet_download_file()` for larger files
 
 ## Testing
 
@@ -273,8 +273,7 @@ Live tests are on demand only and never run in public CI. They require
 The live fixtures are `multichunk_16mib.bin` and `geotiff_512x512_utm33n.tif`
 at the top level of that dataset.
 
-Public CI runs the local-server suite once task 5.4.1 lands; CI
-execution is not yet validated until the first push.
+Public CI runs the local-server suite and never the live suite.
 
 ## FAQ
 
@@ -308,9 +307,9 @@ always release handles with `on.exit(xet_client_close(...))`.
 `xet_client_close()` invalidates a handle immediately: later calls on it
 error, while an operation already in flight finishes normally.
 
-## v0.1 status
+## Support status
 
-This release documents two tiers of API. All 10 exported functions are
+rxet documents two tiers of API. All 10 exported functions are
 listed; the split reflects available evidence, not intent.
 
 **Supported:**
@@ -336,11 +335,12 @@ listed; the split reflects available evidence, not intent.
   temporary file, then reads it through sf/GDAL (single-file formats
   only)
 
-The experimental functions are exported and usable, but their end-to-end
-behavior against a live Xet endpoint has not yet been verified in this
-repository. The optional helpers read whole files: they are not
-streaming, and in-memory reads are capped at 2 GiB. Use
-`xet_download_file()` for larger files.
+The experimental functions are exported and usable. The transfer
+functions are exercised by the on-demand live suite, and all of them by
+the offline and local-server suites; public CI never runs the live
+suite. The optional helpers read whole files: they are not streaming,
+and in-memory reads are capped at 2 GiB. Use `xet_download_file()` for
+larger files.
 
 See [NEWS.md](NEWS.md) for release notes.
 

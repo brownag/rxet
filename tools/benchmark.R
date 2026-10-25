@@ -44,8 +44,10 @@ cat(sprintf("Repos: %d\n\n", length(config$repos)))
 cat("Starting sync benchmark...\n")
 start_time <- Sys.time()
 
-# Source the sync script (modify path as needed)
-source("xet-sync.R")
+# Source the sync script relative to this file so the benchmark works from any directory
+script_arg <- grep("^--file=", commandArgs(FALSE), value = TRUE)
+script_dir <- if (length(script_arg) == 1) dirname(sub("^--file=", "", script_arg)) else "tools"
+source(file.path(script_dir, "sync", "xet-sync.R"))
 
 end_time <- Sys.time()
 elapsed_seconds <- as.numeric(end_time - start_time)

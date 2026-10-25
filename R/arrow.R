@@ -65,26 +65,13 @@
 #' @seealso [xet_open_connection()], `arrow::read_parquet()` for Arrow options
 #' @export
 read_xet_parquet <- function(handle, file_hash, file_size, ...) {
-  if (!requireNamespace("arrow", quietly = TRUE)) {
-    stop(
-      "The 'arrow' package is required for read_xet_parquet(). ",
-      "Install it with: install.packages('arrow')"
-    )
-  }
+  .rxet_require_pkg("arrow", "read_xet_parquet")
 
-  stopifnot(is.character(handle), length(handle) == 1, nchar(handle) > 0)
-  stopifnot(is.character(file_hash), length(file_hash) == 1, nchar(file_hash) > 0)
-  stopifnot(is.numeric(file_size), length(file_size) == 1, file_size > 0)
-
-  conn <- xet_open_connection(handle, file_hash, file_size)
-
-  # arrow::read_parquet() closes the connection it reads, so close it here
-  # only when reading fails before arrow gets to it.
-  tryCatch(
-    arrow::read_parquet(conn, ...),
-    error = function(e) {
-      tryCatch(close(conn), error = function(e2) NULL)
-      stop(e)
-    }
+  # arrow::read_parquet() closes the connection it reads; .rxet_whole_download()
+  # closes it only when reading fails before arrow gets to it.
+  .rxet_whole_download(
+    handle, file_hash, file_size,
+    reader = function(conn) arrow::read_parquet(conn, ...),
+    via = "connection"
   )
 }
