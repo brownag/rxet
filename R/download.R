@@ -19,7 +19,7 @@
 #' @export
 #' @examples
 #' \dontrun{
-#' client <- xet_client_new("https://cas-cf.huggingface.co", "token")
+#' client <- xet_client_new("https://cas-server.xethub.hf.co", "token")
 #' on.exit(xet_client_close(client))
 #' xet_download_file(client,
 #'   hash = "abc123def456...",

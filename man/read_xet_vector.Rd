@@ -60,7 +60,7 @@ R memory, so only the parsed sf object counts against memory.
 \dontrun{
 library(sf)
 
-client <- xet_client_new("https://cas-cf.huggingface.co", "token")
+client <- xet_client_new("https://cas-server.xethub.hf.co", "token")
 on.exit(xet_client_close(client))
 
 # Read GeoJSON from Xet

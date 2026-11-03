@@ -38,7 +38,7 @@ memory fails before any network access.
 }
 \examples{
 \dontrun{
-client <- xet_client_new("https://cas-cf.huggingface.co", "token")
+client <- xet_client_new("https://cas-server.xethub.hf.co", "token")
 on.exit(xet_client_close(client))
 
 # Get first 1MB of a 10GB file

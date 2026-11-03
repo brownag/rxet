@@ -48,7 +48,7 @@ NULL
 #' @export
 #' @examples
 #' \dontrun{
-#' client <- xet_client_new("https://cas-cf.huggingface.co", "token")
+#' client <- xet_client_new("https://cas-server.xethub.hf.co", "token")
 #' on.exit(xet_client_close(client))
 #' xet_download_file(client, hash = "...", file_size = 1024, dest_path = "/tmp/file")
 #' }

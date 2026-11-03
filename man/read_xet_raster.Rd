@@ -34,7 +34,7 @@ parsed raster counts against memory.
 \strong{Optional package:} \code{terra} is in Suggests and is checked with
 \code{requireNamespace()}.
 
-\if{html}{\out{<div class="sourceCode r">}}\preformatted{dem <- read_xet_raster(client, "geotiff-hash", 2e9)
+\if{html}{\out{<div class="sourceCode r">}}\preformatted{dem <- read_xet_raster(client, "geotiff-hash", 200e6)
 cropped <- terra::crop(dem, terra::ext(100, 110, 40, 50))
 }\if{html}{\out{</div>}}
 
@@ -52,25 +52,18 @@ cropped <- terra::crop(dem, terra::ext(100, 110, 40, 50))
 \dontrun{
 library(terra)
 
-client <- xet_client_new("https://cas-cf.huggingface.co", "token")
+client <- xet_client_new("https://cas-server.xethub.hf.co", "token")
 on.exit(xet_client_close(client))
 
-# Read Copernicus DEM
+# Read a GeoTIFF; file_hash and file_size come from the Hub file metadata
 dem <- read_xet_raster(
   client,
-  file_hash = "copernicus-dem-hash",
-  file_size = 4e9
+  file_hash = "geotiff-hash-abc123...",
+  file_size = 200e6
 )
 
-# Crop to region of interest
-roi <- terra::ext(c(100, 105, 20, 25))  # lon/lat bounds
-dem_roi <- terra::crop(dem, roi)
-
-# Resample to coarser resolution
-dem_coarse <- terra::aggregate(dem_roi, 10)
-
-# Extract elevation profile
-profile <- terra::extract(dem_roi, xy = matrix(c(102.5, 102.5, 22.5, 23.5), ncol = 2))
+# Crop to a region of interest
+dem_roi <- terra::crop(dem, terra::ext(100, 105, 20, 25))
 }
 
 }
