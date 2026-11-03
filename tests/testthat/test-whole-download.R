@@ -22,8 +22,14 @@ test_that("connection mode closes the connection when the reader errors", {
   expect_error(isOpen(captured))
 })
 
-test_that("file mode passes a temp path with bytes and removes it", {
-  testthat::local_mocked_bindings(xet_open_connection = stub_conn, .package = "rxet")
+test_that("file mode downloads to a temp path and removes it", {
+  testthat::local_mocked_bindings(
+    xet_download_file = function(handle, hash, file_size, dest_path) {
+      writeBin(as.raw(1:5), dest_path)
+      invisible(dest_path)
+    },
+    .package = "rxet"
+  )
   seen <- NULL
   out <- .rxet_whole_download("h", "abc", 5, function(path) {
     seen <<- path
@@ -54,6 +60,6 @@ test_that("invalid arguments error before the connection is opened", {
   expect_error(.rxet_whole_download("", "abc", 5, identity), "handle")
   expect_error(.rxet_whole_download("h", "", 5, identity), "file_hash")
   expect_error(.rxet_whole_download("h", "abc", -1, identity), "file_size")
-  expect_error(.rxet_whole_download("h", "abc", 2^31, identity), "2 GiB limit")
+  expect_error(.rxet_whole_download("h", "abc", 1.5, identity), "file_size")
   expect_false(called)
 })

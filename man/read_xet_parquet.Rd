@@ -39,12 +39,8 @@ Arrow reads it, so column selection and filters reduce Arrow/in-memory work
 but not the number of bytes downloaded.
 
 \strong{Whole-download:} the file is fully read before the call returns. No
-temporary file is used. The whole file is read into memory, which holds
-about one copy of the bytes, and a parsed object is returned.
-
-\strong{2 GiB limit:} files larger than 2 GiB (2147483647 bytes) are refused by
-\code{\link[=xet_open_connection]{xet_open_connection()}} before any network call. The error names
-\code{xet_download_file()}.
+temporary file is used. The file is held as one \code{raw()} vector while Arrow
+parses it, so peak memory is the file plus the parsed table.
 
 \strong{Optional package:} \code{arrow} is in Suggests and is checked with
 \code{requireNamespace()}.

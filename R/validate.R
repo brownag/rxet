@@ -1,7 +1,6 @@
 # Internal request validation shared by the transfer functions and readers.
 # Not exported: names carry the `.rxet_` prefix and `@noRd`.
 # Messages never echo `handle` values.
-# Messages never echo `handle` values.
 
 #' @noRd
 .rxet_check_handle <- function(handle) {
@@ -20,7 +19,7 @@
 }
 
 #' @noRd
-.rxet_check_file_size <- function(file_size, in_memory = FALSE) {
+.rxet_check_file_size <- function(file_size) {
   if (!is.numeric(file_size) || length(file_size) != 1L) {
     stop("`file_size` must be a single number", call. = FALSE)
   }
@@ -29,12 +28,6 @@
   }
   if (file_size < 0) {
     stop("`file_size` must be >= 0", call. = FALSE)
-  }
-  if (in_memory && file_size > .Machine$integer.max) {
-    stop(sprintf(
-      "in-memory read of %.0f bytes exceeds the 2 GiB limit (2147483647 bytes); use xet_download_file() for larger files",
-      file_size
-    ), call. = FALSE)
   }
   invisible(file_size)
 }
@@ -55,12 +48,6 @@
   }
   if (end_byte > file_size) {
     stop("`end_byte` must not exceed `file_size`", call. = FALSE)
-  }
-  if (end_byte - start_byte > .Machine$integer.max) {
-    stop(sprintf(
-      "in-memory requested range of %.0f bytes exceeds the 2 GiB limit (2147483647 bytes); use xet_download_file() for larger files",
-      end_byte - start_byte
-    ), call. = FALSE)
   }
   invisible(TRUE)
 }

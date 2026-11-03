@@ -18,12 +18,9 @@
 #' 3. The connection supports `readBin()`, `seek()`, `close()`, and integration
 #'    with Arrow, terra, sf/GDAL, and other packages that read from connections
 #'
-#' The whole file is materialized into an in-memory `rawConnection()`. `seek()`
-#' works within that in-memory copy, but this is **not** remote range access:
-#' no bytes are fetched lazily from the endpoint.
-#'
-#' `file_size` must be a finite whole number of bytes, and at most 2^31 - 1
-#' bytes (2 GiB), the same in-memory cap as [xet_stream_raw()].
+#' The whole file becomes one in-memory `raw()` vector, so the call needs that
+#' much free RAM. `seek()` works within that copy, but this is **not** remote
+#' range access: no bytes are fetched lazily from the endpoint.
 #'
 #' **Status:** Experimental pending live evidence.
 #'
@@ -50,7 +47,7 @@
 xet_open_connection <- function(handle, file_hash, file_size) {
   .rxet_check_handle(handle)
   .rxet_check_hash(file_hash)
-  .rxet_check_file_size(file_size, in_memory = TRUE)
+  .rxet_check_file_size(file_size)
 
   # Stream file into memory
   raw_bytes <- xet_stream_raw(handle, file_hash, file_size)

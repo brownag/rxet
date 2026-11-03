@@ -16,9 +16,9 @@
 #' to create an R connection, or used directly with downstream functions
 #' like `arrow::read_parquet()` via a temporary file.
 #'
-#' `file_size` must be a finite whole number of bytes, and at most 2^31 - 1
-#' bytes (2 GiB). Larger files error before any network access; use
-#' [xet_download_file()] instead.
+#' `file_size` must be a finite whole number of bytes. The `raw()` vector is
+#' allocated before the download starts, so a request larger than available
+#' memory fails before any network access.
 #'
 #' **Status:** Experimental pending live evidence.
 #'
@@ -39,7 +39,7 @@
 xet_stream_raw <- function(handle, file_hash, file_size) {
   .rxet_check_handle(handle)
   .rxet_check_hash(file_hash)
-  .rxet_check_file_size(file_size, in_memory = TRUE)
+  .rxet_check_file_size(file_size)
 
   .xet_stream_raw(handle, file_hash, file_size)
 }
@@ -63,10 +63,9 @@ xet_stream_raw <- function(handle, file_hash, file_size) {
 #' covers bytes `start_byte` through `end_byte - 1`. The result is a `raw()`
 #' vector of the returned bytes.
 #'
-#' `file_size` must be a finite whole number of bytes. The requested range
-#' (`end_byte - start_byte`) must be at most 2^31 - 1 bytes (2 GiB); larger
-#' ranges error before any network access. Use [xet_download_file()] for
-#' larger transfers.
+#' `file_size` must be a finite whole number of bytes. The result vector is
+#' allocated before the download starts, so a range larger than available
+#' memory fails before any network access.
 #'
 #' **Status:** Experimental pending live evidence.
 #'

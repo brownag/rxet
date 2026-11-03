@@ -159,7 +159,6 @@ expect_no_canary <- function(out) {
 
 start_403 <- function() start_token_cas(term_status = 403L)
 start_mid <- function() start_fault_cas()
-over_limit <- 2147483647 + 1
 
 # Term fetch 401 and 403 ----------------------------------------------------
 
@@ -303,32 +302,12 @@ test_that("mid-stream drop: xet_stream_raw error has no canary", {
   expect_true(any(grepl("^GET /xorb/", out$reqs)))
 })
 
-# Offline refusals before any network call ----------------------------------
+# Offline validation failures before any network call -----------------------
 
-test_that("over-2GiB refusal: xet_stream_raw error has no canary", {
-  skip_if_not(is_compiled(), "Rust extension not available")
-  out <- run_offline_case(function(client) xet_stream_raw(client, FAULT_HASH, over_limit))
-  expect_no_canary(out)
-})
-
-test_that("over-2GiB refusal: xet_stream_range error has no canary", {
-  skip_if_not(is_compiled(), "Rust extension not available")
-  out <- run_offline_case(function(client) {
-    xet_stream_range(client, FAULT_HASH, over_limit, 0, 1)
-  })
-  expect_no_canary(out)
-})
-
-test_that("over-2GiB refusal: xet_open_connection error has no canary", {
-  skip_if_not(is_compiled(), "Rust extension not available")
-  out <- run_offline_case(function(client) xet_open_connection(client, FAULT_HASH, over_limit))
-  expect_no_canary(out)
-})
-
-test_that("over-2GiB refusal: read_xet_vector error has no canary", {
+test_that("read_xet_vector validation error has no canary", {
   skip_if_not(is_compiled(), "Rust extension not available")
   skip_if_not_installed("sf")
-  out <- run_offline_case(function(client) read_xet_vector(client, FAULT_HASH, over_limit))
+  out <- run_offline_case(function(client) read_xet_vector(client, FAULT_HASH, -1))
   expect_no_canary(out)
 })
 

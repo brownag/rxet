@@ -30,10 +30,9 @@ spatial windows from remote GeoTIFFs.
 covers bytes \code{start_byte} through \code{end_byte - 1}. The result is a \code{raw()}
 vector of the returned bytes.
 
-\code{file_size} must be a finite whole number of bytes. The requested range
-(\code{end_byte - start_byte}) must be at most 2^31 - 1 bytes (2 GiB); larger
-ranges error before any network access. Use \code{\link[=xet_download_file]{xet_download_file()}} for
-larger transfers.
+\code{file_size} must be a finite whole number of bytes. The result vector is
+allocated before the download starts, so a range larger than available
+memory fails before any network access.
 
 \strong{Status:} Experimental pending live evidence.
 }

@@ -15,8 +15,48 @@ struct XetClient {
     token: String,
 }
 
-/// In-memory reads are capped at 2^31 - 1 bytes (decision D2).
-const MAX_IN_MEMORY_BYTES: u64 = i32::MAX as u64;
+/// Allocates an R raw vector with room for exactly `len` bytes.
+/// Allocating first means an impossible request fails before any network call.
+fn allocate_raw(len: u64) -> extendr_api::Result<Robj> {
+    let len = usize::try_from(len).map_err(|_| {
+        Error::Other(format!("{len} bytes does not fit in memory on this platform"))
+    })?;
+    Ok(<Robj as Rinternals>::alloc_vector(
+        extendr_api::rtype_to_sxp(Rtype::Raw),
+        len,
+    ))
+}
+
+/// Fills a preallocated raw vector from a chunk source and requires exactly `len` bytes.
+/// Chunks are copied straight into the R vector, so the file is held once in memory.
+fn fill_raw<F>(out: &mut Robj, len: u64, file_hash: &str, mut next_chunk: F) -> extendr_api::Result<()>
+where
+    F: FnMut() -> extendr_api::Result<Option<Vec<u8>>>,
+{
+    let capacity = out.len();
+    let mut filled = 0usize;
+    while let Some(chunk) = next_chunk()? {
+        let end = filled
+            .checked_add(chunk.len())
+            .filter(|end| *end <= capacity)
+            .ok_or_else(|| {
+                Error::Other(format!(
+                    "stream returned more than {capacity} bytes for hash {file_hash}"
+                ))
+            })?;
+        out.as_raw_slice_mut()
+            .ok_or_else(|| Error::Other("could not write to the allocated raw vector".to_string()))?
+            [filled..end]
+            .copy_from_slice(&chunk);
+        filled = end;
+    }
+    if filled as u64 != len {
+        return Err(Error::Other(format!(
+            "stream returned {filled} bytes, expected {len} for hash {file_hash}"
+        )));
+    }
+    Ok(())
+}
 
 /// Wraps a closure in panic::catch_unwind and converts panics to readable R errors.
 fn safe_exec<F, T>(f: F) -> extendr_api::Result<T>
@@ -147,13 +187,9 @@ fn xet_stream_raw(
 ) -> extendr_api::Result<Robj> {
     safe_exec(panic::AssertUnwindSafe(|| {
         let size_bytes = whole_bytes("file_size", file_size)?;
-        if size_bytes > MAX_IN_MEMORY_BYTES {
-            return Err(Error::Other(format!(
-                "in-memory read of {size_bytes} bytes exceeds the 2 GiB limit (2147483647 bytes); use xet_download_file() for larger files"
-            )));
-        }
 
         let client = acquire_client(handle)?;
+        let mut out = allocate_raw(size_bytes)?;
 
         let info = XetFileInfo::new(file_hash.to_string(), size_bytes);
 
@@ -173,23 +209,14 @@ fn xet_stream_raw(
 
         stream.start();
 
-        let mut buf = Vec::new();
-        buf.try_reserve_exact(size_bytes as usize).map_err(|e| {
-            Error::Other(format!("cannot allocate {size_bytes} bytes for in-memory read: {e}"))
+        fill_raw(&mut out, size_bytes, file_hash, || {
+            stream
+                .blocking_next()
+                .map(|chunk| chunk.map(|bytes| bytes.to_vec()))
+                .map_err(|e| Error::Other(format!("stream read error: {}", e)))
         })?;
-        while let Some(chunk) = stream.blocking_next()
-            .map_err(|e| Error::Other(format!("stream read error: {}", e)))? {
-            buf.extend_from_slice(&chunk);
-        }
 
-        if buf.len() as u64 != size_bytes {
-            return Err(Error::Other(format!(
-                "stream returned {} bytes, expected {} for hash {}",
-                buf.len(), size_bytes, file_hash
-            )));
-        }
-
-        Ok(buf.into_robj())
+        Ok(out)
     }))
 }
 
@@ -223,13 +250,9 @@ fn xet_stream_range(
         let size = end.checked_sub(start).ok_or_else(|| {
             Error::Other(format!("invalid byte range: end {end} is before start {start}"))
         })?;
-        if size > MAX_IN_MEMORY_BYTES {
-            return Err(Error::Other(format!(
-                "in-memory requested range of {size} bytes exceeds the 2 GiB limit (2147483647 bytes); use xet_download_file() for larger files"
-            )));
-        }
 
         let client = acquire_client(handle)?;
+        let mut out = allocate_raw(size)?;
 
         // Use xet-core's download stream API with byte range
         let info = XetFileInfo::new(file_hash.to_string(), total);
@@ -250,23 +273,14 @@ fn xet_stream_range(
 
         stream.start();
 
-        let mut buf = Vec::new();
-        buf.try_reserve_exact(size as usize).map_err(|e| {
-            Error::Other(format!("cannot allocate {size} bytes for in-memory read: {e}"))
+        fill_raw(&mut out, size, file_hash, || {
+            stream
+                .blocking_next()
+                .map(|chunk| chunk.map(|bytes| bytes.to_vec()))
+                .map_err(|e| Error::Other(format!("stream read error: {}", e)))
         })?;
-        while let Some(chunk) = stream.blocking_next()
-            .map_err(|e| Error::Other(format!("stream read error: {}", e)))? {
-            buf.extend_from_slice(&chunk);
-        }
 
-        if buf.len() as u64 != size {
-            return Err(Error::Other(format!(
-                "stream returned {} bytes, expected {} for hash {}",
-                buf.len(), size, file_hash
-            )));
-        }
-
-        Ok(buf.into_robj())
+        Ok(out)
     }))
 }
 

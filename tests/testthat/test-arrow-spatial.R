@@ -64,17 +64,6 @@ test_that("xet_open_connection bytes equal the downloaded fixture bytes", {
   expect_identical(info$file_size, as.numeric(file.size(fixture_path("small.parquet"))))
 })
 
-test_that("read_xet_parquet refuses a file above the 2 GiB cap and names xet_download_file", {
-  skip_if_not(is_compiled(), "Rust extension not available")
-  skip_if_not_installed("arrow")
-
-  # Refused in xet_open_connection before any client work or network call.
-  expect_error(
-    read_xet_parquet("dummy-handle", "dummy-hash", 2^31 + 1),
-    "2 GiB.*xet_download_file"
-  )
-})
-
 test_that("read_xet_raster returns the 16x16 GeoTIFF with the generator's values", {
   skip_without_local_cas()
   skip_if_not_installed("terra")
@@ -158,26 +147,32 @@ test_that("read_xet_vector requires sf package", {
   )
 })
 
-test_that("read_xet_raster and read_xet_vector close the connection when they error", {
-  skip_without_local_cas()
+test_that("read_xet_raster and read_xet_vector remove their temp file when the reader errors", {
   skip_if_not_installed("terra")
   skip_if_not_installed("sf")
 
-  # A write-only file connection makes readBin fail before any close, so the
-  # helpers error after xet_open_connection and only on.exit can close it.
-  n_before <- nrow(showConnections(all = TRUE))
+  before <- list.files(tempdir(), full.names = TRUE)
   testthat::local_mocked_bindings(
-    xet_open_connection = function(...) file(tempfile(), open = "w"),
+    xet_download_file = function(handle, hash, file_size, dest_path) {
+      writeBin(as.raw(1:5), dest_path)
+      invisible(dest_path)
+    },
     .package = "rxet"
   )
-  expect_error(read_xet_raster("h", "x", 1024))
-  expect_error(read_xet_vector("h", "x", 1024))
-  expect_equal(nrow(showConnections(all = TRUE)), n_before)
+
+  # Five bytes are not a raster or a vector file, so the readers error.
+  expect_error(read_xet_raster("h", "x", 5))
+  expect_error(read_xet_vector("h", "x", 5))
+  expect_setequal(list.files(tempdir(), full.names = TRUE), before)
 })
 
 test_that("file_size = 0 reaches the reader and fails there, not at argument validation", {
   testthat::local_mocked_bindings(
     xet_open_connection = function(...) rawConnection(raw(0), "r"),
+    xet_download_file = function(handle, hash, file_size, dest_path) {
+      file.create(dest_path)
+      invisible(dest_path)
+    },
     .package = "rxet"
   )
   not_arg <- function(expr) {

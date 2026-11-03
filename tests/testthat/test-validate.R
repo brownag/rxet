@@ -18,8 +18,7 @@ test_that(".rxet_check_file_size", {
   for (b in list(-1, 1.5, Inf, NaN, "big", c(1, 2))) {
     expect_error(.rxet_check_file_size(b))
   }
-  expect_error(.rxet_check_file_size(2^31, in_memory = TRUE), "2 GiB limit")
-  expect_silent(.rxet_check_file_size(2^31, in_memory = FALSE))
+  expect_silent(.rxet_check_file_size(2^31 + 5))
 })
 
 test_that(".rxet_check_range", {
@@ -27,7 +26,7 @@ test_that(".rxet_check_range", {
   expect_error(.rxet_check_range(5, 5, 10), "greater")
   expect_error(.rxet_check_range(0, 11, 10), "exceed")
   expect_error(.rxet_check_range(-1, 5, 10), ">= 0")
-  expect_error(.rxet_check_range(0, 2^31 + 5, 2^32), "2 GiB limit")
+  expect_silent(.rxet_check_range(0, 2^31 + 5, 2^32))
 })
 
 test_that(".rxet_check_string and .rxet_require_pkg", {

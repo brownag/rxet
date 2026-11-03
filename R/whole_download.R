@@ -7,11 +7,10 @@
   via <- match.arg(via)
   .rxet_check_handle(handle)
   .rxet_check_hash(file_hash)
-  .rxet_check_file_size(file_size, in_memory = TRUE)
-
-  conn <- xet_open_connection(handle, file_hash, file_size)
+  .rxet_check_file_size(file_size)
 
   if (via == "connection") {
+    conn <- xet_open_connection(handle, file_hash, file_size)
     # Readers such as arrow close the connection themselves on success.
     tryCatch(
       reader(conn),
@@ -21,12 +20,12 @@
       }
     )
   } else {
-    on.exit(tryCatch(close(conn), error = function(e) NULL), add = TRUE)
-    bytes <- readBin(conn, "raw", file_size)
+    # A reader that needs a path gets the file straight from disk, so the bytes
+    # are never held in R memory alongside the parsed object.
     fileext <- if (is.null(ext)) "" else paste0(".", sub("^\\.", "", ext))
     path <- tempfile(fileext = fileext)
     on.exit(unlink(path), add = TRUE)
-    writeBin(bytes, path)
+    xet_download_file(handle, file_hash, file_size, path)
     reader(path)
   }
 }

@@ -109,10 +109,6 @@ describe("xet_stream_raw", {
     expect_error(xet_stream_raw("handle", "abc123", NaN), "file_size")
     expect_error(xet_stream_raw("handle", "abc123", 1.5), "file_size")
   })
-
-  it("rejects file_size above the 2 GiB in-memory limit before network access", {
-    expect_error(xet_stream_raw("handle", "abc123", 2^31), "2 GiB limit")
-  })
 })
 
 describe("xet_stream_range", {
@@ -130,10 +126,6 @@ describe("xet_stream_range", {
 
   it("rejects negative start", {
     expect_error(xet_stream_range("handle", "abc", 1e9, -1, 1000))
-  })
-
-  it("rejects requested range above the 2 GiB in-memory limit", {
-    expect_error(xet_stream_range("handle", "abc", 2^32, 0, 2^31), "2 GiB limit")
   })
 
   it("rejects non-finite and fractional file_size", {

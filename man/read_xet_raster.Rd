@@ -26,15 +26,10 @@ whole-download helper.
 \details{
 Uses the terra package (successor to raster) for reading raster files.
 
-\strong{Whole-download:} the file is downloaded into memory and written to a
-temporary file. terra reads it, and all values are loaded into memory
-(\code{terra::unwrap(terra::wrap(...))}) before the temporary file is removed.
-The whole file is read into memory, which holds about one copy of the
-bytes, and a parsed raster is returned.
-
-\strong{2 GiB limit:} files larger than 2 GiB (2147483647 bytes) are refused by
-\code{\link[=xet_open_connection]{xet_open_connection()}} before any network call. The error names
-\code{xet_download_file()}.
+\strong{Whole-download:} the file is downloaded to a temporary file with
+\code{\link[=xet_download_file]{xet_download_file()}}, terra reads it, and all values are loaded before the
+temporary file is removed. The bytes are never held in R memory, so only the
+parsed raster counts against memory.
 
 \strong{Optional package:} \code{terra} is in Suggests and is checked with
 \code{requireNamespace()}.
