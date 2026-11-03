@@ -24,3 +24,19 @@
 .xet_upload_file <- function(handle, src_path) {
   .Call("wrap__xet_upload_file", handle, src_path, PACKAGE = "rxet")
 }
+
+.xet_open_reader <- function(handle, file_hash, file_size) {
+  .Call("wrap__xet_open_reader", handle, file_hash, as.double(file_size), PACKAGE = "rxet")
+}
+
+.xet_reader_read <- function(reader_handle, offset, length) {
+  .Call("wrap__xet_reader_read", reader_handle, as.double(offset), as.double(length), PACKAGE = "rxet")
+}
+
+.xet_close_reader <- function(reader_handle) {
+  .Call("wrap__xet_close_reader", reader_handle, PACKAGE = "rxet")
+}
+
+.xet_stream_connection <- function(read_fun, file_size) {
+  .Call("wrap__xet_stream_connection", read_fun, as.double(file_size), PACKAGE = "rxet")
+}

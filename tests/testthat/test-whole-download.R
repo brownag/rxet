@@ -1,7 +1,7 @@
 stub_conn <- function(...) rawConnection(as.raw(1:5), "r")
 
-test_that("connection mode passes the connection to the reader", {
-  testthat::local_mocked_bindings(xet_open_connection = stub_conn, .package = "rxet")
+test_that("stream mode passes the connection to the reader", {
+  testthat::local_mocked_bindings(xet_open_stream_connection = stub_conn, .package = "rxet")
   out <- .rxet_whole_download("h", "abc", 5, function(conn) {
     expect_s3_class(conn, "connection")
     readBin(conn, "raw", 5)
@@ -9,10 +9,10 @@ test_that("connection mode passes the connection to the reader", {
   expect_equal(out, as.raw(1:5))
 })
 
-test_that("connection mode closes the connection when the reader errors", {
+test_that("stream mode closes the connection when the reader errors", {
   captured <- NULL
   testthat::local_mocked_bindings(
-    xet_open_connection = function(...) {
+    xet_open_stream_connection = function(...) {
       captured <<- stub_conn()
       captured
     },
@@ -46,6 +46,18 @@ test_that("file mode downloads to a temp path and removes it", {
     stop("bad")
   }, via = "file"), "bad")
   expect_false(file.exists(seen))
+})
+
+test_that("whole-download stream mode passes a seekable connection to the reader", {
+  testthat::local_mocked_bindings(
+    xet_open_stream_connection = function(...) rawConnection(as.raw(1:5), "r"),
+    .package = "rxet"
+  )
+  out <- .rxet_whole_download("h", "abc", 5, function(conn) {
+    expect_s3_class(conn, "connection")
+    readBin(conn, "raw", 5)
+  }, via = "stream")
+  expect_equal(out, as.raw(1:5))
 })
 
 test_that("invalid arguments error before the connection is opened", {

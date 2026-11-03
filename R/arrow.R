@@ -1,8 +1,8 @@
 #' Read a Parquet file from Xet storage using Arrow
 #'
-#' Downloads a Parquet file from Xet storage and reads it with Arrow.
-#' The whole file is buffered into memory first; column selection and filters
-#' are applied by Arrow after the data has been downloaded.
+#' Streams a Parquet file from Xet storage and reads it with Arrow. Arrow reads
+#' the footer and then only the column chunks it needs, and each read is served
+#' as a Xet byte range, so unread columns are never transferred.
 #'
 #' @param handle Character string handle from [xet_client_new()]
 #' @param file_hash Character string, the content hash of the Parquet file
@@ -14,19 +14,18 @@
 #'
 #' @details
 #' This function:
-#' 1. Opens a Xet connection to the file via [xet_open_connection()]
-#' 2. Passes it to `arrow::read_parquet()` which reads from the connection
+#' 1. Opens a seekable range connection with [xet_open_stream_connection()]
+#' 2. Passes it to `arrow::read_parquet()`, which seeks and reads as needed
 #' 3. Supports all Arrow read_parquet options (col_select, filters, schema, etc.)
 #' 4. Arrow closes the connection after reading; this function closes it only
 #'    if reading fails
 #'
-#' The entire file is buffered into memory by [xet_open_connection()] before
-#' Arrow reads it, so column selection and filters reduce Arrow/in-memory work
-#' but not the number of bytes downloaded.
+#' **Partial download:** bytes are fetched on demand in windows of at least
+#' 16 MiB, aligned to 64 KiB. A file with 40 columns where you select 2
+#' transfers only the footer and the chunks for those 2 columns.
 #'
-#' **Whole-download:** the file is fully read before the call returns. No
-#' temporary file is used. The file is held as one `raw()` vector while Arrow
-#' parses it, so peak memory is the file plus the parsed table.
+#' **Memory:** the parsed table is the main cost. The only raw bytes held are
+#' the readahead window and the chunk being parsed.
 #'
 #' **Optional package:** `arrow` is in Suggests and is checked with
 #' `requireNamespace()`.
@@ -39,21 +38,14 @@
 #' \dontrun{
 #' library(arrow)
 #'
-#' client <- xet_client_new("https://cas-cf.huggingface.co", "token")
+#' client <- xet_client_new("https://cas-server.xethub.hf.co", "token")
 #' on.exit(xet_client_close(client))
 #'
-#' # Read entire Parquet file
+#' # file_hash and file_size come from the Hub file metadata
 #' df <- read_xet_parquet(
 #'   client,
 #'   file_hash = "parquet-hash-abc123...",
-#'   file_size = 5e9
-#' )
-#'
-#' # Read only specific columns
-#' df <- read_xet_parquet(
-#'   client,
-#'   file_hash = "parquet-hash-abc123...",
-#'   file_size = 5e9,
+#'   file_size = 500e6,
 #'   col_select = c("user_id", "timestamp", "value")
 #' )
 #' }
@@ -63,11 +55,11 @@
 read_xet_parquet <- function(handle, file_hash, file_size, ...) {
   .rxet_require_pkg("arrow", "read_xet_parquet")
 
-  # arrow::read_parquet() closes the connection it reads; .rxet_whole_download()
-  # closes it only when reading fails before arrow gets to it.
+  # Arrow closes the connection it reads; .rxet_whole_download() closes it only
+  # when reading fails before arrow gets to it.
   .rxet_whole_download(
     handle, file_hash, file_size,
     reader = function(conn) arrow::read_parquet(conn, ...),
-    via = "connection"
+    via = "stream"
   )
 }

@@ -28,9 +28,9 @@ test_that("read_xet_parquet closes its connection on success", {
   info <- serve_fixture(client, "small.parquet")
 
   captured <- NULL
-  real_open <- xet_open_connection
+  real_open <- xet_open_stream_connection
   testthat::local_mocked_bindings(
-    xet_open_connection = function(handle, file_hash, file_size) {
+    xet_open_stream_connection = function(handle, file_hash, file_size) {
       captured <<- real_open(handle, file_hash, file_size)
       captured
     },
@@ -39,7 +39,7 @@ test_that("read_xet_parquet closes its connection on success", {
 
   expected <- arrow::read_parquet(fixture_path("small.parquet"))
   expect_equal(read_xet_parquet(client, info$hash, info$file_size), expected)
-  expect_true(inherits(captured, "connection"))
+  expect_true(inherits(captured, "rxet_connection"))
   # A closed R connection makes isOpen() error "invalid connection"; that is
   # the closed state. Any other error is re-raised.
   closed <- tryCatch(!isOpen(captured), error = function(e) {
@@ -168,7 +168,7 @@ test_that("read_xet_raster and read_xet_vector remove their temp file when the r
 
 test_that("file_size = 0 reaches the reader and fails there, not at argument validation", {
   testthat::local_mocked_bindings(
-    xet_open_connection = function(...) rawConnection(raw(0), "r"),
+    xet_open_stream_connection = function(...) rawConnection(raw(0), "r"),
     xet_download_file = function(handle, hash, file_size, dest_path) {
       file.create(dest_path)
       invisible(dest_path)

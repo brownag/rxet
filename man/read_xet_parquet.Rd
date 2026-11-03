@@ -20,27 +20,26 @@ such as \code{col_select}, \code{filters}, \code{schema}, etc.}
 An Arrow Table or R data frame (depending on \code{as_data_frame} argument)
 }
 \description{
-Downloads a Parquet file from Xet storage and reads it with Arrow.
-The whole file is buffered into memory first; column selection and filters
-are applied by Arrow after the data has been downloaded.
+Streams a Parquet file from Xet storage and reads it with Arrow. Arrow reads
+the footer and then only the column chunks it needs, and each read is served
+as a Xet byte range, so unread columns are never transferred.
 }
 \details{
 This function:
 \enumerate{
-\item Opens a Xet connection to the file via \code{\link[=xet_open_connection]{xet_open_connection()}}
-\item Passes it to \code{arrow::read_parquet()} which reads from the connection
+\item Opens a seekable range connection with \code{\link[=xet_open_stream_connection]{xet_open_stream_connection()}}
+\item Passes it to \code{arrow::read_parquet()}, which seeks and reads as needed
 \item Supports all Arrow read_parquet options (col_select, filters, schema, etc.)
 \item Arrow closes the connection after reading; this function closes it only
 if reading fails
 }
 
-The entire file is buffered into memory by \code{\link[=xet_open_connection]{xet_open_connection()}} before
-Arrow reads it, so column selection and filters reduce Arrow/in-memory work
-but not the number of bytes downloaded.
+\strong{Partial download:} bytes are fetched on demand in windows of at least
+16 MiB, aligned to 64 KiB. A file with 40 columns where you select 2
+transfers only the footer and the chunks for those 2 columns.
 
-\strong{Whole-download:} the file is fully read before the call returns. No
-temporary file is used. The file is held as one \code{raw()} vector while Arrow
-parses it, so peak memory is the file plus the parsed table.
+\strong{Memory:} the parsed table is the main cost. The only raw bytes held are
+the readahead window and the chunk being parsed.
 
 \strong{Optional package:} \code{arrow} is in Suggests and is checked with
 \code{requireNamespace()}.
@@ -53,21 +52,14 @@ parses it, so peak memory is the file plus the parsed table.
 \dontrun{
 library(arrow)
 
-client <- xet_client_new("https://cas-cf.huggingface.co", "token")
+client <- xet_client_new("https://cas-server.xethub.hf.co", "token")
 on.exit(xet_client_close(client))
 
-# Read entire Parquet file
+# file_hash and file_size come from the Hub file metadata
 df <- read_xet_parquet(
   client,
   file_hash = "parquet-hash-abc123...",
-  file_size = 5e9
-)
-
-# Read only specific columns
-df <- read_xet_parquet(
-  client,
-  file_hash = "parquet-hash-abc123...",
-  file_size = 5e9,
+  file_size = 500e6,
   col_select = c("user_id", "timestamp", "value")
 )
 }

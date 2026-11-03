@@ -3,15 +3,16 @@
 
 #' @noRd
 .rxet_whole_download <- function(handle, file_hash, file_size, reader, ext = NULL,
-                           via = c("connection", "file")) {
+                           via = c("stream", "file")) {
   via <- match.arg(via)
   .rxet_check_handle(handle)
   .rxet_check_hash(file_hash)
   .rxet_check_file_size(file_size)
 
-  if (via == "connection") {
-    conn <- xet_open_connection(handle, file_hash, file_size)
-    # Readers such as arrow close the connection themselves on success.
+  if (via == "stream") {
+    # A seekable connection over Xet ranges: only the bytes the reader asks for
+    # are fetched. Readers such as arrow close the connection themselves.
+    conn <- xet_open_stream_connection(handle, file_hash, file_size)
     tryCatch(
       reader(conn),
       error = function(e) {
