@@ -186,7 +186,7 @@ Three helpers read Xet files with an optional package. Each one is in Suggests a
 - **No in-memory cap.** `xet_stream_raw()` and `xet_stream_range()` allocate one R `raw()` vector up front and download into it, so peak memory is one copy of the file. A request that does not fit fails before any network call.
 - **Peak memory:** `read_xet_parquet()` holds only its readahead windows plus the parsed table. `read_xet_raster()` and `read_xet_vector()` download straight to a temp file, so only the parsed object counts.
 - **Temp files:** the raster and vector helpers download one temp file with `xet_download_file()` and remove it on exit. Multi-file formats such as shapefiles are not supported, because their sidecars cannot go in one temp file.
-- **Reader cache:** `xet_open_stream_connection()` keeps up to 64 MiB of fetched windows per connection, aligned to 64 KiB, starting at `file_size / 32` (1 MiB to 16 MiB) and doubling while reads move forward. Set `RXET_DEBUG=1` to print each fetched range.
+- **Reader cache:** `xet_open_stream_connection()` keeps up to 64 MiB of fetched windows per connection, aligned to 64 KiB, starting at `file_size / 32` (1 MiB to 16 MiB) and doubling while reads move forward. Set `RXET_DEBUG=1` to print each fetched range. The policy lives in src/rust/src/reader.rs behind a RangeSource trait, so it can be tested offline with an in-memory source.
 
 ---
 
@@ -213,7 +213,8 @@ rxet/
 │   └── rust/
 │       ├── Cargo.toml          # Rust deps + extendr-api
 │       └── src/
-│           ├── lib.rs          # Rust bindings, reader cache, panic recovery
+│           ├── lib.rs          # Rust bindings, stream range source, panic recovery
+│           ├── reader.rs       # reader window policy behind the RangeSource seam
 │           ├── registry.rs     # handle → client map behind a mutex
 │           └── tests.rs        # Rust unit tests
 ├── configure{,.win}            # Calls tools/config.R
