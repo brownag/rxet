@@ -35,7 +35,8 @@ if reading fails
 }
 
 \strong{Partial download:} bytes are fetched on demand in windows of at least
-16 MiB, aligned to 64 KiB. A file with 40 columns where you select 2
+1 MiB (larger while reads move forward, up to 16 MiB), aligned to 64 KiB.
+A file with 40 columns where you select 2
 transfers only the footer and the chunks for those 2 columns.
 
 \strong{Memory:} the parsed table is the main cost. The only raw bytes held are

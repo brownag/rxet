@@ -25,8 +25,9 @@ downloaded whole and never held in memory.
 }
 \details{
 Random access works by asking Xet for a byte range. Each miss fetches a
-window that starts on a 64 KiB boundary and covers at least 16 MiB, so
-sequential and column-oriented reads are served mostly from the window.
+window that starts on a 64 KiB boundary and covers at least 1 MiB, growing
+toward 16 MiB while reads move forward, so sequential and column-oriented
+reads are served mostly from the window.
 A hit costs nothing. A miss costs one reconstruction metadata round trip
 plus the ranged transfer.
 
