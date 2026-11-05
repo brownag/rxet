@@ -2,13 +2,15 @@ use extendr_api::prelude::*;
 use xet::xet_session::{
     Sha256Policy, XetConfig, XetDownloadStreamGroup, XetFileInfo, XetSession, XetSessionBuilder,
 };
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::panic;
 use uuid::Uuid;
 
+mod reader;
 mod registry;
 #[cfg(test)]
 mod tests;
+use reader::{RangeSource, WindowedReader};
 use registry::Registry;
 
 struct XetClient {
@@ -17,108 +19,16 @@ struct XetClient {
     token: String,
 }
 
-/// Readahead bounds for a lazy reader. Each miss costs one reconstruction
-/// metadata round trip, so windows are sized to amortize it without reading
-/// a large fraction of a small file.
-const READ_WINDOW_MIN: u64 = 1024 * 1024;
-const READ_WINDOW_MAX: u64 = 16 * 1024 * 1024;
-
-/// Windows start on this boundary, so two nearby reads usually share one window.
-const READ_ALIGN_BYTES: u64 = 64 * 1024;
-
-/// Total bytes of fetched windows kept per connection.
-const READ_CACHE_BYTES: usize = 64 * 1024 * 1024;
-
-/// A file opened for on-demand range reads, backed by one download stream group
-/// so every read shares the same connection pool and auth token.
-struct XetReader {
+/// Fetches ranges of one file through a download stream group, so every read
+/// shares the same connection pool and auth token.
+struct XetStreamSource {
     group: XetDownloadStreamGroup,
     info: XetFileInfo,
-    file_size: u64,
-    cache: Mutex<ReaderCache>,
 }
 
-/// Most recently fetched windows, newest first, plus the current readahead size.
-struct ReaderCache {
-    windows: std::collections::VecDeque<ReaderWindow>,
-    bytes: usize,
-    readahead: u64,
-    base_readahead: u64,
-}
-
-struct ReaderWindow {
-    start: u64,
-    data: Vec<u8>,
-}
-
-impl ReaderCache {
-    fn covering(&self, offset: u64, end: u64) -> Option<&ReaderWindow> {
-        self.windows
-            .iter()
-            .find(|w| offset >= w.start && end <= w.start + w.data.len() as u64)
-    }
-
-    fn insert(&mut self, window: ReaderWindow) {
-        self.bytes += window.data.len();
-        self.windows.push_front(window);
-        while self.bytes > READ_CACHE_BYTES {
-            match self.windows.pop_back() {
-                Some(dropped) => self.bytes -= dropped.data.len(),
-                None => break,
-            }
-        }
-    }
-}
-
-impl XetReader {
-    /// Serves `[offset, offset + length)` from a cached window, or fetches a new
-    /// window covering it. Returns exactly `length` bytes.
-    fn read_at(&self, offset: u64, length: u64) -> extendr_api::Result<Vec<u8>> {
-        if length == 0 {
-            return Ok(Vec::new());
-        }
-        let end = offset
-            .checked_add(length)
-            .filter(|end| *end <= self.file_size)
-            .ok_or_else(|| {
-                Error::Other(format!(
-                    "read of {length} bytes at offset {offset} runs past the end of a {} byte file",
-                    self.file_size
-                ))
-            })?;
-
-        let mut cache = self
-            .cache
-            .lock()
-            .map_err(|e| Error::Other(format!("reader cache poisoned: {e}")))?;
-
-        if let Some(window) = cache.covering(offset, end) {
-            let begin = (offset - window.start) as usize;
-            return Ok(window.data[begin..begin + length as usize].to_vec());
-        }
-
-        // Grow the readahead while reads keep moving forward inside the newest
-        // window, so a sequential scan costs a handful of requests.
-        let sequential = cache.windows.front().is_some_and(|w| {
-            offset >= w.start && offset <= w.start + w.data.len() as u64
-        });
-        cache.readahead = if sequential {
-            (cache.readahead * 2).min(READ_WINDOW_MAX)
-        } else {
-            cache.base_readahead
-        };
-
-        let start = offset - (offset % READ_ALIGN_BYTES);
-        let fetch_end = end.max(offset + cache.readahead).min(self.file_size);
-        let data = self.fetch(start, fetch_end)?;
-        let begin = (offset - start) as usize;
-        let out = data[begin..begin + length as usize].to_vec();
-        cache.insert(ReaderWindow { start, data });
-        Ok(out)
-    }
-
+impl RangeSource for XetStreamSource {
     /// Downloads one contiguous range through a new stream on the shared group.
-    fn fetch(&self, start: u64, end: u64) -> extendr_api::Result<Vec<u8>> {
+    fn fetch(&self, start: u64, end: u64) -> Result<Vec<u8>, String> {
         let expected = end - start;
         if std::env::var("RXET_DEBUG").map(|v| v == "1").unwrap_or(false) {
             rprintln!("xet reader fetch {}..{}", start, end);
@@ -126,26 +36,20 @@ impl XetReader {
         let mut stream = self
             .group
             .download_stream_blocking(self.info.clone(), Some(start..end))
-            .map_err(|e| Error::Other(format!("download stream error: {}", e)))?;
+            .map_err(|e| format!("download stream error: {}", e))?;
         stream.start();
 
         let mut buf = Vec::with_capacity(expected as usize);
         while let Some(chunk) = stream
             .blocking_next()
-            .map_err(|e| Error::Other(format!("stream read error: {}", e)))?
+            .map_err(|e| format!("stream read error: {}", e))?
         {
             buf.extend_from_slice(&chunk);
             if buf.len() as u64 > expected {
-                return Err(Error::Other(format!(
+                return Err(format!(
                     "stream returned more than {expected} bytes for range {start}..{end}"
-                )));
+                ));
             }
-        }
-        if buf.len() as u64 != expected {
-            return Err(Error::Other(format!(
-                "stream returned {} bytes, expected {expected} for range {start}..{end}",
-                buf.len()
-            )));
         }
         Ok(buf)
     }
@@ -173,18 +77,10 @@ fn xet_open_reader(handle: &str, file_hash: &str, file_size: f64) -> extendr_api
             .build_blocking()
             .map_err(|e| Error::Other(format!("build download stream group error: {}", e)))?;
 
-        let window_bytes = (size / 32).clamp(READ_WINDOW_MIN, READ_WINDOW_MAX);
-        let reader = XetReader {
-            group,
-            info: XetFileInfo::new(file_hash.to_string(), size),
-            file_size: size,
-            cache: Mutex::new(ReaderCache {
-                windows: std::collections::VecDeque::new(),
-                bytes: 0,
-                readahead: window_bytes,
-                base_readahead: window_bytes,
-            }),
-        };
+        let reader = WindowedReader::new(
+            XetStreamSource { group, info: XetFileInfo::new(file_hash.to_string(), size) },
+            size,
+        );
 
         let key = Uuid::new_v4().to_string();
         READERS.insert(key.clone(), reader).map_err(Error::Other)?;
@@ -202,7 +98,7 @@ fn xet_reader_read(reader_handle: &str, offset: f64, length: f64) -> extendr_api
             .acquire(reader_handle)
             .map_err(Error::Other)?
             .ok_or_else(|| Error::Other("invalid or closed reader handle".to_string()))?;
-        Ok(reader.read_at(offset, length)?.into_robj())
+        Ok(reader.read_at(offset, length).map_err(Error::Other)?.into_robj())
     }))
 }
 
@@ -213,7 +109,7 @@ fn xet_close_reader(reader_handle: &str) -> extendr_api::Result<()> {
         .remove(reader_handle)
         .map_err(Error::Other)?
         .ok_or_else(|| Error::Other("invalid or closed reader handle".to_string()))?;
-    let _ = reader.group.finish_blocking();
+    let _ = reader.source().group.finish_blocking();
     Ok(())
 }
 
@@ -294,7 +190,7 @@ where
 
 lazy_static::lazy_static! {
     static ref CLIENTS: Registry<XetClient> = Registry::new();
-    static ref READERS: Registry<XetReader> = Registry::new();
+    static ref READERS: Registry<WindowedReader<XetStreamSource>> = Registry::new();
 }
 
 /// Look up a client by handle and return an owned `Arc`.
