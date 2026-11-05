@@ -157,7 +157,7 @@ Hazards (recon):
   2. **Hit:** a second read inside that window adds no fetch.
   3. **Sequential growth:** on a 256 MiB file the base is 8 MiB. Three 10-byte reads, at 0 and then at the end offset of the newest window, fetch windows of 8, 16 and 16 MiB. Readahead doubles and caps at `READ_WINDOW_MAX`.
   4. **Backward seek:** continue test 3's reader. A read at offset 7 MiB with length 2 MiB spans two cached windows, so it misses. It is not inside the newest window, so readahead resets: the fetch is `(7 MiB, 15 MiB)`. A follow-up read at 15 MiB of length 10 MiB (it must reach past 24 MiB, or the window starting at 8 MiB serves it as a hit) is sequential again, so the fetch is `(15 MiB, 31 MiB)`.
-  5. **Alignment:** on a fresh reader over a 100 MiB file, reading 10 bytes at offset 70_000 fetches `(65_536, 65_536 + 100MiB/32)`.
+  5. **Alignment:** on a fresh reader over a 100 MiB file, reading 10 bytes at offset 70_000 fetches `(65_536, 70_000 + 100MiB/32)`. The start aligns down, but the end is `offset + readahead`, not `start + readahead`.
   6. **EOF clamp:** on a 100_000-byte file, the base clamps to 1 MiB and the fetch is `(0, 100_000)`.
   7. **Large read:** on a fresh reader over a 100 MiB file, reading 20 MiB at offset 0 fetches exactly `(0, 20 MiB)`.
   8. **Overrun:** reading past EOF returns an `Err` containing `runs past the end`, with no fetch logged.

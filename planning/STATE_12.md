@@ -1,6 +1,6 @@
 # STATE 12: reader window policy behind a fetch seam
 
-Plan: `planning/EXECUTION_PLAN_12.md`. Status: APPROVED by user 2026-11-05 (D8 kept). Wave 1 done; wave 2 next.
+Plan: `planning/EXECUTION_PLAN_12.md`. Status: APPROVED by user 2026-11-05 (D8 kept). ALL DONE (2026-11-05).
 
 ## Baseline (pre-wave)
 
@@ -16,8 +16,8 @@ Plan: `planning/EXECUTION_PLAN_12.md`. Status: APPROVED by user 2026-11-05 (D8 k
 |---|---|---|---|
 | 12.1.1 Extract the reader window policy into reader.rs | 1 | sonnet | done (8e3c3ba) |
 | 12.1.2 Correct the window-size wording in the docs | 1 | haiku | done (3c50efb) |
-| 12.2.1 Offline reader tests through MemorySource | 2 | haiku | pending |
-| 12.2.2 Record reader.rs in AGENTS.md | 2 | haiku | pending |
+| 12.2.1 Offline reader tests through MemorySource | 2 | haiku | done (3a63a86) |
+| 12.2.2 Record reader.rs in AGENTS.md | 2 | haiku | done (053d96f) |
 
 ## Task reports
 
@@ -37,3 +37,19 @@ Plan: `planning/EXECUTION_PLAN_12.md`. Status: APPROVED by user 2026-11-05 (D8 k
 
 ## Wave 1 gate
 - `R CMD INSTALL .` exit 0. The local-CAS routine suite gives PASS 328, FAIL 0, SKIP 16, ERR 0, matching the baseline.
+
+## 12.2.1
+- Status: done, committed 3a63a86. Haiku, first attempt.
+- Files: `src/rust/src/tests.rs` gains `Mutex` and `crate::reader` imports, plus appended `MIB`, `Mode`, `MemorySource` (generates `i % 251`, logs ranges, asserts `end <= size`), `byte()` and 12 `reader_*` tests.
+- Tests: `cargo test reader_` gives 12 passed; `cargo test` gives 30 passed; 0 warnings.
+- Spec errors caught (the plan was fixed): test 4's follow-up read needed length 10 MiB to miss (fixed by the orchestrator before spawning, 55b228e). In test 5 the fetch end is `offset + base`, not `aligned start + base`; the worker raised it, the orchestrator answered (a), and the code's behaviour is the contract.
+- Deviations: the extra `assert!(end <= size)` in `MemorySource::fetch`, and a base-size sanity assert in test 3.
+
+## 12.2.2
+- Status: done, committed 053d96f. Haiku, first attempt.
+- Files: `AGENTS.md:189` gets the seam sentence appended. `AGENTS.md:216-217` has the lib.rs comment updated and the `reader.rs` tree line added.
+- Checks: `grep -c reader.rs AGENTS.md` gives 2; the diff touches only AGENTS.md. Deviations: none.
+
+## End gate
+- `cargo test`: 30 passed, 0 warnings. `R CMD INSTALL .` exit 0. The local-CAS routine suite gives PASS 328, FAIL 0, SKIP 16, ERR 0, matching the baseline.
+- Leftover, out of scope: `devtools::document()` wants to update `man/rxet-package.Rd` with the ORCID from DESCRIPTION (45dd816). It was not committed.
