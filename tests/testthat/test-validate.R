@@ -29,6 +29,15 @@ test_that(".rxet_check_range", {
   expect_silent(.rxet_check_range(0, 2^31 + 5, 2^32))
 })
 
+test_that("xet_stream_range rejects an empty range before the Rust call (R layer)", {
+  # R rule: end_byte <= start_byte is an error. Pinned by user decision (G4).
+  expect_error(xet_stream_range("h", "abc", 10, 5, 5), "greater")
+})
+
+test_that("G4: Rust xet_stream_range empty-range rule", {
+  skip("G4: empty-range rule disagreement, see EXECUTION_PLAN_13 D5")
+})
+
 test_that(".rxet_check_string and .rxet_require_pkg", {
   expect_silent(.rxet_check_string("a", "dest_path"))
   expect_error(.rxet_check_string(NA_character_, "dest_path"), "dest_path")
