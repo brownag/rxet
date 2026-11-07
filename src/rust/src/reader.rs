@@ -77,6 +77,11 @@ impl<S: RangeSource> WindowedReader<S> {
         }
     }
 
+    /// The file size this reader was built with.
+    pub(crate) fn file_size(&self) -> u64 {
+        self.file_size
+    }
+
     /// The adapter, so lib.rs can release it on close (`finish_blocking`).
     pub(crate) fn source(&self) -> &S {
         &self.source

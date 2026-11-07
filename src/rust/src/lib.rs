@@ -58,7 +58,11 @@ impl RangeSource for XetStreamSource {
 extern "C" {
     /// Builds the custom R connection declared in `src/connection.c`.
     #[allow(improper_ctypes)]
-    fn rxet_connection_new(read_fun: extendr_api::SEXP, size: f64) -> extendr_api::SEXP;
+    fn rxet_connection_new(
+        read_fun: extendr_api::SEXP,
+        close_fun: extendr_api::SEXP,
+        size: f64,
+    ) -> extendr_api::SEXP;
 }
 
 /// Opens a reader for on-demand range reads and returns its handle.
@@ -113,16 +117,30 @@ fn xet_close_reader(reader_handle: &str) -> extendr_api::Result<()> {
     Ok(())
 }
 
-/// Wraps a range-reading closure in a seekable R connection.
-/// `read_fun` is called as `read_fun(offset, length)` and must return a raw vector.
+/// Wraps an open reader in a seekable R connection.
+/// `read_fun(offset, length)` must return a raw vector; `close_fun()` runs on close.
+/// The file size comes from the reader.
 #[extendr]
-fn xet_stream_connection(read_fun: Robj, file_size: f64) -> extendr_api::Result<Robj> {
-    let size = whole_bytes("file_size", file_size)?;
+fn xet_stream_connection(read_fun: Robj, close_fun: Robj, reader_handle: &str) -> extendr_api::Result<Robj> {
     if !read_fun.is_function() {
         return Err(Error::Other("read_fun must be a function".to_string()));
     }
-    let con = unsafe { rxet_connection_new(read_fun.get(), size as f64) };
+    if !close_fun.is_function() {
+        return Err(Error::Other("close_fun must be a function".to_string()));
+    }
+    let reader = READERS
+        .acquire(reader_handle)
+        .map_err(Error::Other)?
+        .ok_or_else(|| Error::Other("invalid or closed reader handle".to_string()))?;
+    let size = reader.file_size();
+    let con = unsafe { rxet_connection_new(read_fun.get(), close_fun.get(), size as f64) };
     Ok(unsafe { Robj::from_sexp(con) })
+}
+
+/// Reports whether a reader handle is still registered.
+#[extendr]
+fn xet_reader_is_open(reader_handle: &str) -> bool {
+    matches!(READERS.acquire(reader_handle), Ok(Some(_)))
 }
 
 /// Allocates an R raw vector with room for exactly `len` bytes.
@@ -534,4 +552,5 @@ extendr_module! {
     fn xet_reader_read;
     fn xet_close_reader;
     fn xet_stream_connection;
+    fn xet_reader_is_open;
 }

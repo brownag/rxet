@@ -397,3 +397,19 @@ fn reader_source_error_is_propagated() {
     );
     assert_eq!(reader.read_at(0, 10).unwrap_err(), "boom");
 }
+
+#[test]
+fn reader_reports_size_it_was_built_with() {
+    for size in [12345u64, 0] {
+        let reader = WindowedReader::new(
+            MemorySource { size, log: Mutex::new(Vec::new()), mode: Mode::Exact },
+            size,
+        );
+        assert_eq!(reader.file_size(), size);
+    }
+}
+
+#[test]
+fn reader_is_open_false_for_unknown_id() {
+    assert!(!crate::xet_reader_is_open("no-such-id"));
+}
