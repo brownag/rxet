@@ -1,9 +1,9 @@
 # Project Goals (`planning/GOALS.md`)
 
-Last Updated: 2026-11-06
-Source State: `planning/ARCHITECTURE_REVIEW_2026-11-05.md` (converted from `architecture-review-20261105-063946.html`)
+Last Updated: 2026-11-07
+Source State: `planning/ARCHITECTURE_REVIEW_2026-11-05.md` (converted from `architecture-review-20261105-063946.html`); `planning/ARCHITECTURE_REVIEW.md` (2026-10-22, folded in)
 
-Dependency graph: G2 -> [G3]. G5 is soft-dependent on G3 (its trigger). G4 is independent.
+Dependency graph: G2 -> [G3]. G5 is soft-dependent on G3 (its trigger). G4 is independent. G1 and the 2026-10-22 candidates 1 and 2 are pruned as shipped.
 
 ## Circled Goal (Active)
 
@@ -16,6 +16,7 @@ Dependency graph: G2 -> [G3]. G5 is soft-dependent on G3 (its trigger). G4 is in
     - `cargo test` and `Rscript -e 'devtools::test()'` pass.
     - Any change to ADR 0006 decision 4 is recorded in a new ADR or an ADR amendment. Keep the GC finalizer unless the early-release test shows it matters.
   - First action: re-read ADR 0006 decision 4 and `src/connection.c:83-117`, then write one failing offline test that reads through the closure seam with local bytes and asserts the file size is used once.
+  - Note: this replaces the 2026-10-22 decision to start on the whole-download module. That module shipped in `e61cccb`, so nothing is left to start on there.
 
 ## Sequenced Goals (Dependency DAG)
 
@@ -25,16 +26,30 @@ Dependency graph: G2 -> [G3]. G5 is soft-dependent on G3 (its trigger). G4 is in
 
 ## Independent Backlog
 
-- **[G4]** One Rust transfer module builds the download group and pumps optional byte ranges into an R raw vector. `xet_stream_raw`, `xet_stream_range`, `xet_open_reader` and `xet_download_file` all call it, and the empty-range rule is decided once.
+- **[G4]** One Rust transfer module builds the download group, pumps optional byte ranges into an R raw vector, and owns the size-mismatch error mapping. `xet_stream_raw`, `xet_stream_range`, `xet_open_reader` and `xet_download_file` all call it, and the empty-range rule is decided once.
   - Notes: first check the range disagreement. `R/validate.R:36-53` rejects `end == start`, and `src/rust/src/lib.rs:453-467` may not. Settle which rule is right before the refactor. This is the only candidate that may hide a user-visible inconsistency, so it can be taken in parallel with G2 if it is small.
+  - Folded from: 2026-10-22 candidate 3. Still open: `number_after` and `size_mismatch_message` (`src/rust/src/lib.rs:399-405`) remain in the extendr binding file, and `tests.rs` reaches them through helpers. The two-converter merge (`to_whole_bytes` / `whole_u64`) is already gone.
 
 ## Deferred
 
 - **[G5]** Split the whole-download module's `via` switch. Parquet gets its own helper on the stream path, and raster and vector stay on the temp-file path. Validation runs once per entry point.
   - Trigger: G3 is merged, or the `.rxet_whole_download()` name or AGENTS.md wording misleads a contributor or causes a bug.
+  - Notes: `R/whole_download.R` still branches on `via = c("stream", "file")`. It builds on the module from `e61cccb`.
+
+- **[G6]** Classed client object: `R/client.R` returns a validated object instead of a bare character handle, so closed or invented handles are caught in R.
+  - Trigger: a handle misuse (closed or invented handle reaching Rust) is reported as a bug.
+  - Notes: from 2026-10-22 candidate 4. Speculative. It contradicts the opaque-UUID handle design in AGENTS.md and the public API in ADR 0001/0004, so reopening it needs a new ADR.
 
 ## Blocked / Pruned
 
 - **[G1]** Put the reader window policy behind a fetch seam (`RangeSource`, in-memory adapter, fetch-log tests).
   - Status: Pruned (already shipped)
   - Reason: `src/rust/src/reader.rs` and the `RangeSource` seam exist. Commits `8e3c3ba`, `3a63a86`, `053d96f`, `3c50efb`, `6280ec0` and `0af47f8` cover it. The review's "zero tests" claim is stale.
+
+- **[G7]** 2026-10-22 candidate 1: whole-download reader module (arrow, raster, vector share one lifecycle).
+  - Status: Pruned (already shipped)
+  - Reason: `e61cccb` added the internal whole-download module. Its remaining split is G5.
+
+- **[G8]** 2026-10-22 candidate 2: one validation module for handle, hash, size and range rules.
+  - Status: Pruned (already shipped)
+  - Reason: `6b91cdd` added the validation module. The `>= 0` and `> 0` size drift is gone (`R/validate.R` has one size check). The duplicated 2 GiB cap went with `a25577e`, which removed the cap.
