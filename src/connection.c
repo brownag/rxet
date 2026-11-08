@@ -3,7 +3,7 @@
  *
  * R has no R-level API for new connection types, so the read/seek/close
  * callbacks live here. Each read is forwarded to an R closure that calls back
- * into Rust (`.xet_reader_read()`), which serves the bytes from a Xet download
+ * into Rust (`rxet_reader_read()`), which serves the bytes from a Xet download
  * stream group with a readahead window.
  *
  * R_new_custom_connection() appeared in R 4.3.0. On older R the constructor
@@ -22,6 +22,7 @@
 
 typedef struct {
     SEXP read_fun; /* function(offset, length) -> raw, preserved */
+    SEXP close_fun; /* function() releasing the reader, preserved */
     double size;   /* file size in bytes */
     double pos;    /* current read position, 0-based */
     int closed;
@@ -77,7 +78,11 @@ static double rxet_conn_seek(Rconnection con, double where, int origin, int rw) 
 
 static void rxet_conn_close(Rconnection con) {
     rxet_conn_state *st = (rxet_conn_state *) con->private;
-    if (st != NULL) st->closed = 1;
+    if (st == NULL || st->closed) return;
+    st->closed = 1;
+    SEXP call = PROTECT(Rf_lang1(st->close_fun));
+    Rf_eval(call, R_GlobalEnv);
+    UNPROTECT(1);
 }
 
 /* Called exactly once, from close() or from the connection finalizer. */
@@ -86,12 +91,13 @@ static void rxet_conn_destroy(Rconnection con) {
     if (st == NULL) return;
     con->private = NULL;
     if (st->read_fun != R_NilValue) R_ReleaseObject(st->read_fun);
+    if (st->close_fun != R_NilValue) R_ReleaseObject(st->close_fun);
     free(st);
 }
 
 /* Builds the connection. Called from Rust, which has no registration table
  * entry of its own to spare, so this stays a plain C function. */
-SEXP rxet_connection_new(SEXP read_fun, double size) {
+SEXP rxet_connection_new(SEXP read_fun, SEXP close_fun, double size) {
     Rconnection con = NULL;
     rxet_conn_state *st = (rxet_conn_state *) calloc(1, sizeof(rxet_conn_state));
     if (st == NULL) Rf_error("cannot allocate a Xet connection");
@@ -99,10 +105,12 @@ SEXP rxet_connection_new(SEXP read_fun, double size) {
     SEXP con_sexp = PROTECT(R_new_custom_connection("Xet file", "rb", "rxet_connection", &con));
 
     st->read_fun = read_fun;
+    st->close_fun = close_fun;
     st->size = size;
     st->pos = 0.0;
     st->closed = 0;
     R_PreserveObject(st->read_fun);
+    R_PreserveObject(st->close_fun);
 
     /* Binary, readable, seekable: arrow() wraps this as a RandomAccessFile. */
     con->text = FALSE;
@@ -123,7 +131,7 @@ SEXP rxet_connection_new(SEXP read_fun, double size) {
 
 #else /* R < 4.3.0 */
 
-SEXP rxet_connection_new(SEXP read_fun, double size) {
+SEXP rxet_connection_new(SEXP read_fun, SEXP close_fun, double size) {
     Rf_error("streaming connections need R >= 4.3.0");
     return R_NilValue;
 }
