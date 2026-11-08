@@ -26,7 +26,7 @@ test_that("high_perf rejects non-logical values", {
 })
 
 test_that("valid configuration arguments create a client", {
-  skip_if_not(is.loaded("wrap__xet_init_client"), "compiled extension not loaded")
+  skip_if_not(is.loaded("wrap__rxet_init_client"), "compiled extension not loaded")
   h <- xet_client_new(ep, "t", timeout_sec = 600, cache_bytes = 0, high_perf = TRUE)
   on.exit(xet_client_close(h))
   expect_type(h, "character")
