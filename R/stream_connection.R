@@ -51,19 +51,19 @@ xet_open_stream_connection <- function(handle, file_hash, file_size) {
     stop("xet_open_stream_connection() needs R >= 4.3.0", call. = FALSE)
   }
 
-  id <- .xet_open_reader(handle, file_hash, file_size)
+  id <- rxet_open_reader(handle, file_hash, file_size)
 
   # The reader is closed when the connection is closed or collected: closing the
   # connection drops the preserved `reader` closure in C, which makes `guard`
   # unreachable, which runs its finalizer.
   guard <- new.env(parent = emptyenv())
   reg.finalizer(guard, function(e) .rxet_close_reader_quietly(id), onexit = TRUE)
-  reader <- function(offset, n) .xet_reader_read(id, offset, n)
+  reader <- function(offset, n) rxet_reader_read(id, offset, n)
 
-  .xet_stream_connection(reader, file_size)
+  rxet_stream_connection(reader, file_size)
 }
 
 #' @noRd
 .rxet_close_reader_quietly <- function(id) {
-  tryCatch(.xet_close_reader(id), error = function(e) NULL)
+  tryCatch(rxet_close_reader(id), error = function(e) NULL)
 }

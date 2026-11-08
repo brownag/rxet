@@ -19,6 +19,34 @@ pub(crate) const READ_CACHE_BYTES: usize = 64 * 1024 * 1024;
 /// Where windows come from. `fetch` returns the bytes of `[start, end)`.
 pub(crate) trait RangeSource {
     fn fetch(&self, start: u64, end: u64) -> Result<Vec<u8>, String>;
+
+    /// Releases the source's resources. Default: nothing to release.
+    fn finish(&self) -> Result<(), String> {
+        Ok(())
+    }
+}
+
+impl<T: RangeSource + ?Sized> RangeSource for Box<T> {
+    fn fetch(&self, start: u64, end: u64) -> Result<Vec<u8>, String> {
+        (**self).fetch(start, end)
+    }
+    fn finish(&self) -> Result<(), String> {
+        (**self).finish()
+    }
+}
+
+/// A source over bytes already in memory.
+pub(crate) struct BytesSource {
+    pub(crate) bytes: Vec<u8>,
+}
+
+impl RangeSource for BytesSource {
+    fn fetch(&self, start: u64, end: u64) -> Result<Vec<u8>, String> {
+        self.bytes
+            .get(start as usize..end as usize)
+            .map(|s| s.to_vec())
+            .ok_or_else(|| format!("range {start}..{end} past end of memory source"))
+    }
 }
 
 /// A file served from cached windows, fetching misses through a `RangeSource`.

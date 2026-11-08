@@ -411,5 +411,21 @@ fn reader_reports_size_it_was_built_with() {
 
 #[test]
 fn reader_is_open_false_for_unknown_id() {
-    assert!(!crate::xet_reader_is_open("no-such-id"));
+    assert!(!crate::rxet_reader_is_open("no-such-id"));
+}
+
+#[test]
+fn memory_reader_reads_bytes_at_offsets() {
+    let data: Vec<u8> = (0..1000u32).map(|i| (i % 251) as u8).collect();
+    let src: Box<dyn RangeSource + Send + Sync> =
+        Box::new(crate::reader::BytesSource { bytes: data.clone() });
+    let reader = WindowedReader::new(src, 1000);
+    assert_eq!(reader.read_at(0, 5).unwrap(), data[0..5].to_vec());
+    assert_eq!(reader.read_at(500, 100).unwrap(), data[500..600].to_vec());
+}
+
+#[test]
+fn memory_source_finish_is_noop() {
+    let src = crate::reader::BytesSource { bytes: vec![1, 2, 3] };
+    assert!(src.finish().is_ok());
 }

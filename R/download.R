@@ -45,7 +45,7 @@ xet_download_file <- function(handle, hash, file_size, dest_path) {
   tmp <- tempfile(pattern = paste0(".", basename(dest_path), "-"), tmpdir = dest_dir, fileext = ".part")
   on.exit(if (file.exists(tmp)) unlink(tmp), add = TRUE)
 
-  .xet_download_file(handle, hash, file_size, tmp)
+  rxet_download_file(handle, hash, file_size, tmp)
 
   if (!file.rename(tmp, dest_path)) {
     stop(sprintf("could not move download into place: %s", dest_path))

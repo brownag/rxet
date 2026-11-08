@@ -10,7 +10,7 @@ mod reader;
 mod registry;
 #[cfg(test)]
 mod tests;
-use reader::{RangeSource, WindowedReader};
+use reader::{BytesSource, RangeSource, WindowedReader};
 use registry::Registry;
 
 struct XetClient {
@@ -53,6 +53,10 @@ impl RangeSource for XetStreamSource {
         }
         Ok(buf)
     }
+
+    fn finish(&self) -> Result<(), String> {
+        self.group.finish_blocking().map(|_| ()).map_err(|e| e.to_string())
+    }
 }
 
 extern "C" {
@@ -65,9 +69,23 @@ extern "C" {
     ) -> extendr_api::SEXP;
 }
 
+/// Opens a reader over bytes held in memory and returns its id.
+/// Internal (no `xet_` prefix, so not exported); used by offline tests.
+#[extendr]
+fn rxet_memory_reader_open(bytes: Raw) -> extendr_api::Result<String> {
+    let data = bytes.as_slice().to_vec();
+    let size = data.len() as u64;
+    let source: Box<dyn RangeSource + Send + Sync> = Box::new(BytesSource { bytes: data });
+    let key = Uuid::new_v4().to_string();
+    READERS
+        .insert(key.clone(), WindowedReader::new(source, size))
+        .map_err(Error::Other)?;
+    Ok(key)
+}
+
 /// Opens a reader for on-demand range reads and returns its handle.
 #[extendr]
-fn xet_open_reader(handle: &str, file_hash: &str, file_size: f64) -> extendr_api::Result<String> {
+fn rxet_open_reader(handle: &str, file_hash: &str, file_size: f64) -> extendr_api::Result<String> {
     safe_exec(panic::AssertUnwindSafe(|| {
         let size = whole_bytes("file_size", file_size)?;
         let client = acquire_client(handle)?;
@@ -81,10 +99,9 @@ fn xet_open_reader(handle: &str, file_hash: &str, file_size: f64) -> extendr_api
             .build_blocking()
             .map_err(|e| Error::Other(format!("build download stream group error: {}", e)))?;
 
-        let reader = WindowedReader::new(
-            XetStreamSource { group, info: XetFileInfo::new(file_hash.to_string(), size) },
-            size,
-        );
+        let source: Box<dyn RangeSource + Send + Sync> =
+            Box::new(XetStreamSource { group, info: XetFileInfo::new(file_hash.to_string(), size) });
+        let reader = WindowedReader::new(source, size);
 
         let key = Uuid::new_v4().to_string();
         READERS.insert(key.clone(), reader).map_err(Error::Other)?;
@@ -94,7 +111,7 @@ fn xet_open_reader(handle: &str, file_hash: &str, file_size: f64) -> extendr_api
 
 /// Reads exactly `length` bytes at `offset` from an open reader.
 #[extendr]
-fn xet_reader_read(reader_handle: &str, offset: f64, length: f64) -> extendr_api::Result<Robj> {
+fn rxet_reader_read(reader_handle: &str, offset: f64, length: f64) -> extendr_api::Result<Robj> {
     safe_exec(panic::AssertUnwindSafe(|| {
         let offset = whole_bytes("offset", offset)?;
         let length = whole_bytes("length", length)?;
@@ -108,12 +125,12 @@ fn xet_reader_read(reader_handle: &str, offset: f64, length: f64) -> extendr_api
 
 /// Closes a reader and releases its stream group.
 #[extendr]
-fn xet_close_reader(reader_handle: &str) -> extendr_api::Result<()> {
+fn rxet_close_reader(reader_handle: &str) -> extendr_api::Result<()> {
     let reader = READERS
         .remove(reader_handle)
         .map_err(Error::Other)?
         .ok_or_else(|| Error::Other("invalid or closed reader handle".to_string()))?;
-    let _ = reader.source().group.finish_blocking();
+    let _ = reader.source().finish();
     Ok(())
 }
 
@@ -121,7 +138,7 @@ fn xet_close_reader(reader_handle: &str) -> extendr_api::Result<()> {
 /// `read_fun(offset, length)` must return a raw vector; `close_fun()` runs on close.
 /// The file size comes from the reader.
 #[extendr]
-fn xet_stream_connection(read_fun: Robj, close_fun: Robj, reader_handle: &str) -> extendr_api::Result<Robj> {
+fn rxet_stream_connection(read_fun: Robj, close_fun: Robj, reader_handle: &str) -> extendr_api::Result<Robj> {
     if !read_fun.is_function() {
         return Err(Error::Other("read_fun must be a function".to_string()));
     }
@@ -139,7 +156,7 @@ fn xet_stream_connection(read_fun: Robj, close_fun: Robj, reader_handle: &str) -
 
 /// Reports whether a reader handle is still registered.
 #[extendr]
-fn xet_reader_is_open(reader_handle: &str) -> bool {
+fn rxet_reader_is_open(reader_handle: &str) -> bool {
     matches!(READERS.acquire(reader_handle), Ok(Some(_)))
 }
 
@@ -208,7 +225,9 @@ where
 
 lazy_static::lazy_static! {
     static ref CLIENTS: Registry<XetClient> = Registry::new();
-    static ref READERS: Registry<WindowedReader<XetStreamSource>> = Registry::new();
+    // Boxed trait object so stream and memory sources share one registry.
+    // `Send + Sync` are required: this is a `static`, and `Registry` stores `Arc<T>`.
+    static ref READERS: Registry<WindowedReader<Box<dyn RangeSource + Send + Sync>>> = Registry::new();
 }
 
 /// Look up a client by handle and return an owned `Arc`.
@@ -265,7 +284,7 @@ fn build_config(
 /// arguments are applied (high-performance preset first, explicit values last).
 /// Returns a UUID string handle that identifies the client session.
 #[extendr]
-fn xet_init_client(
+fn rxet_init_client(
     endpoint: &str,
     token: &str,
     timeout_sec: Option<f64>,
@@ -298,7 +317,7 @@ fn xet_init_client(
 
 /// Close and free a Xet storage client
 #[extendr]
-fn xet_close_client(handle: &str) -> extendr_api::Result<()> {
+fn rxet_close_client(handle: &str) -> extendr_api::Result<()> {
     CLIENTS
         .remove(handle)
         .map_err(Error::Other)?
@@ -309,7 +328,7 @@ fn xet_close_client(handle: &str) -> extendr_api::Result<()> {
 /// Download an entire file from Xet storage into memory without disk writes
 /// Uses xet-core's streaming API to fetch file in chunks and return as R raw vector.
 #[extendr]
-fn xet_stream_raw(
+fn rxet_stream_raw(
     handle: &str,
     file_hash: &str,
     file_size: f64,
@@ -352,7 +371,7 @@ fn xet_stream_raw(
 /// Stream a specific byte range of a file directly into memory as R data
 /// Downloads only the chunks needed to reconstruct the requested byte range.
 #[extendr]
-fn xet_stream_range(
+fn rxet_stream_range(
     handle: &str,
     file_hash: &str,
     total_size: f64,
@@ -447,7 +466,7 @@ fn size_mismatch_message(expected: u64, err_text: &str) -> Option<String> {
 
 /// Download a file from Xet storage to a local path
 #[extendr]
-fn xet_download_file(
+fn rxet_download_file(
     handle: &str,
     hash: &str,
     file_size: f64,
@@ -496,7 +515,7 @@ fn xet_download_file(
 
 /// Upload a local file to Xet storage
 #[extendr]
-fn xet_upload_file(handle: &str, src_path: &str) -> extendr_api::Result<Robj> {
+fn rxet_upload_file(handle: &str, src_path: &str) -> extendr_api::Result<Robj> {
     safe_exec(panic::AssertUnwindSafe(|| {
         let client = acquire_client(handle)?;
 
@@ -542,15 +561,16 @@ fn xet_upload_file(handle: &str, src_path: &str) -> extendr_api::Result<Robj> {
 
 extendr_module! {
     mod rxet;
-    fn xet_init_client;
-    fn xet_close_client;
-    fn xet_download_file;
-    fn xet_upload_file;
-    fn xet_stream_raw;
-    fn xet_stream_range;
-    fn xet_open_reader;
-    fn xet_reader_read;
-    fn xet_close_reader;
-    fn xet_stream_connection;
-    fn xet_reader_is_open;
+    fn rxet_init_client;
+    fn rxet_close_client;
+    fn rxet_download_file;
+    fn rxet_upload_file;
+    fn rxet_stream_raw;
+    fn rxet_stream_range;
+    fn rxet_open_reader;
+    fn rxet_reader_read;
+    fn rxet_close_reader;
+    fn rxet_stream_connection;
+    fn rxet_reader_is_open;
+    fn rxet_memory_reader_open;
 }
