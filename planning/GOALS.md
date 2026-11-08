@@ -12,7 +12,7 @@ Dependency graph: G2 -> [G3]. G5 is soft-dependent on G3 (its trigger). G4 is in
   - Exit criteria:
     - File size is stored in one place. The `size #1` / `size #2` duplication in the read path is gone.
     - Closing the connection releases the Rust reader at once, without waiting for GC. A test shows this, or the comment in `R/stream_connection.R` is corrected to match the code.
-    - `src/connection.c` has offline tests that drive `.xet_stream_connection(read_fun, size)` with a closure over local bytes. They run without `local_cas_server`.
+    - `src/connection.c` has offline tests that drive the connection through a memory-backed Rust reader with known bytes. They run without `local_cas_server`. (Reworded 2026-11-07 per EXECUTION_PLAN_13 D7: the constructor takes a reader id.)
     - `cargo test` and `Rscript -e 'devtools::test()'` pass.
     - Any change to ADR 0006 decision 4 is recorded in a new ADR or an ADR amendment. Keep the GC finalizer unless the early-release test shows it matters.
   - First action: re-read ADR 0006 decision 4 and `src/connection.c:83-117`, then write one failing offline test that reads through the closure seam with local bytes and asserts the file size is used once.
