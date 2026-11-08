@@ -11,3 +11,4 @@ Living catalog of enduring decisions for `rxet`. Source context refers to the
 | [0004](0004-v0-2-0-breaking-api-changes.md) | Remove three public functions, move client configuration onto the client, and drop an unused raster argument for v0.2.0 | Accepted | 2026-10-17 | 0001 (in part) | - | EXECUTION_PLAN_10 |
 | [0005](0005-remove-in-memory-cap.md) | Remove the 2 GiB in-memory cap and hold in-memory reads to one copy of the file | Accepted | 2026-11-01 | D2 in EXECUTION_PLAN_4 (cap only) | - | ad hoc |
 | [0006](0006-lazy-range-streaming-connection.md) | Stream byte ranges on demand through a custom R connection, and read Parquet through it | Accepted | 2026-11-01 | - | - | ad hoc |
+| [0007](0007-close-releases-reader-and-size-owned-by-reader.md) | Close releases the reader at once, and the Rust reader owns the file size | Accepted | 2026-11-07 | - | - | EXECUTION_PLAN_13 |

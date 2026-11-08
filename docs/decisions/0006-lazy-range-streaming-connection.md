@@ -1,6 +1,7 @@
 # 0006. Lazy range streaming through a custom R connection
 
 - **Status:** Accepted
+- **Amended by 0007 (decision 4)**
 - **Date:** 2026-11-01
 - **Supersedes:** none
 - **Superseded by:** none
