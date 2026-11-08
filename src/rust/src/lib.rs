@@ -71,6 +71,7 @@ extern "C" {
 
 /// Opens a reader over bytes held in memory and returns its id.
 /// Internal (no `xet_` prefix, so not exported); used by offline tests.
+/// @noRd
 #[extendr]
 fn rxet_memory_reader_open(bytes: Raw) -> extendr_api::Result<String> {
     let data = bytes.as_slice().to_vec();
@@ -84,6 +85,7 @@ fn rxet_memory_reader_open(bytes: Raw) -> extendr_api::Result<String> {
 }
 
 /// Opens a reader for on-demand range reads and returns its handle.
+/// @noRd
 #[extendr]
 fn rxet_open_reader(handle: &str, file_hash: &str, file_size: f64) -> extendr_api::Result<String> {
     safe_exec(panic::AssertUnwindSafe(|| {
@@ -110,6 +112,7 @@ fn rxet_open_reader(handle: &str, file_hash: &str, file_size: f64) -> extendr_ap
 }
 
 /// Reads exactly `length` bytes at `offset` from an open reader.
+/// @noRd
 #[extendr]
 fn rxet_reader_read(reader_handle: &str, offset: f64, length: f64) -> extendr_api::Result<Robj> {
     safe_exec(panic::AssertUnwindSafe(|| {
@@ -124,6 +127,7 @@ fn rxet_reader_read(reader_handle: &str, offset: f64, length: f64) -> extendr_ap
 }
 
 /// Closes a reader and releases its stream group.
+/// @noRd
 #[extendr]
 fn rxet_close_reader(reader_handle: &str) -> extendr_api::Result<()> {
     let reader = READERS
@@ -137,6 +141,7 @@ fn rxet_close_reader(reader_handle: &str) -> extendr_api::Result<()> {
 /// Wraps an open reader in a seekable R connection.
 /// `read_fun(offset, length)` must return a raw vector; `close_fun()` runs on close.
 /// The file size comes from the reader.
+/// @noRd
 #[extendr]
 fn rxet_stream_connection(read_fun: Robj, close_fun: Robj, reader_handle: &str) -> extendr_api::Result<Robj> {
     if !read_fun.is_function() {
@@ -155,6 +160,7 @@ fn rxet_stream_connection(read_fun: Robj, close_fun: Robj, reader_handle: &str) 
 }
 
 /// Reports whether a reader handle is still registered.
+/// @noRd
 #[extendr]
 fn rxet_reader_is_open(reader_handle: &str) -> bool {
     matches!(READERS.acquire(reader_handle), Ok(Some(_)))
@@ -283,6 +289,7 @@ fn build_config(
 /// Configuration starts from the HF_XET_* environment, then the optional
 /// arguments are applied (high-performance preset first, explicit values last).
 /// Returns a UUID string handle that identifies the client session.
+/// @noRd
 #[extendr]
 fn rxet_init_client(
     endpoint: &str,
@@ -316,6 +323,7 @@ fn rxet_init_client(
 }
 
 /// Close and free a Xet storage client
+/// @noRd
 #[extendr]
 fn rxet_close_client(handle: &str) -> extendr_api::Result<()> {
     CLIENTS
@@ -327,6 +335,7 @@ fn rxet_close_client(handle: &str) -> extendr_api::Result<()> {
 
 /// Download an entire file from Xet storage into memory without disk writes
 /// Uses xet-core's streaming API to fetch file in chunks and return as R raw vector.
+/// @noRd
 #[extendr]
 fn rxet_stream_raw(
     handle: &str,
@@ -370,6 +379,7 @@ fn rxet_stream_raw(
 
 /// Stream a specific byte range of a file directly into memory as R data
 /// Downloads only the chunks needed to reconstruct the requested byte range.
+/// @noRd
 #[extendr]
 fn rxet_stream_range(
     handle: &str,
@@ -465,6 +475,7 @@ fn size_mismatch_message(expected: u64, err_text: &str) -> Option<String> {
 }
 
 /// Download a file from Xet storage to a local path
+/// @noRd
 #[extendr]
 fn rxet_download_file(
     handle: &str,
@@ -514,6 +525,7 @@ fn rxet_download_file(
 }
 
 /// Upload a local file to Xet storage
+/// @noRd
 #[extendr]
 fn rxet_upload_file(handle: &str, src_path: &str) -> extendr_api::Result<Robj> {
     safe_exec(panic::AssertUnwindSafe(|| {
