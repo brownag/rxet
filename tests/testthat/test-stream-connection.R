@@ -56,7 +56,8 @@ test_that("closing a stream connection releases its reader", {
 
   conn <- xet_open_stream_connection(client, info$hash, info$file_size)
   close(conn)
-  # A closed connection is invalid, so later use errors rather than reading.
+  # Only checks that the connection is invalid after close. Reader release is
+  # covered in test-connection-offline.R.
   expect_error(readBin(conn, "raw", 10), "invalid connection")
 })
 
