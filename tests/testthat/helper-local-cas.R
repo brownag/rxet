@@ -11,10 +11,10 @@
 is_compiled <- function() {
   tryCatch({
     # Try to call a safe Rust function that requires no setup
-    result <- .Call("wrap__xet_init_client", "https://test", "test", NULL, NULL, FALSE, PACKAGE = "rxet")
+    result <- .Call("wrap__rxet_init_client", "https://test", "test", NULL, NULL, FALSE, PACKAGE = "rxet")
     # If we get here and got a handle, close it
     if (is.character(result)) {
-      .Call("wrap__xet_close_client", result, PACKAGE = "rxet")
+      .Call("wrap__rxet_close_client", result, PACKAGE = "rxet")
       return(TRUE)
     }
     FALSE
