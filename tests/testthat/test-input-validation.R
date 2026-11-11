@@ -83,6 +83,10 @@ describe("xet_download_file", {
     expect_error(xet_download_file("handle", "abc123", 1024, tmpdir))
   })
 
+  it("rejects empty dest_path", {
+    expect_error(xet_download_file("handle", "abc123", 1024, ""), "non-empty")
+  })
+
   it("rejects non-existent parent directory", {
     expect_error(
       xet_download_file("handle", "abc123", 1024, "/nonexistent/path/file.bin")
@@ -169,6 +173,10 @@ describe("xet_upload_file", {
     writeBin(raw(10), tmp)
     on.exit(unlink(tmp), add = TRUE)
     expect_error(xet_upload_file("", tmp), "handle")
+  })
+
+  it("rejects empty src_path", {
+    expect_error(xet_upload_file("handle", ""), "non-empty")
   })
 })
 

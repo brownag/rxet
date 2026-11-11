@@ -60,20 +60,21 @@ test_that("whole-download stream mode passes a seekable connection to the reader
   expect_equal(out, as.raw(1:5))
 })
 
-test_that("invalid arguments error before the connection is opened", {
+test_that("stream mode delegates validation and opens the public stream connection", {
   called <- FALSE
   testthat::local_mocked_bindings(
-    xet_open_stream_connection = function(...) {
+    xet_open_stream_connection = function(handle, file_hash, file_size) {
       called <<- TRUE
+      .rxet_check_handle(handle)
+      .rxet_check_hash(file_hash)
+      .rxet_check_file_size(file_size)
       stub_conn()
     },
     .package = "rxet"
   )
-  expect_error(.rxet_whole_download("", "abc", 5, identity), "handle")
-  expect_error(.rxet_whole_download("h", "", 5, identity), "file_hash")
-  expect_error(.rxet_whole_download("h", "abc", -1, identity), "file_size")
-  expect_error(.rxet_whole_download("h", "abc", 1.5, identity), "file_size")
-  expect_false(called)
+  out <- .rxet_whole_download("h", "abc", 5, function(conn) readBin(conn, "raw", 5))
+  expect_equal(out, as.raw(1:5))
+  expect_true(called)
 })
 
 test_that("file mode with dest_path downloads to dest_path and does not unlink", {

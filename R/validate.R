@@ -54,8 +54,8 @@
 
 #' @noRd
 .rxet_check_string <- function(x, arg) {
-  if (!is.character(x) || length(x) != 1L || is.na(x)) {
-    stop(sprintf("`%s` must be a single non-NA string", arg), call. = FALSE)
+  if (!is.character(x) || length(x) != 1L || is.na(x) || !nzchar(x)) {
+    stop(sprintf("`%s` must be a single non-empty string", arg), call. = FALSE)
   }
   invisible(x)
 }

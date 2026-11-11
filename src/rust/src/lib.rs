@@ -399,9 +399,9 @@ fn rxet_stream_range(
                 start, total
             )));
         }
-        if end < start || end > total {
+        if end <= start || end > total {
             return Err(Error::Other(format!(
-                "invalid end offset: {} (must be >= start {} and <= file size {})",
+                "invalid end offset: {} (must be > start {} and <= file size {})",
                 end, start, total
             )));
         }

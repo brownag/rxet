@@ -34,12 +34,14 @@ test_that("xet_stream_range rejects an empty range before the Rust call (R layer
   expect_error(xet_stream_range("h", "abc", 10, 5, 5), "greater")
 })
 
-test_that("G4: Rust xet_stream_range empty-range rule", {
-  skip("G4: empty-range rule disagreement, see EXECUTION_PLAN_13 D5")
+test_that("Rust xet_stream_range rejects an empty range", {
+  skip_if_not(is_compiled(), "Rust extension not available")
+  expect_error(rxet_stream_range("h", "abc", 10, 5, 5), "must be > start")
 })
 
 test_that(".rxet_check_string and .rxet_require_pkg", {
   expect_silent(.rxet_check_string("a", "dest_path"))
+  expect_error(.rxet_check_string("", "dest_path"), "non-empty")
   expect_error(.rxet_check_string(NA_character_, "dest_path"), "dest_path")
   expect_error(.rxet_check_string(1, "src_path"), "src_path")
   expect_error(

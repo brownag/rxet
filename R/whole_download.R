@@ -6,10 +6,6 @@
                            dest_path = NULL, keep = FALSE,
                            via = c("stream", "file")) {
   via <- match.arg(via)
-  .rxet_check_handle(handle)
-  .rxet_check_hash(file_hash)
-  .rxet_check_file_size(file_size)
-
   if (via == "stream") {
     # A seekable connection over Xet ranges: only the bytes the reader asks for
     # are fetched. Readers such as arrow close the connection themselves.
