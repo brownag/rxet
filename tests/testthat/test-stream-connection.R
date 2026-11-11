@@ -77,6 +77,6 @@ test_that("read_xet_parquet reads through the lazy connection", {
   expect_equal(read_xet_parquet(client, info$hash, info$file_size), expected)
   expect_equal(
     read_xet_parquet(client, info$hash, info$file_size, col_select = 1),
-    expected[, 1]
+    expected[, 1, drop = FALSE]
   )
 })
