@@ -33,18 +33,22 @@ static size_t rxet_conn_read(void *ptr, size_t size, size_t nitems, Rconnection 
 
     /* A short read at the end of the file is fine; readBin() reports it. */
     if ((double) total > st->size - st->pos) total = (size_t) (st->size - st->pos);
+    total -= total % size;
+    if (total == 0) return 0;
 
-    SEXP call = PROTECT(Rf_lang3(st->read_fun, Rf_ScalarReal(st->pos), Rf_ScalarReal((double) total)));
+    SEXP s_pos = PROTECT(Rf_ScalarReal(st->pos));
+    SEXP s_total = PROTECT(Rf_ScalarReal((double) total));
+    SEXP call = PROTECT(Rf_lang3(st->read_fun, s_pos, s_total));
     SEXP res = PROTECT(Rf_eval(call, R_GlobalEnv));
 
     if (TYPEOF(res) != RAWSXP || (size_t) XLENGTH(res) != total) {
-        UNPROTECT(2);
+        UNPROTECT(4);
         Rf_error("Xet connection read failed: expected %zu raw bytes", total);
     }
 
     memcpy(ptr, RAW(res), total);
     st->pos += (double) total;
-    UNPROTECT(2);
+    UNPROTECT(4);
 
     return total / size;
 }
@@ -58,6 +62,8 @@ static double rxet_conn_seek(Rconnection con, double where, int origin, int rw) 
     if (st == NULL) Rf_error("Xet connection is closed");
     if (ISNA(where)) return st->pos;
 
+    double previous = st->pos;
+
     switch (origin) {
     case 2: base = st->pos; break;
     case 3: base = st->size; break;
@@ -69,7 +75,7 @@ static double rxet_conn_seek(Rconnection con, double where, int origin, int rw) 
         Rf_error("Xet connection seek is outside the file (0 to %.0f)", st->size);
     }
     st->pos = target;
-    return st->pos;
+    return previous;
 }
 
 static void rxet_conn_close(Rconnection con) {

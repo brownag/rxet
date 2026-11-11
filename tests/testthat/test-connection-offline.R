@@ -31,13 +31,16 @@ test_that("a memory-backed connection seeks to start, current and end", {
   conn <- h$conn
   on.exit(tryCatch(close(conn), error = function(e) NULL), add = TRUE)
 
-  expect_equal(seek(conn, 1000, "start"), 1000)
+  expect_equal(seek(conn, 1000, "start"), 0)
+  expect_equal(seek(conn, 0, "current"), 1000)
   expect_identical(readBin(conn, "raw", 10), offline_bytes[1001:1010])
 
-  expect_equal(seek(conn, 5, "current"), 1015)
+  expect_equal(seek(conn, 5, "current"), 1010)
+  expect_equal(seek(conn, 0, "current"), 1015)
   expect_identical(readBin(conn, "raw", 5), offline_bytes[1016:1020])
 
-  expect_equal(seek(conn, -20, "end"), length(offline_bytes) - 20)
+  expect_equal(seek(conn, -20, "end"), 1020)
+  expect_equal(seek(conn, 0, "current"), length(offline_bytes) - 20)
   expect_identical(readBin(conn, "raw", 20), offline_bytes[(length(offline_bytes) - 19):length(offline_bytes)])
 })
 
@@ -47,9 +50,21 @@ test_that("a read past the end returns only the bytes that exist", {
   conn <- h$conn
   on.exit(tryCatch(close(conn), error = function(e) NULL), add = TRUE)
 
-  expect_equal(seek(conn, length(offline_bytes) - 10, "start"), length(offline_bytes) - 10)
+  expect_equal(seek(conn, length(offline_bytes) - 10, "start"), 0)
+  expect_equal(seek(conn, 0, "current"), length(offline_bytes) - 10)
   expect_identical(readBin(conn, "raw", 100), offline_bytes[(length(offline_bytes) - 9):length(offline_bytes)])
   expect_length(readBin(conn, "raw", 100), 0L)
+})
+
+test_that("a 3-byte file read with 4-byte items returns 0 items and consumes no bytes", {
+  skip_if_not(is_compiled(), "Rust extension not available")
+  h <- offline_conn(as.raw(c(1, 2, 3)))
+  conn <- h$conn
+  on.exit(tryCatch(close(conn), error = function(e) NULL), add = TRUE)
+
+  expect_length(readBin(conn, "integer", 1, size = 4), 0L)
+  expect_equal(seek(conn, 0, "current"), 0)
+  expect_identical(readBin(conn, "raw", 3), as.raw(c(1, 2, 3)))
 })
 
 test_that("a memory-backed connection rejects seeks outside the file", {
@@ -59,7 +74,9 @@ test_that("a memory-backed connection rejects seeks outside the file", {
   on.exit(tryCatch(close(conn), error = function(e) NULL), add = TRUE)
 
   expect_error(seek(conn, -1, "start"), "outside the file")
+  expect_equal(seek(conn, 0, "current"), 0)
   expect_error(seek(conn, length(offline_bytes) + 1, "start"), "outside the file")
+  expect_equal(seek(conn, 0, "current"), 0)
 })
 
 test_that("the size of a memory-backed connection is its byte length", {
@@ -68,7 +85,8 @@ test_that("the size of a memory-backed connection is its byte length", {
   conn <- h$conn
   on.exit(tryCatch(close(conn), error = function(e) NULL), add = TRUE)
 
-  expect_equal(seek(conn, 0, "end"), length(offline_bytes))
+  expect_equal(seek(conn, 0, "end"), 0)
+  expect_equal(seek(conn, 0, "current"), length(offline_bytes))
 })
 
 test_that("closing a memory-backed connection releases its reader early", {

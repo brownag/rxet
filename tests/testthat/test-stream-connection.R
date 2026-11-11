@@ -24,16 +24,20 @@ test_that("a stream connection is seekable and reads bytes at the requested offs
 
   expect_identical(readBin(conn, "raw", 100), bytes[1:100])
 
-  expect_equal(seek(conn, 0, "end"), as.numeric(info$file_size))
-  expect_equal(seek(conn, 4096, "start"), 4096)
+  expect_equal(seek(conn, 0, "end"), 100)
+  expect_equal(seek(conn, 0, "current"), as.numeric(info$file_size))
+  expect_equal(seek(conn, 4096, "start"), as.numeric(info$file_size))
+  expect_equal(seek(conn, 0, "current"), 4096)
   expect_identical(readBin(conn, "raw", 64), bytes[4097:4160])
 
   # A read that starts mid-window and crosses the 64 KiB alignment boundary.
-  expect_equal(seek(conn, 65000, "start"), 65000)
+  expect_equal(seek(conn, 65000, "start"), 4160)
+  expect_equal(seek(conn, 0, "current"), 65000)
   expect_identical(readBin(conn, "raw", 2000), bytes[65001:67000])
 
   # A read past the end returns only the bytes that exist.
-  expect_equal(seek(conn, length(bytes) - 10, "start"), length(bytes) - 10)
+  expect_equal(seek(conn, length(bytes) - 10, "start"), 67000)
+  expect_equal(seek(conn, 0, "current"), length(bytes) - 10)
   expect_identical(readBin(conn, "raw", 100), bytes[(length(bytes) - 9):length(bytes)])
 })
 
@@ -46,7 +50,9 @@ test_that("a stream connection rejects seeks outside the file", {
   on.exit(tryCatch(close(conn), error = function(e) NULL), add = TRUE)
 
   expect_error(seek(conn, -1, "start"), "outside the file")
+  expect_equal(seek(conn, 0, "current"), 0)
   expect_error(seek(conn, info$file_size + 1, "start"), "outside the file")
+  expect_equal(seek(conn, 0, "current"), 0)
 })
 
 test_that("closing a stream connection releases its reader", {
