@@ -121,11 +121,11 @@ test_that("read_xet_raster validates dest_path argument", {
   skip_if_not_installed("terra")
   expect_error(
     read_xet_raster("h", "abc", 10, dest_path = ""),
-    "`dest_path` must be a non-empty string"
+    "`dest_path` must be a single non-empty string"
   )
   expect_error(
     read_xet_raster("h", "abc", 10, dest_path = 123),
-    "`dest_path` must be a single non-NA string"
+    "`dest_path` must be a single non-empty string"
   )
   expect_error(
     read_xet_raster("h", "abc", 10, dest_path = tempdir()),
