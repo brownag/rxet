@@ -15,7 +15,7 @@ Every call blocks the calling R thread. There is no async API.
 
 ## Installation
 
-Needs R \>= 4.2 and Rust \>= 1.85 (from
+Needs R \>= 4.3 and Rust \>= 1.85 (from
 [rustup.rs](https://rustup.rs/)). The first build downloads and compiles
 the `hf-xet` crate, which takes several minutes.
 

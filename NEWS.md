@@ -1,3 +1,9 @@
+# rxet (development version)
+
+- The package now requires R >= 4.3.0 (`Depends`), because the streaming
+  connection uses `R_new_custom_connection()`. The R-side version guard and the
+  pre-4.3 C stub are removed.
+
 # rxet 0.3.0
 
 - The 2 GiB in-memory cap is gone. `xet_stream_raw()`, `xet_stream_range()`,

@@ -6,17 +6,13 @@
  * into Rust (`rxet_reader_read()`), which serves the bytes from a Xet download
  * stream group with a readahead window.
  *
- * R_new_custom_connection() appeared in R 4.3.0. On older R the constructor
- * errors, and the rest of the package is unaffected.
+ * The package requires R >= 4.3.0, where R_new_custom_connection() appeared.
  */
 
 #include <R.h>
 #include <Rinternals.h>
-#include <Rversion.h>
 #include <string.h>
 #include <stdlib.h>
-
-#if R_VERSION >= R_Version(4, 3, 0)
 
 #include <R_ext/Connections.h>
 
@@ -128,12 +124,3 @@ SEXP rxet_connection_new(SEXP read_fun, SEXP close_fun, double size) {
     UNPROTECT(1);
     return con_sexp;
 }
-
-#else /* R < 4.3.0 */
-
-SEXP rxet_connection_new(SEXP read_fun, SEXP close_fun, double size) {
-    Rf_error("streaming connections need R >= 4.3.0");
-    return R_NilValue;
-}
-
-#endif

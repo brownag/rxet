@@ -47,9 +47,6 @@ xet_open_stream_connection <- function(handle, file_hash, file_size) {
   .rxet_check_handle(handle)
   .rxet_check_hash(file_hash)
   .rxet_check_file_size(file_size)
-  if (getRversion() < "4.3.0") {
-    stop("xet_open_stream_connection() needs R >= 4.3.0", call. = FALSE)
-  }
 
   id <- rxet_open_reader(handle, file_hash, file_size)
 
