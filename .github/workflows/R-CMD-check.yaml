@@ -74,3 +74,13 @@ jobs:
         env:
           _R_CHECK_FORCE_SUGGESTS_: false
         run: R CMD check --no-manual *.tar.gz
+
+      - name: Upload test failure log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: check-results-${{ matrix.os }}
+          path: |
+            *.Rcheck/00check.log
+            *.Rcheck/tests/*.Rout*
+            *.Rcheck/tests/testthat.Rout*
