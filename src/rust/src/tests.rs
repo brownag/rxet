@@ -1,6 +1,7 @@
 use crate::registry::Registry;
 use crate::reader::{RangeSource, WindowedReader, READ_ALIGN_BYTES, READ_CACHE_BYTES, READ_WINDOW_MAX, READ_WINDOW_MIN};
-use std::sync::{mpsc, Arc, Mutex};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{mpsc, Arc, Barrier, Mutex};
 use std::thread;
 use std::time::Duration;
 
@@ -428,4 +429,58 @@ fn memory_reader_reads_bytes_at_offsets() {
 fn memory_source_finish_is_noop() {
     let src = crate::reader::BytesSource { bytes: vec![1, 2, 3] };
     assert!(src.finish().is_ok());
+}
+
+#[test]
+fn reader_finish_serializes_with_in_flight_read() {
+    struct BlockingSource {
+        barrier: Arc<Barrier>,
+        fetch_done: Arc<AtomicBool>,
+        finished: Arc<AtomicBool>,
+    }
+
+    impl RangeSource for BlockingSource {
+        fn fetch(&self, start: u64, end: u64) -> Result<Vec<u8>, String> {
+            self.barrier.wait();
+            thread::sleep(Duration::from_millis(50));
+            assert!(
+                !self.finished.load(Ordering::SeqCst),
+                "finish must not execute while fetch is running"
+            );
+            self.fetch_done.store(true, Ordering::SeqCst);
+            Ok(vec![0; (end - start) as usize])
+        }
+
+        fn finish(&self) -> Result<(), String> {
+            assert!(
+                self.fetch_done.load(Ordering::SeqCst),
+                "fetch must return before finish executes"
+            );
+            self.finished.store(true, Ordering::SeqCst);
+            Ok(())
+        }
+    }
+
+    let barrier = Arc::new(Barrier::new(2));
+    let fetch_done = Arc::new(AtomicBool::new(false));
+    let finished = Arc::new(AtomicBool::new(false));
+
+    let src = BlockingSource {
+        barrier: Arc::clone(&barrier),
+        fetch_done: Arc::clone(&fetch_done),
+        finished: Arc::clone(&finished),
+    };
+
+    let size = 100 * MIB;
+    let reader = Arc::new(WindowedReader::new(src, size));
+    let reader_clone = Arc::clone(&reader);
+
+    let worker = thread::spawn(move || {
+        reader_clone.read_at(0, 10).unwrap();
+    });
+
+    barrier.wait();
+    reader.finish().unwrap();
+    assert!(finished.load(Ordering::SeqCst));
+    worker.join().unwrap();
 }

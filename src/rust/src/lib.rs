@@ -134,7 +134,7 @@ fn rxet_close_reader(reader_handle: &str) -> extendr_api::Result<()> {
         .remove(reader_handle)
         .map_err(Error::Other)?
         .ok_or_else(|| Error::Other("invalid or closed reader handle".to_string()))?;
-    let _ = reader.source().finish();
+    let _ = reader.finish();
     Ok(())
 }
 

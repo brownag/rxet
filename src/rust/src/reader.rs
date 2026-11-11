@@ -111,8 +111,19 @@ impl<S: RangeSource> WindowedReader<S> {
     }
 
     /// The adapter, so lib.rs can release it on close (`finish_blocking`).
+    #[allow(dead_code)]
     pub(crate) fn source(&self) -> &S {
         &self.source
+    }
+
+    /// Releases the source's resources while holding the cache lock, serializing
+    /// shutdown with any concurrent or in-flight reads.
+    pub(crate) fn finish(&self) -> Result<(), String> {
+        let _cache = self
+            .cache
+            .lock()
+            .map_err(|e| format!("reader cache poisoned: {e}"))?;
+        self.source.finish()
     }
 
     /// Serves `[offset, offset + length)` from a cached window, or fetches a new
