@@ -32,8 +32,11 @@ with Arrow, terra, sf/GDAL, and other packages that read from connections
 }
 
 The whole file becomes one in-memory \code{raw()} vector, so the call needs that
-much free RAM. \code{seek()} works within that copy, but this is \strong{not} remote
-range access: no bytes are fetched lazily from the endpoint.
+much free RAM. In addition, \code{rawConnection()} copies that vector when the
+connection is created, so peak RAM is roughly twice the file size during
+construction, and the copy is released on close. \code{seek()} works within that
+copy, but this is \strong{not} remote range access: no bytes are fetched lazily
+from the endpoint.
 
 \strong{Status:} Experimental pending live evidence.
 

@@ -4,7 +4,7 @@
 \alias{read_xet_raster}
 \title{Read a raster file from Xet storage using terra}
 \usage{
-read_xet_raster(handle, file_hash, file_size, ...)
+read_xet_raster(handle, file_hash, file_size, dest_path = NULL, ...)
 }
 \arguments{
 \item{handle}{Character string handle from \code{\link[=xet_client_new]{xet_client_new()}}}
@@ -12,6 +12,10 @@ read_xet_raster(handle, file_hash, file_size, ...)
 \item{file_hash}{Character string, the content hash of the raster file}
 
 \item{file_size}{Numeric scalar, total file size in bytes}
+
+\item{dest_path}{Optional character string, destination file path where the
+raster file will be saved. When \code{NULL} (the default), a temporary file is
+created in \code{\link[=tempdir]{tempdir()}} and kept for the duration of the R session.}
 
 \item{...}{Additional arguments passed to \code{terra::rast()}}
 }
@@ -26,10 +30,11 @@ whole-download helper.
 \details{
 Uses the terra package (successor to raster) for reading raster files.
 
-\strong{Whole-download:} the file is downloaded to a temporary file with
-\code{\link[=xet_download_file]{xet_download_file()}}, terra reads it, and all values are loaded before the
-temporary file is removed. The bytes are never held in R memory, so only the
-parsed raster counts against memory.
+\strong{Whole-download:} the file is downloaded to a local file with
+\code{\link[=xet_download_file]{xet_download_file()}}. When \code{dest_path} is provided, the raster references
+that file lazily. When \code{dest_path} is \code{NULL}, the file is left in \code{tempdir()}
+and is not deleted on exit, so lazy reads by \code{terra} continue to work after
+the helper returns.
 
 \strong{Optional package:} \code{terra} is in Suggests and is checked with
 \code{requireNamespace()}.
@@ -60,6 +65,14 @@ dem <- read_xet_raster(
   client,
   file_hash = "geotiff-hash-abc123...",
   file_size = 200e6
+)
+
+# Or download to a specific destination path
+dem2 <- read_xet_raster(
+  client,
+  file_hash = "geotiff-hash-abc123...",
+  file_size = 200e6,
+  dest_path = "/tmp/dem.tif"
 )
 
 # Crop to a region of interest

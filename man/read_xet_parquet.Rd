@@ -22,7 +22,8 @@ An Arrow Table or R data frame (depending on \code{as_data_frame} argument)
 \description{
 Streams a Parquet file from Xet storage and reads it with Arrow. Arrow reads
 the footer and then only the column chunks it needs, and each read is served
-as a Xet byte range, so unread columns are never transferred.
+as a Xet byte range; unselected columns are not logically read, though
+aligned readahead can transfer some bytes of them.
 }
 \details{
 This function:
@@ -36,8 +37,10 @@ if reading fails
 
 \strong{Partial download:} bytes are fetched on demand in windows of at least
 1 MiB (larger while reads move forward, up to 16 MiB), aligned to 64 KiB.
-A file with 40 columns where you select 2
-transfers only the footer and the chunks for those 2 columns.
+The overall download is reduced: unselected columns are not logically read,
+though aligned readahead can transfer some bytes of them. For example, a file
+with 40 columns where you select 2 transfers primarily the footer and the
+chunks for those 2 columns.
 
 \strong{Memory:} the parsed table is the main cost. The only raw bytes held are
 the readahead window and the chunk being parsed.
