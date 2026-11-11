@@ -1,46 +1,49 @@
 # Project Goals (`planning/GOALS.md`)
 
-Last Updated: 2026-11-07
-Source State: `planning/ARCHITECTURE_REVIEW_2026-11-05.md` (converted from `architecture-review-20261105-063946.html`); `planning/ARCHITECTURE_REVIEW.md` (2026-10-22, folded in)
+Last Updated: 2026-11-09
+Source State: `planning/STATE_13.md` (G2 shipped, commits `ffebca3`..`60d6b40`); `planning/ARCHITECTURE_REVIEW_2026-11-05.md` (converted from `architecture-review-20261105-063946.html`, status check 2026-11-09); `planning/ARCHITECTURE_REVIEW.md` (2026-10-22, folded in)
 
-Dependency graph: G2 -> [G3]. G5 is soft-dependent on G3 (its trigger). G4 is independent. G1 and the 2026-10-22 candidates 1 and 2 are pruned as shipped.
+Dependency graph: G3 is unblocked (G2 shipped). G5 is soft-dependent on G3 (its trigger). G4 is independent. G1, G2, G7 and G8 are pruned as shipped.
 
 ## Circled Goal (Active)
 
-- **[G2]** The stream connection module owns the open, size and close lifetime of a lazy range reader, and the C connection is tested offline through its closure seam.
-  - Why now: it is the root of the lazy-read chain. Once it lands, G3 (one constructor) can collapse onto it, and the parquet path in G5 has a single owner to split around. Today reader lifetime and file size are held in C, R and Rust at once.
+- **[G3]** One exported connection constructor: `xet_open_stream_connection()` is the only public connection constructor. It is lazy where R allows (R >= 4.3) and `xet_open_connection()` is removed or becomes internal.
+  - Why now: G2 is shipped, so the lazy path has one owner and one size. The eager `xet_open_connection()` is the last duplicate. Nothing in `R/` calls it, yet `R/stream.R:15`, `R/arrow.R:54` and `R/connection.R` still point readers at it ahead of the lazy path. Removing it also satisfies G5's trigger, so G5 can follow.
   - Exit criteria:
-    - File size is stored in one place. The `size #1` / `size #2` duplication in the read path is gone.
-    - Closing the connection releases the Rust reader at once, without waiting for GC. A test shows this, or the comment in `R/stream_connection.R` is corrected to match the code.
-    - `src/connection.c` has offline tests that drive the connection through a memory-backed Rust reader with known bytes. They run without `local_cas_server`. (Reworded 2026-11-07 per EXECUTION_PLAN_13 D7: the constructor takes a reader id.)
-    - `cargo test` and `Rscript -e 'devtools::test()'` pass.
-    - Any change to ADR 0006 decision 4 is recorded in a new ADR or an ADR amendment. Keep the GC finalizer unless the early-release test shows it matters.
-  - First action: re-read ADR 0006 decision 4 and `src/connection.c:83-117`, then write one failing offline test that reads through the closure seam with local bytes and asserts the file size is used once.
-  - Note: this replaces the 2026-10-22 decision to start on the whole-download module. That module shipped in `e61cccb`, so nothing is left to start on there.
+    - `NAMESPACE` exports one connection constructor. `export(xet_open_connection)` is gone, or the function is internal.
+    - A new ADR (0008) records the export-set change as an amendment to ADR 0001/0004. The function is Experimental-tier, so the breaking change is cheap.
+    - `R/stream.R:15`, `R/arrow.R:54`, `README.md` and `tests/testthat/test-whole-download.R:63-77` no longer point at the eager path. The dead mock test goes.
+    - The constructor requires R >= 4.3 and errors clearly below that. No `rawConnection` fallback. The ADR records this, and the roxygen and README say so.
+    - `Rscript -e 'devtools::test()'` passes with `RXET_LOCAL_CAS_SERVER` set, and `R CMD INSTALL .` exits 0.
+  - ADR 0008 (R >= 4.3 floor) is written. The export-set change needs its own ADR, 0009.
+  - First action: draft `docs/decisions/0009-*.md` that names the surviving constructor. Then grep `xet_open_connection` across `R/`, `README.md`, `NAMESPACE` and `tests/` to list every caller before editing.
+  - Decided 2026-11-09: require R >= 4.3 for the constructor, no `rawConnection` fallback.
+  - Package floor raised to R >= 4.3.0 in the same change (2026-11-09): `DESCRIPTION`, both READMEs and a NEWS development section. The R-side version guard and the C pre-4.3 stub are removed as dead code. `devtools::test(filter = "connection")` passes with and without `RXET_LOCAL_CAS_SERVER`. Uncommitted.
 
 ## Sequenced Goals (Dependency DAG)
 
-- **[G3]** One exported connection constructor: `xet_open_stream_connection()` is lazy on R ≥ 4.3 and falls back to `rawConnection` otherwise. `xet_open_connection()` is removed or becomes internal.
-  - Depends on: G2
-  - Notes: changes the export set fixed by ADR 0001/0004, so it needs a new ADR. The function is Experimental-tier, so the breaking change is cheap. Update `R/stream.R:15`, `R/arrow.R:53`, `README.md` and `tests/testthat/test-whole-download.R:63-77` in the same change.
+- **[G5]** Split the whole-download module's `via` switch. Parquet gets its own helper on the stream path, and raster and vector stay on the temp-file path. Validation runs once per entry point.
+  - Depends on: G3 (soft, its trigger)
+  - Notes: `R/whole_download.R` still branches on `via = c("stream", "file")`. `R/arrow.R:64` uses `"stream"`, `R/spatial.R:65,148` use `"file"`. Validation runs in the shared function and again inside each branch's connection or file call.
 
 ## Independent Backlog
 
-- **[G4]** One Rust transfer module builds the download group, pumps optional byte ranges into an R raw vector, and owns the size-mismatch error mapping. `xet_stream_raw`, `xet_stream_range`, `xet_open_reader` and `xet_download_file` all call it, and the empty-range rule is decided once.
-  - Notes: first check the range disagreement. `R/validate.R:36-53` rejects `end == start`, and `src/rust/src/lib.rs:453-467` may not. Settle which rule is right before the refactor. This is the only candidate that may hide a user-visible inconsistency, so it can be taken in parallel with G2 if it is small.
-  - Folded from: 2026-10-22 candidate 3. Still open: `number_after` and `size_mismatch_message` (`src/rust/src/lib.rs:399-405`) remain in the extendr binding file, and `tests.rs` reaches them through helpers. The two-converter merge (`to_whole_bytes` / `whole_u64`) is already gone.
+- **[G4]** One Rust transfer module builds the download group, pumps optional byte ranges into an R raw vector, and owns the size-mismatch error mapping. `xet_stream_raw`, `xet_stream_range`, `xet_open_reader` and `xet_download_file` all call it.
+  - Notes: the range rule is decided. On 2026-11-07 the user kept the R rule, which rejects `end == start` (`R/validate.R:46`). The Rust side (`src/rust/src/lib.rs`, `rxet_stream_range`) still accepts `end == start`. That gap is recorded as a skip in the tests. Aligning Rust to the R rule is the first step of this goal, and it is small.
+  - Still duplicated: the `new_download_stream_group()` builder appears at `src/rust/src/lib.rs:97` (`XetReader` fetch), `:356` (`rxet_stream_raw`) and `:421` (`rxet_stream_range`). `number_after` and `size_mismatch_message` (`lib.rs:446-452`) remain in the extendr binding file.
+  - Folded from: 2026-10-22 candidate 3, and 2026-11-05 candidate 4.
 
 ## Deferred
-
-- **[G5]** Split the whole-download module's `via` switch. Parquet gets its own helper on the stream path, and raster and vector stay on the temp-file path. Validation runs once per entry point.
-  - Trigger: G3 is merged, or the `.rxet_whole_download()` name or AGENTS.md wording misleads a contributor or causes a bug.
-  - Notes: `R/whole_download.R` still branches on `via = c("stream", "file")`. It builds on the module from `e61cccb`.
 
 - **[G6]** Classed client object: `R/client.R` returns a validated object instead of a bare character handle, so closed or invented handles are caught in R.
   - Trigger: a handle misuse (closed or invented handle reaching Rust) is reported as a bug.
   - Notes: from 2026-10-22 candidate 4. Speculative. It contradicts the opaque-UUID handle design in AGENTS.md and the public API in ADR 0001/0004, so reopening it needs a new ADR.
 
 ## Blocked / Pruned
+
+- **[G2]** The stream connection module owns the open, size and close lifetime of a lazy range reader, and the C connection is tested offline through its closure seam.
+  - Status: Pruned (shipped, 2026-11-08)
+  - Reason: `ffebca3` (reader owns size), `f98b732` (close releases the reader at once), `37279bf` (offline connection tests over a memory-backed reader), `8a10f3b` (ADR 0007, amends 0006 decision 4). STATE_13 gate: PASS 333, FAIL 0, SKIP 17, and 20 offline connection tests pass without a server. The C side keeps one bounds copy, taken from the reader at construction. It is not a second source of truth.
 
 - **[G1]** Put the reader window policy behind a fetch seam (`RangeSource`, in-memory adapter, fetch-log tests).
   - Status: Pruned (already shipped)

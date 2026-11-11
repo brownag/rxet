@@ -14,6 +14,13 @@ Checked against the tree on 2026-11-06. The review predates some work.
 - **Candidate 1 is largely shipped.** `src/rust/src/reader.rs` exists and defines `RangeSource` (`pub(crate) trait`, line 20). `XetStreamSource` implements it in `lib.rs`, and `tests.rs` has a `MemorySource` that logs each fetch. Commits `8e3c3ba`, `3a63a86`, `053d96f`, `3c50efb`, `6280ec0` and `0af47f8` cover the work. The review's "has no tests" claim is stale.
 - **Candidates 2 to 5 still stand** as described, but line numbers have moved. Re-check them before planning.
 
+### Update 2026-11-09
+
+- **Candidate 2 is shipped** (commits `ffebca3`, `f98b732`, `37279bf`, `8a10f3b`; ADR 0007 amends ADR 0006 decision 4). The reader owns the file size and `close(conn)` releases the reader at once. The offline closure tests are in place. Tracked as G2, now pruned.
+- **Candidate 3 is next**, now unblocked. Tracked as G3, the circled goal.
+- **Candidate 4:** the range rule is decided (R rule kept, 2026-11-07). The transfer-module duplication is still open. Tracked as G4.
+- **Candidate 5** is deferred until G3 merges, per G5's trigger.
+
 ---
 
 ## Candidates
