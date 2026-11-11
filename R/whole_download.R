@@ -3,6 +3,7 @@
 
 #' @noRd
 .rxet_whole_download <- function(handle, file_hash, file_size, reader, ext = NULL,
+                           dest_path = NULL, keep = FALSE,
                            via = c("stream", "file")) {
   via <- match.arg(via)
   .rxet_check_handle(handle)
@@ -23,9 +24,13 @@
   } else {
     # A reader that needs a path gets the file straight from disk, so the bytes
     # are never held in R memory alongside the parsed object.
-    fileext <- if (is.null(ext)) "" else paste0(".", sub("^\\.", "", ext))
-    path <- tempfile(fileext = fileext)
-    on.exit(unlink(path), add = TRUE)
+    if (is.null(dest_path)) {
+      fileext <- if (is.null(ext)) "" else paste0(".", sub("^\\.", "", ext))
+      path <- tempfile(fileext = fileext)
+      if (!keep) on.exit(unlink(path), add = TRUE)
+    } else {
+      path <- dest_path
+    }
     xet_download_file(handle, file_hash, file_size, path)
     reader(path)
   }

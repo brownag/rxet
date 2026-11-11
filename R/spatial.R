@@ -7,6 +7,9 @@
 #' @param handle Character string handle from [xet_client_new()]
 #' @param file_hash Character string, the content hash of the raster file
 #' @param file_size Numeric scalar, total file size in bytes
+#' @param dest_path Optional character string, destination file path where the
+#'   raster file will be saved. When `NULL` (the default), a temporary file is
+#'   created in [tempdir()] and kept for the duration of the R session.
 #' @param ... Additional arguments passed to `terra::rast()`
 #'
 #' @return A SpatRaster object
@@ -14,10 +17,11 @@
 #' @details
 #' Uses the terra package (successor to raster) for reading raster files.
 #'
-#' **Whole-download:** the file is downloaded to a temporary file with
-#' [xet_download_file()], terra reads it, and all values are loaded before the
-#' temporary file is removed. The bytes are never held in R memory, so only the
-#' parsed raster counts against memory.
+#' **Whole-download:** the file is downloaded to a local file with
+#' [xet_download_file()]. When `dest_path` is provided, the raster references
+#' that file lazily. When `dest_path` is `NULL`, the file is left in `tempdir()`
+#' and is not deleted on exit, so lazy reads by `terra` continue to work after
+#' the helper returns.
 #'
 #' **Optional package:** `terra` is in Suggests and is checked with
 #' `requireNamespace()`.
@@ -49,6 +53,14 @@
 #'   file_size = 200e6
 #' )
 #'
+#' # Or download to a specific destination path
+#' dem2 <- read_xet_raster(
+#'   client,
+#'   file_hash = "geotiff-hash-abc123...",
+#'   file_size = 200e6,
+#'   dest_path = "/tmp/dem.tif"
+#' )
+#'
 #' # Crop to a region of interest
 #' dem_roi <- terra::crop(dem, terra::ext(100, 105, 20, 25))
 #' }
@@ -56,12 +68,28 @@
 #' @seealso [xet_stream_range()] for manual byte-range queries,
 #'   `terra::rast()` for raster operations
 #' @export
-read_xet_raster <- function(handle, file_hash, file_size, ...) {
+read_xet_raster <- function(handle, file_hash, file_size, dest_path = NULL, ...) {
   .rxet_require_pkg("terra", "read_xet_raster")
+
+  if (!is.null(dest_path)) {
+    .rxet_check_string(dest_path, "dest_path")
+    if (!nzchar(dest_path)) {
+      stop("`dest_path` must be a non-empty string", call. = FALSE)
+    }
+    if (dir.exists(dest_path)) {
+      stop(sprintf("dest_path is a directory, not a file: %s", dest_path))
+    }
+    dest_dir <- dirname(dest_path)
+    if (!dir.exists(dest_dir)) {
+      stop(sprintf("destination directory does not exist: %s", dest_dir))
+    }
+  }
 
   .rxet_whole_download(
     handle, file_hash, file_size,
-    reader = function(path) terra::unwrap(terra::wrap(terra::rast(path, ...))),
+    reader = function(path) terra::rast(path, ...),
+    dest_path = dest_path,
+    keep = TRUE,
     via = "file"
   )
 }
