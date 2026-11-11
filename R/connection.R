@@ -19,8 +19,11 @@
 #'    with Arrow, terra, sf/GDAL, and other packages that read from connections
 #'
 #' The whole file becomes one in-memory `raw()` vector, so the call needs that
-#' much free RAM. `seek()` works within that copy, but this is **not** remote
-#' range access: no bytes are fetched lazily from the endpoint.
+#' much free RAM. In addition, `rawConnection()` copies that vector when the
+#' connection is created, so peak RAM is roughly twice the file size during
+#' construction, and the copy is released on close. `seek()` works within that
+#' copy, but this is **not** remote range access: no bytes are fetched lazily
+#' from the endpoint.
 #'
 #' **Status:** Experimental pending live evidence.
 #'
