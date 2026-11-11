@@ -23,11 +23,16 @@
     if (is.null(dest_path)) {
       fileext <- if (is.null(ext)) "" else paste0(".", sub("^\\.", "", ext))
       path <- tempfile(fileext = fileext)
-      if (!keep) on.exit(unlink(path), add = TRUE)
+      success <- FALSE
+      on.exit({
+        if (!success || !keep) unlink(path)
+      }, add = TRUE)
     } else {
       path <- dest_path
     }
     xet_download_file(handle, file_hash, file_size, path)
-    reader(path)
+    res <- reader(path)
+    success <- TRUE
+    res
   }
 }

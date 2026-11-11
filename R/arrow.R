@@ -17,7 +17,7 @@
 #' This function:
 #' 1. Opens a seekable range connection with [xet_open_stream_connection()]
 #' 2. Passes it to `arrow::read_parquet()`, which seeks and reads as needed
-#' 3. Supports all Arrow read_parquet options (col_select, filters, schema, etc.)
+#' 3. Supports all Arrow read_parquet options (col_select, schema, etc.)
 #' 4. Arrow closes the connection after reading; this function closes it only
 #'    if reading fails
 #'

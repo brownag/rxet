@@ -77,7 +77,7 @@ bytes; a reader on top (Arrow, terra) adds its own.
 ### Parquet and geospatial files
 
 ``` r
-# Arrow; col_select and filters drive selective range reads
+# Arrow; col_select drives selective range reads
 df <- read_xet_parquet(client, file_hash = hash, file_size = size, col_select = c("id", "value"))
 
 # terra; downloads to a file, so the bytes stay off the R heap

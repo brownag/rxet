@@ -30,7 +30,7 @@ This function:
 \enumerate{
 \item Opens a seekable range connection with \code{\link[=xet_open_stream_connection]{xet_open_stream_connection()}}
 \item Passes it to \code{arrow::read_parquet()}, which seeks and reads as needed
-\item Supports all Arrow read_parquet options (col_select, filters, schema, etc.)
+\item Supports all Arrow read_parquet options (col_select, schema, etc.)
 \item Arrow closes the connection after reading; this function closes it only
 if reading fails
 }

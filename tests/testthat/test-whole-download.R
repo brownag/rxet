@@ -123,3 +123,27 @@ test_that("file mode with keep = TRUE does not unlink temp file on exit", {
   expect_equal(out, as.raw(1:5))
   expect_true(file.exists(seen))
 })
+
+test_that("file mode with keep = TRUE removes temp file if reader fails", {
+  testthat::local_mocked_bindings(
+    xet_download_file = function(handle, hash, file_size, dest_path) {
+      writeBin(as.raw(1:5), dest_path)
+      invisible(dest_path)
+    },
+    .package = "rxet"
+  )
+  seen <- NULL
+  expect_error(
+    .rxet_whole_download(
+      "h", "abc", 5,
+      reader = function(path) {
+        seen <<- path
+        stop("reader exploded")
+      },
+      keep = TRUE,
+      via = "file"
+    ),
+    "reader exploded"
+  )
+  expect_false(file.exists(seen))
+})
