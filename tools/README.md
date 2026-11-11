@@ -18,7 +18,7 @@ tools/sync/check-updates.sh models.json         # report upstream changes only
 
 ## Benchmarking
 
-`benchmark.R` times one sync run:
+`benchmark.R` times one sync run (real timing):
 
 ```bash
 Rscript tools/benchmark.R models.json
@@ -26,7 +26,7 @@ Rscript tools/benchmark.R models.json
 
 It prints total time, time per file, and counts of downloaded, skipped, and failed files. Use at least 10–50 files for a meaningful number.
 
-`benchmark-extended.R` breaks the same run into phases:
+`benchmark-extended.R` produces a synthetic estimate of phase latencies from simulated values, not a measurement of `models.json`:
 
 ```bash
 Rscript tools/benchmark-extended.R models.json
@@ -36,7 +36,7 @@ Rscript tools/benchmark-extended.R models.json --workers
 
 It reports metadata fetch, download, and cache-write latency, each with mean, median, p95, and min–max. `--memory` adds peak buffer and cache estimates. `--workers` adds a 1-worker versus 4-worker comparison.
 
-Both scripts read the config from `models.json` and sync into the configured `sync_dir`, so a benchmark writes real files. Clear that directory between runs if you want to measure cold downloads.
+`benchmark.R` reads the config from `models.json` and syncs into the configured `sync_dir`, so the benchmark writes real files. Clear that directory between runs if you want to measure cold downloads.
 
 ### Reading the output
 
