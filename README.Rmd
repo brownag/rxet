@@ -51,11 +51,7 @@ hash <- "9f2c1d..." # Merkle hash from the Hub file metadata
 size <- 1048576     # exact size in bytes
 
 xet_download_file(client, hash = hash, file_size = size, dest_path = "model.parquet")
-
-xet_client_close(client)
 ```
-
-Call `xet_client_close()` when you finish. In a function, register it with `on.exit()` so an error still releases the handle.
 
 ### Read into memory
 
@@ -77,26 +73,30 @@ There is no size cap. The `raw()` vector is allocated at full size before the do
 ### Parquet and geospatial files
 
 ```r
-# Arrow; only the footer and the selected columns are downloaded
+# Arrow; col_select and filters drive selective range reads
 df <- read_xet_parquet(client, file_hash = hash, file_size = size, col_select = c("id", "value"))
 
-# terra; downloads to a temp file, so the bytes stay off the R heap
+# terra; downloads to a file, so the bytes stay off the R heap
 dem <- read_xet_raster(client, file_hash = hash, file_size = size)
 
 # sf/GDAL; same, and single-file formats only, since the temp file has no extension
 v <- read_xet_vector(client, file_hash = hash, file_size = size, ext = "gpkg")
 ```
 
-`read_xet_parquet()` reads through `xet_open_stream_connection()`, a seekable connection that fetches Xet byte ranges on demand, so unselected columns are never transferred. The other two read the whole file before they return.
+`read_xet_parquet()` reads through `xet_open_stream_connection()`, a seekable connection that fetches Xet byte ranges on demand; unselected columns are not logically read, though aligned readahead may transfer some bytes. `read_xet_parquet()` streams; the raster and vector helpers download the whole file. `read_xet_raster()` also accepts a `dest_path = ` argument to save to a specific path instead of a session temporary file.
 
 ### Other streaming readers
 
 ```r
 conn <- xet_open_stream_connection(client, file_hash = hash, file_size = size)
 arrow::read_parquet(conn)   # or readBin(conn, "raw", 1024), seek(conn, ...)
+
+xet_client_close(client)
 ```
 
-The connection is binary and seekable. Each miss fetches a window of at least 1 MiB (larger while reads move forward, up to 16 MiB), aligned to 64 KiB, and up to 64 MiB of windows are kept per connection. A file with 40 columns where you read 3 transfers roughly the footer plus those 3 columns.
+Call `xet_client_close()` when you finish. In a function, register it with `on.exit()` so an error still releases the handle.
+
+The connection is binary and seekable. Each miss fetches a window of at least 1 MiB (larger while reads move forward, up to 16 MiB), aligned to 64 KiB, and up to 64 MiB of windows are kept per connection. A file with 40 columns where you read 3 transfers roughly the footer plus the chunks for those 3 columns, plus readahead.
 
 ## Configuration
 
@@ -134,7 +134,7 @@ Environment variables hf-xet reads when the argument is `NULL`:
 | `xet_open_connection(handle, file_hash, file_size)` | Whole file as an in-memory connection |
 | `xet_open_stream_connection(handle, file_hash, file_size)` | Seekable connection over Xet ranges |
 | `read_xet_parquet(handle, file_hash, file_size, ...)` | Read Parquet with arrow |
-| `read_xet_raster(handle, file_hash, file_size)` | Read a raster with terra |
+| `read_xet_raster(handle, file_hash, file_size, dest_path = NULL)` | Read a raster with terra |
 | `read_xet_vector(handle, file_hash, file_size, ext = NULL, ...)` | Read a vector file with sf |
 
 `xet_client_new()` and `xet_client_close()` are Supported. The other nine are Experimental; see the support status section.

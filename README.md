@@ -52,12 +52,7 @@ hash <- "9f2c1d..." # Merkle hash from the Hub file metadata
 size <- 1048576     # exact size in bytes
 
 xet_download_file(client, hash = hash, file_size = size, dest_path = "model.parquet")
-
-xet_client_close(client)
 ```
-
-Call `xet_client_close()` when you finish. In a function, register it
-with `on.exit()` so an error still releases the handle.
 
 ### Read into memory
 
@@ -82,18 +77,41 @@ bytes; a reader on top (Arrow, terra) adds its own.
 ### Parquet and geospatial files
 
 ``` r
-# Arrow; col_select and filters apply after the download
+# Arrow; col_select and filters drive selective range reads
 df <- read_xet_parquet(client, file_hash = hash, file_size = size, col_select = c("id", "value"))
 
-# terra; downloads to a temp file, so the bytes stay off the R heap
+# terra; downloads to a file, so the bytes stay off the R heap
 dem <- read_xet_raster(client, file_hash = hash, file_size = size)
 
 # sf/GDAL; same, and single-file formats only, since the temp file has no extension
 v <- read_xet_vector(client, file_hash = hash, file_size = size, ext = "gpkg")
 ```
 
-All three read the whole file before they return. They are not streaming
-helpers.
+`read_xet_parquet()` reads through `xet_open_stream_connection()`, a
+seekable connection that fetches Xet byte ranges on demand; unselected
+columns are not logically read, though aligned readahead may transfer
+some bytes. `read_xet_parquet()` streams; the raster and vector helpers
+download the whole file. `read_xet_raster()` also accepts a
+`dest_path = ` argument to save to a specific path instead of a
+session temporary file.
+
+### Other streaming readers
+
+``` r
+conn <- xet_open_stream_connection(client, file_hash = hash, file_size = size)
+arrow::read_parquet(conn)   # or readBin(conn, "raw", 1024), seek(conn, ...)
+
+xet_client_close(client)
+```
+
+Call `xet_client_close()` when you finish. In a function, register it
+with `on.exit()` so an error still releases the handle.
+
+The connection is binary and seekable. Each miss fetches a window of at
+least 1 MiB (larger while reads move forward, up to 16 MiB), aligned to
+64 KiB, and up to 64 MiB of windows are kept per connection. A file with
+40 columns where you read 3 transfers roughly the footer plus the chunks
+for those 3 columns, plus readahead.
 
 ## Configuration
 
@@ -126,21 +144,22 @@ Environment variables hf-xet reads when the argument is `NULL`:
 
 ## API
 
-| Function                                                               | Purpose                             |
-|------------------------------------------------------------------------|-------------------------------------|
-| `xet_client_new(endpoint, token, timeout_sec, cache_bytes, high_perf)` | Create a handle                     |
-| `xet_client_close(handle)`                                             | Release a handle                    |
-| `xet_download_file(handle, hash, file_size, dest_path)`                | Download to disk                    |
-| `xet_upload_file(handle, src_path)`                                    | Upload a file, return hash and size |
-| `xet_stream_raw(handle, file_hash, file_size)`                         | Whole file as `raw()`               |
-| `xet_stream_range(handle, file_hash, file_size, start_byte, end_byte)` | Byte range as `raw()`               |
-| `xet_open_connection(handle, file_hash, file_size)`                    | Downloaded bytes as an R connection |
-| `read_xet_parquet(handle, file_hash, file_size, ...)`                  | Read Parquet with arrow             |
-| `read_xet_raster(handle, file_hash, file_size)`                        | Read a raster with terra            |
-| `read_xet_vector(handle, file_hash, file_size, ext = NULL, ...)`       | Read a vector file with sf          |
+| Function                                                               | Purpose                                |
+|------------------------------------------------------------------------|----------------------------------------|
+| `xet_client_new(endpoint, token, timeout_sec, cache_bytes, high_perf)` | Create a handle                        |
+| `xet_client_close(handle)`                                             | Release a handle                       |
+| `xet_download_file(handle, hash, file_size, dest_path)`                | Download to disk                       |
+| `xet_upload_file(handle, src_path)`                                    | Upload a file, return hash and size    |
+| `xet_stream_raw(handle, file_hash, file_size)`                         | Whole file as `raw()`                  |
+| `xet_stream_range(handle, file_hash, file_size, start_byte, end_byte)` | Byte range as `raw()`                  |
+| `xet_open_connection(handle, file_hash, file_size)`                    | Whole file as an in-memory connection  |
+| `xet_open_stream_connection(handle, file_hash, file_size)`             | Seekable connection over Xet ranges    |
+| `read_xet_parquet(handle, file_hash, file_size, ...)`                  | Read Parquet with arrow                |
+| `read_xet_raster(handle, file_hash, file_size, dest_path = NULL)`      | Read a raster with terra               |
+| `read_xet_vector(handle, file_hash, file_size, ext = NULL, ...)`       | Read a vector file with sf             |
 
 `xet_client_new()` and `xet_client_close()` are Supported. The other
-eight are Experimental; see the support status section.
+nine are Experimental; see the support status section.
 
 ## Architecture
 
@@ -159,6 +178,11 @@ Memory: `xet_stream_raw()`, `xet_stream_range()`, and
 `xet_open_connection()` hold the bytes in one R vector.
 `xet_download_file()` writes straight to disk, and `read_xet_raster()`
 and `read_xet_vector()` use it, so their bytes never enter R memory.
+`xet_open_stream_connection()` holds only its readahead windows.
+
+The lazy connection needs a custom R connection type, because R has no
+way to define one from R code. That class lives in `src/connection.c`;
+its read callback calls back into Rust through `xet_reader_read()`.
 
 ## Benchmarking
 
@@ -194,12 +218,13 @@ CI. Public CI runs the local-server suite.
 
 ## Support status
 
-| Function                                                    | Tier         |
-|-------------------------------------------------------------|--------------|
-| `xet_client_new`, `xet_client_close`                        | Supported    |
-| `xet_download_file`, `xet_upload_file`                      | Experimental |
-| `xet_stream_raw`, `xet_stream_range`, `xet_open_connection` | Experimental |
-| `read_xet_parquet`, `read_xet_raster`, `read_xet_vector`    | Experimental |
+| Function                                                    | Tier                          |
+|-------------------------------------------------------------|-------------------------------|
+| `xet_client_new`, `xet_client_close`                        | Supported                     |
+| `xet_download_file`, `xet_upload_file`                      | Experimental                  |
+| `xet_stream_raw`, `xet_stream_range`, `xet_open_connection` | Experimental                  |
+| `xet_open_stream_connection`                                | Experimental (needs R >= 4.3) |
+| `read_xet_parquet`, `read_xet_raster`, `read_xet_vector`    | Experimental                  |
 
 Experimental functions are exported and usable. They are covered by the
 offline and local-server suites; the transfer functions also by the

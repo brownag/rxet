@@ -3,6 +3,8 @@
 - The package now requires R >= 4.3.0 (`Depends`), because the streaming
   connection uses `R_new_custom_connection()`. The R-side version guard and the
   pre-4.3 C stub are removed.
+- `read_xet_raster()` gains an optional `dest_path` argument and preserves the
+  downloaded file so `terra` lazy reads remain valid after the function returns.
 
 # rxet 0.3.0
 
