@@ -12,3 +12,4 @@ Living catalog of enduring decisions for `rxet`. Source context refers to the
 | [0005](0005-remove-in-memory-cap.md) | Remove the 2 GiB in-memory cap and hold in-memory reads to one copy of the file | Accepted | 2026-11-01 | D2 in EXECUTION_PLAN_4 (cap only) | - | ad hoc |
 | [0006](0006-lazy-range-streaming-connection.md) | Stream byte ranges on demand through a custom R connection, and read Parquet through it | Accepted | 2026-11-01 | - | - | ad hoc |
 | [0007](0007-close-releases-reader-and-size-owned-by-reader.md) | Close releases the reader at once, and the Rust reader owns the file size | Accepted | 2026-11-07 | - | - | EXECUTION_PLAN_13 |
+| [0008](0008-require-r-4-3-for-the-package.md) | Require R >= 4.3.0 for the whole package | Accepted (amends 0006) | 2026-11-09 | - | - | GOALS G3 |

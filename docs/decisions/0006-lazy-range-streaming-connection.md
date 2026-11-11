@@ -1,7 +1,7 @@
 # 0006. Lazy range streaming through a custom R connection
 
 - **Status:** Accepted
-- **Amended by 0007 (decision 4)**
+- **Amended by 0007 (decision 4), 0008 (R floor)**
 - **Date:** 2026-11-01
 - **Supersedes:** none
 - **Superseded by:** none
@@ -62,8 +62,9 @@ Measured against the local CAS server, 21-column, 34 MB Parquet:
   per window, so a 2 KB footer read on a 100 KB file fetches 1 MiB.
 - Only 64 MiB of windows are cached, so columns read far apart refetch from
   scratch unless the hf-xet chunk cache still holds the xorb bytes.
-- The new function needs R >= 4.3.0. The package still builds on older R; the
-  constructor errors there and everything else is unaffected.
+- The new function needs R >= 4.3.0. Amended by ADR 0008: the whole package
+  now requires R >= 4.3.0, so the constructor has no version guard.
 - `src/connection.c` uses `R_ext/Connections.h`, which R marks as not part of
-  its API and not guaranteed to stay compatible. The file is guarded by
-  `R_VERSION >= R_Version(4, 3, 0)` and a fallback stub.
+  its API and not guaranteed to stay compatible. The file was guarded by
+  `R_VERSION >= R_Version(4, 3, 0)` with a fallback stub. Both were removed
+  under ADR 0008.

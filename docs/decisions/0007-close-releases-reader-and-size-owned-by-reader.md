@@ -50,7 +50,8 @@ had two sources of truth for one value.
   connections that are never closed.
 - The binding signature changes from `(read_fun, file_size)` to
   `(read_fun, close_fun, reader_handle)`.
-- The R < 4.3.0 `#else` stub in `src/connection.c` uses the same new signature.
+- The pre-4.3 `#else` stub in `src/connection.c` used the same new signature.
+  It was removed when the package floor became R 4.3.0 (ADR 0008).
 - `rxet_memory_reader_open` is internal. It is not exported.
 - The R-level behavior of `xet_open_stream_connection()` is unchanged.
 - The Rust binding names changed in commit 892ef3a. Any code that called the
