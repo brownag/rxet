@@ -27,15 +27,15 @@ in memory. This vector can be passed to \code{\link[=xet_open_connection]{xet_op
 to create an R connection, or used directly with downstream functions
 like \code{arrow::read_parquet()} via a temporary file.
 
-\code{file_size} must be a finite whole number of bytes, and at most 2^31 - 1
-bytes (2 GiB). Larger files error before any network access; use
-\code{\link[=xet_download_file]{xet_download_file()}} instead.
+\code{file_size} must be a finite whole number of bytes. The \code{raw()} vector is
+allocated before the download starts, so a request larger than available
+memory fails before any network access.
 
 \strong{Status:} Experimental pending live evidence.
 }
 \examples{
 \dontrun{
-client <- xet_client_new("https://cas-cf.huggingface.co", "token")
+client <- xet_client_new("https://cas-server.xethub.hf.co", "token")
 on.exit(xet_client_close(client))
 
 # Download entire 1GB file into memory

@@ -16,289 +16,192 @@ knitr::opts_chunk$set(
 <!-- badges: start -->
 <!-- badges: end -->
 
-rxet provides native access to files stored in [Hugging Face Hub](https://huggingface.co/) using Xet's content-addressed storage engine. A download buffers the whole file through a single blocking Rust client bound to R, then hands the bytes back to R — either as a `raw()` vector in memory or written to a destination path on disk. Disk downloads go to a temporary file beside the destination and are renamed into place only on success, so a failed download leaves an existing file untouched.
+rxet reads files from [Hugging Face Hub](https://huggingface.co/) through Xet, the Hub's content-addressed storage engine. A single blocking Rust client, bound to R with extendr, fetches the bytes and returns them to R. Downloads to disk land in a temporary file beside `dest_path` and are renamed into place only on success, so a failed download leaves an existing file untouched.
 
-## Key Features
-
-- **Native Rust client** bound to R via extendr (no Python bridge)
-- **Whole-file downloads** into R memory (`raw()`) or to a destination path on disk
-- **Ecosystem helpers** that wrap downloaded bytes for Arrow, terra, and sf/GDAL
-- **Handle-based sessions** keyed by a character UUID and released with `xet_client_close()`
+Every call blocks the calling R thread. There is no async API.
 
 ## Installation
 
-### From source
-
-Prerequisites:
-
-- R (>= 4.2)
-- Rust toolchain (>= 1.85.0), installed from [rustup.rs](https://rustup.rs/)
-- Cargo (included with the Rust toolchain)
-- Network access to crates.io on the first build, which compiles the Rust `hf-xet` client
-
-From a source checkout, run:
+Needs R >= 4.3 and Rust >= 1.85 (from [rustup.rs](https://rustup.rs/)). The first build downloads and compiles the `hf-xet` crate, which takes several minutes.
 
 ```sh
 R CMD INSTALL .
 ```
 
-Alternatively, from an R session in the checkout:
-
-```r
-# Build and install
-devtools::install()
-
-# Or run tests first
-devtools::test()
-```
-
 ## Authentication
 
-rxet uses the bearer token you pass to `xet_client_new()`. The examples read it from the `HF_TOKEN` environment variable. Set `HF_TOKEN` in your session or in `~/.Renviron`, not in code you commit. rxet does not write the token into its error output; the token-expiry fault test checks this.
+The CAS server rejects a raw Hub token. Call the Hub's `xet-read-token` endpoint with your Hub token and pass the `accessToken` it returns, along with its `casUrl`. Both expire, so fetch them per session.
+
+rxet never writes the token into an error message.
 
 ## Quick Start
 
-### Initialize a client and download
+Get three things from the Hub before you call rxet: the CAS endpoint, the file's Merkle hash, and its exact byte size. The endpoint and short-lived token come from the Hub's `xet-read-token` endpoint (`casUrl` and `accessToken` in the JSON reply); the hash and size come from the file metadata.
 
 ```r
 library(rxet)
 
-# Set token (from https://huggingface.co/settings/tokens)
-Sys.setenv(HF_TOKEN = "hf_...")
+# From the Hub's xet-read-token response
+endpoint <- "https://cas-server.xethub.hf.co"
+cas_token <- "<accessToken>"
 
-# Connect to Xet storage
-client <- xet_client_new(
-  "https://cas-cf.huggingface.co",
-  Sys.getenv("HF_TOKEN")
-)
-on.exit(xet_client_close(client))
+client <- xet_client_new(endpoint, cas_token)
 
-# Download a file to disk
-xet_download_file(
-  client,
-  hash = "abc123def456...",
-  file_size = 1.5e9,
-  dest_path = "./model.safetensors"
-)
+hash <- "9f2c1d..." # Merkle hash from the Hub file metadata
+size <- 1048576     # exact size in bytes
+
+xet_download_file(client, hash = hash, file_size = size, dest_path = "model.parquet")
 ```
 
-### Stream into memory
+### Read into memory
 
 ```r
-# Download the whole file into R as a raw() vector (no disk copy)
-data <- xet_stream_raw(client, file_hash = "abc123...", file_size = 5e9)
-```
+bytes <- xet_stream_raw(client, file_hash = hash, file_size = size)
 
-### Random-access download
-
-```r
-# Download only the bytes in [start_byte, end_byte) of a 10GB file
-chunk <- xet_stream_range(
+# Or a byte range: [start_byte, end_byte), 0-indexed
+footer <- xet_stream_range(
   client,
-  file_hash = "abc123...",
-  file_size = 1e10,
-  start_byte = 4.75e9,
-  end_byte = 5.25e9
+  file_hash = hash,
+  file_size = size,
+  start_byte = size - 65536,
+  end_byte = size
 )
 ```
 
-The return value is a `raw()` vector containing the requested byte range.
+There is no size cap. The `raw()` vector is allocated at full size before the download starts, so a file that does not fit fails immediately instead of part way through. rxet holds one copy of the bytes; a reader on top (Arrow, terra) adds its own.
 
-### Read Parquet directly
-
-```r
-library(arrow)
-
-df <- read_xet_parquet(
-  client,
-  file_hash = "parquet_hash...",
-  file_size = 2.5e9,
-  col_select = c("user_id", "timestamp", "value")
-)
-```
-
-The whole file is downloaded into memory first, then parsed by Arrow.
-
-### Read geospatial data
+### Parquet and geospatial files
 
 ```r
-library(terra)
+# Arrow; col_select drives selective range reads
+df <- read_xet_parquet(client, file_hash = hash, file_size = size, col_select = c("id", "value"))
 
-# Read GeoTIFF directly from Xet
-dem <- read_xet_raster(
-  client,
-  file_hash = "geotiff_hash...",
-  file_size = 3.2e9
-)
+# terra; downloads to a file, so the bytes stay off the R heap
+dem <- read_xet_raster(client, file_hash = hash, file_size = size)
 
-# Crop to region of interest
-roi <- terra::ext(c(100, 105, 20, 25))
-dem_roi <- terra::crop(dem, roi)
+# sf/GDAL; same, and single-file formats only, since the temp file has no extension
+v <- read_xet_vector(client, file_hash = hash, file_size = size, ext = "gpkg")
 ```
+
+`read_xet_parquet()` reads through `xet_open_stream_connection()`, a seekable connection that fetches Xet byte ranges on demand; unselected columns are not logically read, though aligned readahead may transfer some bytes. `read_xet_parquet()` streams; the raster and vector helpers download the whole file. `read_xet_raster()` also accepts a `dest_path = ` argument to save to a specific path instead of a session temporary file.
+
+### Other streaming readers
+
+```r
+conn <- xet_open_stream_connection(client, file_hash = hash, file_size = size)
+arrow::read_parquet(conn)   # or readBin(conn, "raw", 1024), seek(conn, ...)
+
+xet_client_close(client)
+```
+
+Call `xet_client_close()` when you finish. In a function, register it with `on.exit()` so an error still releases the handle.
+
+The connection is binary and seekable. Each miss fetches a window of at least 1 MiB (larger while reads move forward, up to 16 MiB), aligned to 64 KiB, and up to 64 MiB of windows are kept per connection. A file with 40 columns where you read 3 transfers roughly the footer plus the chunks for those 3 columns, plus readahead.
 
 ## Configuration
 
-### Per-client settings
-
-Set client behavior when you create the client:
+Set timeouts, cache size, and the performance preset when you create the client:
 
 ```r
 client <- xet_client_new(
-  endpoint, token,
-  timeout_sec = 600,  # longer network read timeout for slow networks
-  cache_bytes = 0,    # disable the chunk cache for one-shot downloads
-  high_perf = TRUE    # hf-xet high-performance preset
+  endpoint, cas_token,
+  timeout_sec = 600, # network read timeout
+  cache_bytes = 0,   # disable the chunk cache
+  high_perf = TRUE   # hf-xet high-performance preset
 )
 ```
 
-Rules:
-- `NULL` for `timeout_sec` or `cache_bytes` (the default) leaves hf-xet's value alone, so the `HF_XET_*` environment variable or hf-xet's default applies.
-- An explicit argument overrides the environment for the field it sets.
-- `high_perf = TRUE` raises concurrency and download buffer sizes. It does not change the cache. It is applied after the environment, so it overrides `HF_XET_*` values for the fields it sets.
+- `NULL` (the default) for `timeout_sec` or `cache_bytes` leaves the hf-xet value alone, so the matching environment variable or the built-in default applies.
+- An explicit argument overrides the environment variable for the field it sets.
+- `high_perf = TRUE` raises concurrency and download buffer sizes. It does not touch the cache, and it overrides the environment because it is applied last.
 
-Environment variables hf-xet reads when the matching argument is `NULL`:
-- `HF_XET_CLIENT_READ_TIMEOUT` — Network read timeout (default 300s)
-- `HF_XET_CHUNK_CACHE_SIZE_BYTES` — Chunk cache size (default 10 GiB)
-- `HF_XET_HIGH_PERFORMANCE` — High-performance preset (default false)
+Environment variables hf-xet reads when the argument is `NULL`:
 
-## Performance
+- `HF_XET_CLIENT_READ_TIMEOUT`: network read timeout, default 300s
+- `HF_XET_CHUNK_CACHE_SIZE_BYTES`: chunk cache size, default 10 GiB
+- `HF_XET_HIGH_PERFORMANCE`: performance preset, default `false`
 
-rxet makes no throughput or concurrency claims. Each handle holds a single blocking client, and calls are serialized; caching and network behaviour come from the underlying Xet engine. `tools/README.md` describes how to benchmark your own workload.
+## API
 
-## Benchmarking
+| Function | Purpose |
+|---|---|
+| `xet_client_new(endpoint, token, timeout_sec, cache_bytes, high_perf)` | Create a handle |
+| `xet_client_close(handle)` | Release a handle |
+| `xet_download_file(handle, hash, file_size, dest_path)` | Download to disk |
+| `xet_upload_file(handle, src_path)` | Upload a file, return hash and size |
+| `xet_stream_raw(handle, file_hash, file_size)` | Whole file as `raw()` |
+| `xet_stream_range(handle, file_hash, file_size, start_byte, end_byte)` | Byte range as `raw()` |
+| `xet_open_connection(handle, file_hash, file_size)` | Whole file as an in-memory connection |
+| `xet_open_stream_connection(handle, file_hash, file_size)` | Seekable connection over Xet ranges |
+| `read_xet_parquet(handle, file_hash, file_size, ...)` | Read Parquet with arrow |
+| `read_xet_raster(handle, file_hash, file_size, dest_path = NULL)` | Read a raster with terra |
+| `read_xet_vector(handle, file_hash, file_size, ext = NULL, ...)` | Read a vector file with sf |
 
-Measure behavior on your workload:
-
-```bash
-# Basic benchmark
-Rscript tools/benchmark.R models.json
-
-# Detailed latency breakdown
-Rscript tools/benchmark-extended.R models.json
-
-# Memory and worker scaling analysis
-Rscript tools/benchmark-extended.R models.json --memory --workers
-```
-
-See `tools/README.md` for interpretation guide.
-
-## API Reference
-
-### Client Management
-
-- `xet_client_new(endpoint, token, timeout_sec, cache_bytes, high_perf)` — Initialize a client handle
-- `xet_client_close(handle)` — Release a client handle
-
-### Download and upload
-
-- `xet_download_file(handle, hash, file_size, dest_path)` — Download a file to disk
-- `xet_upload_file(handle, src_path)` — Upload a local file
-- `xet_stream_raw(handle, file_hash, file_size)` — Download a whole file into memory as `raw()`
-- `xet_stream_range(handle, file_hash, file_size, start_byte, end_byte)` — Download `[start_byte, end_byte)` as `raw()`
-
-### Connections
-
-- `xet_open_connection(handle, file_hash, file_size)` — Wrap downloaded bytes in an R connection. Close it with `close()`.
-
-### Integrations
-
-- `read_xet_parquet(handle, file_hash, file_size, ...)` — Arrow/Parquet
-- `read_xet_raster(handle, file_hash, file_size, ...)` — Raster (terra)
-- `read_xet_vector(handle, file_hash, file_size, ext = NULL, ...)` — Vector (sf/GDAL)
+`xet_client_new()` and `xet_client_close()` are Supported. The other nine are Experimental; see the support status section.
 
 ## Architecture
 
-rxet is built in three layers:
+Three layers:
 
-1. **Rust** (`src/rust/src/lib.rs`) — Core Xet client and download pipeline
-2. **C bindings** (`src/rust/src/lib.rs` → extendr) — FFI to R
-3. **R wrappers** (`R/*.R`) — High-level API, validation, ecosystem integration
+1. Rust (`src/rust/src/lib.rs`): the Xet client and download pipeline.
+2. extendr bindings (`src/rust/src/lib.rs`): FFI to R.
+3. R wrappers (`R/*.R`): argument checks and optional-package helpers.
 
-**Design principles:**
-- Panic recovery via `std::panic::catch_unwind()`
-- Synchronous design: each network operation calls xet-core's `*.blocking()` API on the calling R thread
-- A `Registry<T>` (`src/rust/src/registry.rs`) maps each character UUID handle to its client behind a mutex, and reports a poisoned lock as an error rather than as an unknown handle
-- Whole-file buffering: `xet_download_file()` materializes the complete file on disk, while `xet_stream_raw()` and `xet_open_connection()` buffer the whole file in memory. `xet_stream_range()` requests only the given byte range. In-memory reads are capped at 2 GiB (2^31 − 1 bytes) and error above that, so use `xet_download_file()` for larger files
+Handles are UUID strings. A `Registry<T>` (`src/rust/src/registry.rs`) maps each handle to its client behind a mutex, and reports a poisoned lock as an error rather than as an unknown handle. Panics are caught with `std::panic::catch_unwind()`.
+
+Memory: `xet_stream_raw()`, `xet_stream_range()`, and `xet_open_connection()` hold the bytes in one R vector. `xet_download_file()` writes straight to disk, and `read_xet_raster()` and `read_xet_vector()` use it, so their bytes never enter R memory. `xet_open_stream_connection()` holds only its readahead windows.
+
+The lazy connection needs a custom R connection type, because R has no way to define one from R code. That class lives in `src/connection.c`; its read callback calls back into Rust through `xet_reader_read()`.
+
+## Benchmarking
+
+rxet makes no throughput claims. Measure your own workload:
+
+```sh
+Rscript tools/benchmark.R models.json
+Rscript tools/benchmark-extended.R models.json --memory --workers
+```
+
+See `tools/README.md`.
 
 ## Testing
-
-Routine offline suite (no credentials, no server, no network):
 
 ```r
 devtools::test()
 ```
 
-Fault tests (always run, offline): `test-fault-midstream.R` and `test-fault-token.R` use a loopback fault server (127.0.0.1, run in a processx child process, helper `helper-fault-cas.R`). They need no `RXET_LOCAL_CAS_SERVER`, no network and no `HF_TOKEN`. The mid-stream test ends the response body early and expects an error, no destination file and no `.part` file. The token-expiry test answers 401 and checks that the token does not appear in the error. Real token expiry is checked manually and is never waited for. These files skip only when the compiled extension is absent.
+The routine suite runs offline. Fault tests (`test-fault-midstream.R`, `test-fault-token.R`) start a loopback fault server in a `processx` child process and need no token or network. Upload and round-trip tests need the upstream `local_cas_server`:
 
-Local-server tests (uploads and local round trips) run against the upstream `local_cas_server`. Install it with `cargo install xet-client --version 1.7.0 --features simulation --bin local_cas_server --locked`, then set `RXET_LOCAL_CAS_SERVER` to the binary path. Without it, these tests skip.
+```sh
+cargo install xet-client --version 1.7.0 --features simulation --bin local_cas_server --locked
+export RXET_LOCAL_CAS_SERVER="$(command -v local_cas_server)"
+```
 
-Live tests are on demand only and never run in public CI. They require `RXET_LIVE_TESTS=1` and `HF_TOKEN` (fine-grained read on the dataset `brownag/rxet-test-data`). Without `HF_TOKEN` they fail rather than skip. The live fixtures are `multichunk_16mib.bin` and `geotiff_512x512_utm33n.tif` at the top level of that dataset.
-
-Public CI runs the local-server suite and never the live suite.
-
-## FAQ
-
-**Q: Does rxet require an internet connection?**
-A: Yes, for real downloads from Hugging Face Hub. The routine test suite runs offline without a network connection.
-
-**Q: Can I use rxet with private repositories?**
-A: Yes, if your token grants access to the repository. `xet_client_new(endpoint, token)` takes the bearer token explicitly, so pass `Sys.getenv("HF_TOKEN")` (or another token with repo access) when creating the client.
-
-**Q: How does byte-range download work?**
-A: `xet_stream_range()` returns the requested bytes as a `raw()` vector. The Xet client resolves the content for the requested `[start_byte, end_byte)` range; rxet performs no chunk-level scheduling of its own.
-
-**Q: What file formats are supported?**
-A: Any file that Xet Hub stores. Common: `.safetensors`, `.parquet`, `.tar.gz`, GeoTIFF, netCDF, etc.
-
-**Q: How much does caching help?**
-A: Caching behaviour is controlled by the underlying Xet client through `HF_XET_CHUNK_CACHE_SIZE_BYTES`. Set `cache_bytes = 0` to disable the cache, or leave the default in place for repeated access.
-
-**Q: Can I use this in Shiny apps?**
-A: rxet calls are synchronous and block the calling R thread. In a standard single-threaded Shiny app that is workable if long downloads are kept off the UI path. Do not assume the client is safe for concurrent use from multiple R threads, and always release handles with `on.exit(xet_client_close(...))`. `xet_client_close()` invalidates a handle immediately: later calls on it error, while an operation already in flight finishes normally.
+Without it, those tests skip. Live tests are off by default; they need `RXET_LIVE_TESTS=1` and `HF_TOKEN` with read access to `brownag/rxet-test-data`, and they run only on demand, never in public CI. Public CI runs the local-server suite.
 
 ## Support status
 
-rxet documents two tiers of API. All 10 exported functions are listed; the split reflects available evidence, not intent.
+| Function | Tier |
+|---|---|
+| `xet_client_new`, `xet_client_close` | Supported |
+| `xet_download_file`, `xet_upload_file` | Experimental |
+| `xet_stream_raw`, `xet_stream_range`, `xet_open_connection` | Experimental |
+| `xet_open_stream_connection` | Experimental (needs R >= 4.3) |
+| `read_xet_parquet`, `read_xet_raster`, `read_xet_vector` | Experimental |
 
-**Supported:**
-
-- `xet_client_new` — create a client handle
-- `xet_client_close` — release a client handle
-
-**Experimental (pending live evidence):**
-
-- `xet_download_file` — download a file to a destination path
-- `xet_upload_file` — upload a local file
-- `xet_stream_raw` — download a whole file into a `raw()` vector (in memory; 2 GiB cap)
-- `xet_stream_range` — download a byte range into a `raw()` vector (in memory; 2 GiB cap)
-- `xet_open_connection` — expose downloaded bytes as an R connection (in memory; 2 GiB cap)
-- `read_xet_parquet` — experimental helper; read a Parquet file through Arrow from an in-memory connection (2 GiB cap)
-- `read_xet_raster` — experimental helper; downloads the whole file to a temporary file, then reads it through terra
-- `read_xet_vector` — experimental helper; downloads the whole file to a temporary file, then reads it through sf/GDAL (single-file formats only)
-
-The experimental functions are exported and usable. The transfer functions are exercised by the on-demand live suite, and all of them by the offline and local-server suites; public CI never runs the live suite. The optional helpers read whole files: they are not streaming, and in-memory reads are capped at 2 GiB. Use `xet_download_file()` for larger files.
+Experimental functions are exported and usable. They are covered by the offline and local-server suites; the transfer functions also by the on-demand live suite. The tier reflects the evidence available, not an intent to change the API.
 
 See [NEWS.md](NEWS.md) for release notes.
 
 ## Contributing
 
-Contributions welcome! Please:
-
-1. Fork the repository
-2. Create a feature branch
-3. Add tests in `tests/testthat/`
-4. Ensure `devtools::check()` passes
-5. Submit a pull request
+Fork, branch, add tests under `tests/testthat/`, make sure `devtools::check()` passes, then open a pull request.
 
 ## License
 
-Licensed under Apache 2.0. See the LICENSE.md file.
+Apache 2.0. See [LICENSE.md](LICENSE.md).
 
 ## Resources
 
-- [Hugging Face Xet Documentation](https://huggingface.co/docs/hub/xet/index) — Official Xet storage engine docs
-- [Hugging Face Hub](https://huggingface.co/) — Model and dataset hosting
-
-## Acknowledgments
-
-Built with [extendr](https://extendr.github.io/), [Tokio](https://tokio.rs/), and [Arrow](https://arrow.apache.org/).
+- [Xet documentation](https://huggingface.co/docs/hub/xet/index)
+- [Hugging Face Hub](https://huggingface.co/)

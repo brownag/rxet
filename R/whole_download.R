@@ -3,16 +3,13 @@
 
 #' @noRd
 .rxet_whole_download <- function(handle, file_hash, file_size, reader, ext = NULL,
-                           via = c("connection", "file")) {
+                           dest_path = NULL, keep = FALSE,
+                           via = c("stream", "file")) {
   via <- match.arg(via)
-  .rxet_check_handle(handle)
-  .rxet_check_hash(file_hash)
-  .rxet_check_file_size(file_size, in_memory = TRUE)
-
-  conn <- xet_open_connection(handle, file_hash, file_size)
-
-  if (via == "connection") {
-    # Readers such as arrow close the connection themselves on success.
+  if (via == "stream") {
+    # A seekable connection over Xet ranges: only the bytes the reader asks for
+    # are fetched. Readers such as arrow close the connection themselves.
+    conn <- xet_open_stream_connection(handle, file_hash, file_size)
     tryCatch(
       reader(conn),
       error = function(e) {
@@ -21,12 +18,21 @@
       }
     )
   } else {
-    on.exit(tryCatch(close(conn), error = function(e) NULL), add = TRUE)
-    bytes <- readBin(conn, "raw", file_size)
-    fileext <- if (is.null(ext)) "" else paste0(".", sub("^\\.", "", ext))
-    path <- tempfile(fileext = fileext)
-    on.exit(unlink(path), add = TRUE)
-    writeBin(bytes, path)
-    reader(path)
+    # A reader that needs a path gets the file straight from disk, so the bytes
+    # are never held in R memory alongside the parsed object.
+    if (is.null(dest_path)) {
+      fileext <- if (is.null(ext)) "" else paste0(".", sub("^\\.", "", ext))
+      path <- tempfile(fileext = fileext)
+      success <- FALSE
+      on.exit({
+        if (!success || !keep) unlink(path)
+      }, add = TRUE)
+    } else {
+      path <- dest_path
+    }
+    xet_download_file(handle, file_hash, file_size, path)
+    res <- reader(path)
+    success <- TRUE
+    res
   }
 }

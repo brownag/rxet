@@ -4,7 +4,7 @@
 \alias{read_xet_raster}
 \title{Read a raster file from Xet storage using terra}
 \usage{
-read_xet_raster(handle, file_hash, file_size, ...)
+read_xet_raster(handle, file_hash, file_size, ..., dest_path = NULL)
 }
 \arguments{
 \item{handle}{Character string handle from \code{\link[=xet_client_new]{xet_client_new()}}}
@@ -14,6 +14,10 @@ read_xet_raster(handle, file_hash, file_size, ...)
 \item{file_size}{Numeric scalar, total file size in bytes}
 
 \item{...}{Additional arguments passed to \code{terra::rast()}}
+
+\item{dest_path}{Optional character string, destination file path where the
+raster file will be saved. When \code{NULL} (the default), a temporary file is
+created in \code{\link[=tempdir]{tempdir()}} and kept for the duration of the R session.}
 }
 \value{
 A SpatRaster object
@@ -26,20 +30,16 @@ whole-download helper.
 \details{
 Uses the terra package (successor to raster) for reading raster files.
 
-\strong{Whole-download:} the file is downloaded into memory and written to a
-temporary file. terra reads it, and all values are loaded into memory
-(\code{terra::unwrap(terra::wrap(...))}) before the temporary file is removed.
-The whole file is read into memory, which holds about one copy of the
-bytes, and a parsed raster is returned.
-
-\strong{2 GiB limit:} files larger than 2 GiB (2147483647 bytes) are refused by
-\code{\link[=xet_open_connection]{xet_open_connection()}} before any network call. The error names
-\code{xet_download_file()}.
+\strong{Whole-download:} the file is downloaded to a local file with
+\code{\link[=xet_download_file]{xet_download_file()}}. When \code{dest_path} is provided, the raster references
+that file lazily. When \code{dest_path} is \code{NULL}, the file is left in \code{tempdir()}
+and is not deleted on exit, so lazy reads by \code{terra} continue to work after
+the helper returns.
 
 \strong{Optional package:} \code{terra} is in Suggests and is checked with
 \code{requireNamespace()}.
 
-\if{html}{\out{<div class="sourceCode r">}}\preformatted{dem <- read_xet_raster(client, "geotiff-hash", 2e9)
+\if{html}{\out{<div class="sourceCode r">}}\preformatted{dem <- read_xet_raster(client, "geotiff-hash", 200e6)
 cropped <- terra::crop(dem, terra::ext(100, 110, 40, 50))
 }\if{html}{\out{</div>}}
 
@@ -57,25 +57,26 @@ cropped <- terra::crop(dem, terra::ext(100, 110, 40, 50))
 \dontrun{
 library(terra)
 
-client <- xet_client_new("https://cas-cf.huggingface.co", "token")
+client <- xet_client_new("https://cas-server.xethub.hf.co", "token")
 on.exit(xet_client_close(client))
 
-# Read Copernicus DEM
+# Read a GeoTIFF; file_hash and file_size come from the Hub file metadata
 dem <- read_xet_raster(
   client,
-  file_hash = "copernicus-dem-hash",
-  file_size = 4e9
+  file_hash = "geotiff-hash-abc123...",
+  file_size = 200e6
 )
 
-# Crop to region of interest
-roi <- terra::ext(c(100, 105, 20, 25))  # lon/lat bounds
-dem_roi <- terra::crop(dem, roi)
+# Or download to a specific destination path
+dem2 <- read_xet_raster(
+  client,
+  file_hash = "geotiff-hash-abc123...",
+  file_size = 200e6,
+  dest_path = "/tmp/dem.tif"
+)
 
-# Resample to coarser resolution
-dem_coarse <- terra::aggregate(dem_roi, 10)
-
-# Extract elevation profile
-profile <- terra::extract(dem_roi, xy = matrix(c(102.5, 102.5, 22.5, 23.5), ncol = 2))
+# Crop to a region of interest
+dem_roi <- terra::crop(dem, terra::ext(100, 105, 20, 25))
 }
 
 }

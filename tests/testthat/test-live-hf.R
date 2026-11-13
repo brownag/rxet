@@ -13,7 +13,7 @@ LIVE_HASH <- "4e99cb45a4ad980707548c95f5cc3dadb91e36889c68adbff641e56c53981331"
 LIVE_SIZE <- 2931
 LIVE_SHA256 <- "c25ed568c3f701e640a6d9db7495b8d989ee2f6dbaf3fc0ad2216c6d5cd28bf4"
 # CAS endpoint: the casUrl returned by GET /api/datasets/brownag/rxet-test-data/xet-read-token/main
-# (authenticated probe, 5.3.2). The package examples still show cas-cf.huggingface.co, which does not resolve.
+# (authenticated probe, 5.3.2).
 LIVE_ENDPOINT <- "https://cas-server.xethub.hf.co"
 
 # Fixtures uploaded by the user to brownag/rxet-test-data at the dataset top level

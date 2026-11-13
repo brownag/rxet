@@ -7,6 +7,9 @@
 #' @param handle Character string handle from [xet_client_new()]
 #' @param file_hash Character string, the content hash of the raster file
 #' @param file_size Numeric scalar, total file size in bytes
+#' @param dest_path Optional character string, destination file path where the
+#'   raster file will be saved. When `NULL` (the default), a temporary file is
+#'   created in [tempdir()] and kept for the duration of the R session.
 #' @param ... Additional arguments passed to `terra::rast()`
 #'
 #' @return A SpatRaster object
@@ -14,21 +17,17 @@
 #' @details
 #' Uses the terra package (successor to raster) for reading raster files.
 #'
-#' **Whole-download:** the file is downloaded into memory and written to a
-#' temporary file. terra reads it, and all values are loaded into memory
-#' (`terra::unwrap(terra::wrap(...))`) before the temporary file is removed.
-#' The whole file is read into memory, which holds about one copy of the
-#' bytes, and a parsed raster is returned.
-#'
-#' **2 GiB limit:** files larger than 2 GiB (2147483647 bytes) are refused by
-#' [xet_open_connection()] before any network call. The error names
-#' `xet_download_file()`.
+#' **Whole-download:** the file is downloaded to a local file with
+#' [xet_download_file()]. When `dest_path` is provided, the raster references
+#' that file lazily. When `dest_path` is `NULL`, the file is left in `tempdir()`
+#' and is not deleted on exit, so lazy reads by `terra` continue to work after
+#' the helper returns.
 #'
 #' **Optional package:** `terra` is in Suggests and is checked with
 #' `requireNamespace()`.
 #'
 #' ```r
-#' dem <- read_xet_raster(client, "geotiff-hash", 2e9)
+#' dem <- read_xet_raster(client, "geotiff-hash", 200e6)
 #' cropped <- terra::crop(dem, terra::ext(100, 110, 40, 50))
 #' ```
 #'
@@ -44,36 +43,53 @@
 #' \dontrun{
 #' library(terra)
 #'
-#' client <- xet_client_new("https://cas-cf.huggingface.co", "token")
+#' client <- xet_client_new("https://cas-server.xethub.hf.co", "token")
 #' on.exit(xet_client_close(client))
 #'
-#' # Read Copernicus DEM
+#' # Read a GeoTIFF; file_hash and file_size come from the Hub file metadata
 #' dem <- read_xet_raster(
 #'   client,
-#'   file_hash = "copernicus-dem-hash",
-#'   file_size = 4e9
+#'   file_hash = "geotiff-hash-abc123...",
+#'   file_size = 200e6
 #' )
 #'
-#' # Crop to region of interest
-#' roi <- terra::ext(c(100, 105, 20, 25))  # lon/lat bounds
-#' dem_roi <- terra::crop(dem, roi)
+#' # Or download to a specific destination path
+#' dem2 <- read_xet_raster(
+#'   client,
+#'   file_hash = "geotiff-hash-abc123...",
+#'   file_size = 200e6,
+#'   dest_path = "/tmp/dem.tif"
+#' )
 #'
-#' # Resample to coarser resolution
-#' dem_coarse <- terra::aggregate(dem_roi, 10)
-#'
-#' # Extract elevation profile
-#' profile <- terra::extract(dem_roi, xy = matrix(c(102.5, 102.5, 22.5, 23.5), ncol = 2))
+#' # Crop to a region of interest
+#' dem_roi <- terra::crop(dem, terra::ext(100, 105, 20, 25))
 #' }
 #'
 #' @seealso [xet_stream_range()] for manual byte-range queries,
 #'   `terra::rast()` for raster operations
 #' @export
-read_xet_raster <- function(handle, file_hash, file_size, ...) {
+read_xet_raster <- function(handle, file_hash, file_size, ..., dest_path = NULL) {
   .rxet_require_pkg("terra", "read_xet_raster")
+
+  if (!is.null(dest_path)) {
+    .rxet_check_string(dest_path, "dest_path")
+    if (!nzchar(dest_path)) {
+      stop("`dest_path` must be a non-empty string", call. = FALSE)
+    }
+    if (dir.exists(dest_path)) {
+      stop(sprintf("dest_path is a directory, not a file: %s", dest_path))
+    }
+    dest_dir <- dirname(dest_path)
+    if (!dir.exists(dest_dir)) {
+      stop(sprintf("destination directory does not exist: %s", dest_dir))
+    }
+  }
 
   .rxet_whole_download(
     handle, file_hash, file_size,
-    reader = function(path) terra::unwrap(terra::wrap(terra::rast(path, ...))),
+    reader = function(path) terra::rast(path, ...),
+    dest_path = dest_path,
+    keep = TRUE,
     via = "file"
   )
 }
@@ -112,14 +128,9 @@ read_xet_raster <- function(handle, file_hash, file_size, ...) {
 #' sidecars) are not supported, because a single temporary file cannot hold
 #' the sidecars.
 #'
-#' **Whole-download:** the file is downloaded into memory and written to a
-#' temporary file, which is removed on exit. The whole file is read into
-#' memory, which holds about one copy of the bytes, and a parsed sf object is
-#' returned.
-#'
-#' **2 GiB limit:** files larger than 2 GiB (2147483647 bytes) are refused by
-#' [xet_open_connection()] before any network call. The error names
-#' `xet_download_file()`.
+#' **Whole-download:** the file is downloaded to a temporary file with
+#' [xet_download_file()], which is removed on exit. The bytes are never held in
+#' R memory, so only the parsed sf object counts against memory.
 #'
 #' **Optional package:** `sf` is in Suggests and is checked with
 #' `requireNamespace()`.
@@ -130,7 +141,7 @@ read_xet_raster <- function(handle, file_hash, file_size, ...) {
 #' \dontrun{
 #' library(sf)
 #'
-#' client <- xet_client_new("https://cas-cf.huggingface.co", "token")
+#' client <- xet_client_new("https://cas-server.xethub.hf.co", "token")
 #' on.exit(xet_client_close(client))
 #'
 #' # Read GeoJSON from Xet

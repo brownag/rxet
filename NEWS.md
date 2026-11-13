@@ -1,5 +1,32 @@
+# rxet 0.4.0
+
+- The package now requires R >= 4.3.0 (`Depends`), because the streaming
+  connection uses `R_new_custom_connection()`. The R-side version guard and the
+  pre-4.3 C stub are removed.
+- `read_xet_raster()` gains an optional `dest_path` argument and preserves the
+  downloaded file so `terra` lazy reads remain valid after the function returns.
+- New `xet_open_stream_connection()`: a seekable R connection that fetches Xet
+  byte ranges on demand, with a readahead window and a per-connection cache.
+  Needs R >= 4.3.0 for `R_new_custom_connection()`; the custom connection type
+  lives in `src/connection.c`.
+- `read_xet_parquet()` reads through that connection, so `col_select` and
+  `filters` reduce bytes transferred instead of only Arrow's work. Unselected
+  columns are not logically read, though aligned readahead may transfer some
+  bytes of them.
+
 # rxet 0.3.0
 
+- The 2 GiB in-memory cap is gone. `xet_stream_raw()`, `xet_stream_range()`,
+  `xet_open_connection()` and the three `read_xet_*` helpers accept any file
+  size. The R vector is allocated at full size before the download starts, so
+  a request that does not fit fails immediately instead of part way through.
+- `xet_stream_raw()` and `xet_stream_range()` fill the R vector as chunks
+  arrive instead of building a second full copy in Rust, so peak memory is one
+  copy of the file, not two.
+- `read_xet_raster()` and `read_xet_vector()` now download straight to a
+  temporary file with `xet_download_file()`. Their bytes never enter R memory,
+  and they no longer depend on `readBin()`, which cannot return more than
+  `INT_MAX` bytes.
 - Internal helpers now use the `.rxet_` prefix (for example
   `.rxet_check_handle()` and `.rxet_whole_download()`). No exported name changed.
 - Public wrappers now call the rextendr-generated `.xet_*` stubs instead of
@@ -8,7 +35,9 @@
 - Packaging: the batch sync scripts moved to `tools/sync/` and are no longer
   part of the package root. `models.json` is a local, git-ignored file;
   `tools/sync/models.example.json` is the tracked template.
-
+- Documentation: README rewritten and shortened. Lists that did not render are
+  fixed, the FAQ is removed, and `tools/README.md` drops the invented benchmark
+  numbers.
 - `read_xet_parquet()`, `read_xet_raster()` and `read_xet_vector()` now accept
   `file_size = 0` at the argument check. An empty file fails inside the format
   reader instead.

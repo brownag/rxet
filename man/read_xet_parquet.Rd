@@ -20,31 +20,32 @@ such as \code{col_select}, \code{filters}, \code{schema}, etc.}
 An Arrow Table or R data frame (depending on \code{as_data_frame} argument)
 }
 \description{
-Downloads a Parquet file from Xet storage and reads it with Arrow.
-The whole file is buffered into memory first; column selection and filters
-are applied by Arrow after the data has been downloaded.
+Streams a Parquet file from Xet storage and reads it with Arrow. Arrow reads
+the footer and then only the column chunks it needs, and each read is served
+as a Xet byte range; unselected columns are not logically read, though
+aligned readahead can transfer some bytes of them.
 }
 \details{
 This function:
 \enumerate{
-\item Opens a Xet connection to the file via \code{\link[=xet_open_connection]{xet_open_connection()}}
-\item Passes it to \code{arrow::read_parquet()} which reads from the connection
-\item Supports all Arrow read_parquet options (col_select, filters, schema, etc.)
+\item Opens a seekable range connection with \code{\link[=xet_open_stream_connection]{xet_open_stream_connection()}}
+\item Passes it to \code{arrow::read_parquet()}, which seeks and reads as needed
+\item Supports all Arrow read_parquet options (col_select, schema, etc.)
 \item Arrow closes the connection after reading; this function closes it only
 if reading fails
 }
 
-The entire file is buffered into memory by \code{\link[=xet_open_connection]{xet_open_connection()}} before
-Arrow reads it, so column selection and filters reduce Arrow/in-memory work
-but not the number of bytes downloaded.
+\strong{Partial download:} bytes are fetched on demand in windows of at least
+1 MiB (larger while reads move forward, up to 16 MiB), aligned to 64 KiB.
+The overall download is reduced: unselected columns are not logically read,
+though aligned readahead can transfer some bytes of them. For example, a file
+with 40 columns where you select 2 transfers primarily the footer and the
+chunks for those 2 columns.
 
-\strong{Whole-download:} the file is fully read before the call returns. No
-temporary file is used. The whole file is read into memory, which holds
-about one copy of the bytes, and a parsed object is returned.
-
-\strong{2 GiB limit:} files larger than 2 GiB (2147483647 bytes) are refused by
-\code{\link[=xet_open_connection]{xet_open_connection()}} before any network call. The error names
-\code{xet_download_file()}.
+\strong{Memory:} the parsed table is the main cost. rxet retains up to 64 MiB of
+fetched windows per connection (plus the active readahead window); Arrow may
+allocate additional raw-byte buffers (such as its pre-buffer cache) during
+reads.
 
 \strong{Optional package:} \code{arrow} is in Suggests and is checked with
 \code{requireNamespace()}.
@@ -57,21 +58,14 @@ about one copy of the bytes, and a parsed object is returned.
 \dontrun{
 library(arrow)
 
-client <- xet_client_new("https://cas-cf.huggingface.co", "token")
+client <- xet_client_new("https://cas-server.xethub.hf.co", "token")
 on.exit(xet_client_close(client))
 
-# Read entire Parquet file
+# file_hash and file_size come from the Hub file metadata
 df <- read_xet_parquet(
   client,
   file_hash = "parquet-hash-abc123...",
-  file_size = 5e9
-)
-
-# Read only specific columns
-df <- read_xet_parquet(
-  client,
-  file_hash = "parquet-hash-abc123...",
-  file_size = 5e9,
+  file_size = 500e6,
   col_select = c("user_id", "timestamp", "value")
 )
 }

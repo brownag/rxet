@@ -28,9 +28,9 @@ test_that("read_xet_parquet closes its connection on success", {
   info <- serve_fixture(client, "small.parquet")
 
   captured <- NULL
-  real_open <- xet_open_connection
+  real_open <- xet_open_stream_connection
   testthat::local_mocked_bindings(
-    xet_open_connection = function(handle, file_hash, file_size) {
+    xet_open_stream_connection = function(handle, file_hash, file_size) {
       captured <<- real_open(handle, file_hash, file_size)
       captured
     },
@@ -39,7 +39,7 @@ test_that("read_xet_parquet closes its connection on success", {
 
   expected <- arrow::read_parquet(fixture_path("small.parquet"))
   expect_equal(read_xet_parquet(client, info$hash, info$file_size), expected)
-  expect_true(inherits(captured, "connection"))
+  expect_true(inherits(captured, "rxet_connection"))
   # A closed R connection makes isOpen() error "invalid connection"; that is
   # the closed state. Any other error is re-raised.
   closed <- tryCatch(!isOpen(captured), error = function(e) {
@@ -64,18 +64,7 @@ test_that("xet_open_connection bytes equal the downloaded fixture bytes", {
   expect_identical(info$file_size, as.numeric(file.size(fixture_path("small.parquet"))))
 })
 
-test_that("read_xet_parquet refuses a file above the 2 GiB cap and names xet_download_file", {
-  skip_if_not(is_compiled(), "Rust extension not available")
-  skip_if_not_installed("arrow")
-
-  # Refused in xet_open_connection before any client work or network call.
-  expect_error(
-    read_xet_parquet("dummy-handle", "dummy-hash", 2^31 + 1),
-    "2 GiB.*xet_download_file"
-  )
-})
-
-test_that("read_xet_raster returns the 16x16 GeoTIFF with the generator's values", {
+test_that("read_xet_raster returns the 16x16 GeoTIFF without dest_path, persisting in tempdir", {
   skip_without_local_cas()
   skip_if_not_installed("terra")
   client <- start_fixture_client()
@@ -85,8 +74,8 @@ test_that("read_xet_raster returns the 16x16 GeoTIFF with the generator's values
   r <- read_xet_raster(client, info$hash, info$file_size)
   after <- list.files(tempdir(), full.names = TRUE)
 
-  # Values are read after the call returns: the helper unlinks its temp file
-  # on exit, so this also proves the raster was loaded into memory.
+  # (b) Without dest_path, the returned raster reads values after the call returns;
+  # the file persists in tempdir() (J2).
   expect_s4_class(r, "SpatRaster")
   expect_equal(c(terra::nrow(r), terra::ncol(r), terra::nlyr(r)), c(16, 16, 1))
   expect_equal(terra::crs(r, describe = TRUE)$code, "32633")
@@ -97,7 +86,55 @@ test_that("read_xet_raster returns the 16x16 GeoTIFF with the generator's values
   expected <- round(runif(256), 4)
   expect_equal(as.numeric(terra::values(r)[, 1]), expected, tolerance = 1e-6)
 
-  expect_length(setdiff(after, before), 0)
+  created <- setdiff(after, before)
+  expect_length(created, 1)
+
+  # (c) terra::crop() of the returned raster, computed after gc(), still reads.
+  gc()
+  cropped <- terra::crop(r, terra::ext(500000, 500080, 4500000, 4500080))
+  expect_s4_class(cropped, "SpatRaster")
+  expect_equal(c(terra::nrow(cropped), terra::ncol(cropped)), c(8, 8))
+  expect_true(all(!is.na(terra::values(cropped))))
+})
+
+test_that("read_xet_raster with dest_path writes to the destination and reads values", {
+  skip_without_local_cas()
+  skip_if_not_installed("terra")
+  client <- start_fixture_client()
+  info <- serve_fixture(client, "small.tif")
+
+  dest <- tempfile(fileext = ".tif")
+  on.exit(if (file.exists(dest)) unlink(dest), add = TRUE)
+
+  # (a) With dest_path, the file exists after the call and the raster reads values
+  r <- read_xet_raster(client, info$hash, info$file_size, dest_path = dest)
+  expect_true(file.exists(dest))
+  expect_s4_class(r, "SpatRaster")
+  expect_equal(c(terra::nrow(r), terra::ncol(r), terra::nlyr(r)), c(16, 16, 1))
+
+  set.seed(20260102L)
+  expected <- round(runif(256), 4)
+  expect_equal(as.numeric(terra::values(r)[, 1]), expected, tolerance = 1e-6)
+})
+
+test_that("read_xet_raster validates dest_path argument", {
+  skip_if_not_installed("terra")
+  expect_error(
+    read_xet_raster("h", "abc", 10, dest_path = ""),
+    "`dest_path` must be a single non-empty string"
+  )
+  expect_error(
+    read_xet_raster("h", "abc", 10, dest_path = 123),
+    "`dest_path` must be a single non-empty string"
+  )
+  expect_error(
+    read_xet_raster("h", "abc", 10, dest_path = tempdir()),
+    "dest_path is a directory, not a file"
+  )
+  expect_error(
+    read_xet_raster("h", "abc", 10, dest_path = "/nonexistent/path/raster.tif"),
+    "destination directory does not exist"
+  )
 })
 
 test_that("read_xet_vector returns the three-feature GeoJSON fixture", {
@@ -158,26 +195,30 @@ test_that("read_xet_vector requires sf package", {
   )
 })
 
-test_that("read_xet_raster and read_xet_vector close the connection when they error", {
-  skip_without_local_cas()
-  skip_if_not_installed("terra")
+test_that("read_xet_vector removes its temp file when the reader errors", {
   skip_if_not_installed("sf")
 
-  # A write-only file connection makes readBin fail before any close, so the
-  # helpers error after xet_open_connection and only on.exit can close it.
-  n_before <- nrow(showConnections(all = TRUE))
+  before <- list.files(tempdir(), full.names = TRUE)
   testthat::local_mocked_bindings(
-    xet_open_connection = function(...) file(tempfile(), open = "w"),
+    xet_download_file = function(handle, hash, file_size, dest_path) {
+      writeBin(as.raw(1:5), dest_path)
+      invisible(dest_path)
+    },
     .package = "rxet"
   )
-  expect_error(read_xet_raster("h", "x", 1024))
-  expect_error(read_xet_vector("h", "x", 1024))
-  expect_equal(nrow(showConnections(all = TRUE)), n_before)
+
+  # Five bytes are not a vector file, so the reader errors.
+  expect_error(read_xet_vector("h", "x", 5))
+  expect_setequal(list.files(tempdir(), full.names = TRUE), before)
 })
 
 test_that("file_size = 0 reaches the reader and fails there, not at argument validation", {
   testthat::local_mocked_bindings(
-    xet_open_connection = function(...) rawConnection(raw(0), "r"),
+    xet_open_stream_connection = function(...) rawConnection(raw(0), "r"),
+    xet_download_file = function(handle, hash, file_size, dest_path) {
+      file.create(dest_path)
+      invisible(dest_path)
+    },
     .package = "rxet"
   )
   not_arg <- function(expr) {

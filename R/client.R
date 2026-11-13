@@ -48,7 +48,7 @@ NULL
 #' @export
 #' @examples
 #' \dontrun{
-#' client <- xet_client_new("https://cas-cf.huggingface.co", "token")
+#' client <- xet_client_new("https://cas-server.xethub.hf.co", "token")
 #' on.exit(xet_client_close(client))
 #' xet_download_file(client, hash = "...", file_size = 1024, dest_path = "/tmp/file")
 #' }
@@ -74,7 +74,7 @@ xet_client_new <- function(endpoint, token, timeout_sec = NULL, cache_bytes = NU
   if (!(is.logical(high_perf) && length(high_perf) == 1 && !is.na(high_perf))) {
     stop("high_perf must be a single TRUE or FALSE", call. = FALSE)
   }
-  .xet_init_client(endpoint, token, timeout_sec, cache_bytes, high_perf)
+  rxet_init_client(endpoint, token, timeout_sec, cache_bytes, high_perf)
 }
 
 #' Close and free a Xet client session
@@ -90,6 +90,6 @@ xet_client_new <- function(endpoint, token, timeout_sec = NULL, cache_bytes = NU
 #' @export
 xet_client_close <- function(handle) {
   stopifnot(is.character(handle), length(handle) == 1)
-  .xet_close_client(handle)
+  rxet_close_client(handle)
   invisible(NULL)
 }

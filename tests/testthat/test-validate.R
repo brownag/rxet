@@ -18,8 +18,7 @@ test_that(".rxet_check_file_size", {
   for (b in list(-1, 1.5, Inf, NaN, "big", c(1, 2))) {
     expect_error(.rxet_check_file_size(b))
   }
-  expect_error(.rxet_check_file_size(2^31, in_memory = TRUE), "2 GiB limit")
-  expect_silent(.rxet_check_file_size(2^31, in_memory = FALSE))
+  expect_silent(.rxet_check_file_size(2^31 + 5))
 })
 
 test_that(".rxet_check_range", {
@@ -27,11 +26,22 @@ test_that(".rxet_check_range", {
   expect_error(.rxet_check_range(5, 5, 10), "greater")
   expect_error(.rxet_check_range(0, 11, 10), "exceed")
   expect_error(.rxet_check_range(-1, 5, 10), ">= 0")
-  expect_error(.rxet_check_range(0, 2^31 + 5, 2^32), "2 GiB limit")
+  expect_silent(.rxet_check_range(0, 2^31 + 5, 2^32))
+})
+
+test_that("xet_stream_range rejects an empty range before the Rust call (R layer)", {
+  # R rule: end_byte <= start_byte is an error. Pinned by user decision (G4).
+  expect_error(xet_stream_range("h", "abc", 10, 5, 5), "greater")
+})
+
+test_that("Rust xet_stream_range rejects an empty range", {
+  skip_if_not(is_compiled(), "Rust extension not available")
+  expect_error(rxet_stream_range("h", "abc", 10, 5, 5), "must be > start")
 })
 
 test_that(".rxet_check_string and .rxet_require_pkg", {
   expect_silent(.rxet_check_string("a", "dest_path"))
+  expect_error(.rxet_check_string("", "dest_path"), "non-empty")
   expect_error(.rxet_check_string(NA_character_, "dest_path"), "dest_path")
   expect_error(.rxet_check_string(1, "src_path"), "src_path")
   expect_error(

@@ -31,12 +31,12 @@ This function:
 with Arrow, terra, sf/GDAL, and other packages that read from connections
 }
 
-The whole file is materialized into an in-memory \code{rawConnection()}. \code{seek()}
-works within that in-memory copy, but this is \strong{not} remote range access:
-no bytes are fetched lazily from the endpoint.
-
-\code{file_size} must be a finite whole number of bytes, and at most 2^31 - 1
-bytes (2 GiB), the same in-memory cap as \code{\link[=xet_stream_raw]{xet_stream_raw()}}.
+The whole file becomes one in-memory \code{raw()} vector, so the call needs that
+much free RAM. In addition, \code{rawConnection()} copies that vector when the
+connection is created, so peak RAM is roughly twice the file size during
+construction, and the copy is released on close. \code{seek()} works within that
+copy, but this is \strong{not} remote range access: no bytes are fetched lazily
+from the endpoint.
 
 \strong{Status:} Experimental pending live evidence.
 
@@ -49,7 +49,7 @@ bytes (2 GiB), the same in-memory cap as \code{\link[=xet_stream_raw]{xet_stream
 }
 \examples{
 \dontrun{
-client <- xet_client_new("https://cas-cf.huggingface.co", "token")
+client <- xet_client_new("https://cas-server.xethub.hf.co", "token")
 on.exit(xet_client_close(client))
 
 # Open connection to a Parquet file

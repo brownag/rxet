@@ -26,7 +26,7 @@ its Merkle hash.
 }
 \examples{
 \dontrun{
-client <- xet_client_new("https://cas-cf.huggingface.co", "token")
+client <- xet_client_new("https://cas-server.xethub.hf.co", "token")
 on.exit(xet_client_close(client))
 result <- xet_upload_file(client, "/path/to/file.bin")
 cat("Hash:", result$hash, "\n")

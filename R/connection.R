@@ -18,12 +18,12 @@
 #' 3. The connection supports `readBin()`, `seek()`, `close()`, and integration
 #'    with Arrow, terra, sf/GDAL, and other packages that read from connections
 #'
-#' The whole file is materialized into an in-memory `rawConnection()`. `seek()`
-#' works within that in-memory copy, but this is **not** remote range access:
-#' no bytes are fetched lazily from the endpoint.
-#'
-#' `file_size` must be a finite whole number of bytes, and at most 2^31 - 1
-#' bytes (2 GiB), the same in-memory cap as [xet_stream_raw()].
+#' The whole file becomes one in-memory `raw()` vector, so the call needs that
+#' much free RAM. In addition, `rawConnection()` copies that vector when the
+#' connection is created, so peak RAM is roughly twice the file size during
+#' construction, and the copy is released on close. `seek()` works within that
+#' copy, but this is **not** remote range access: no bytes are fetched lazily
+#' from the endpoint.
 #'
 #' **Status:** Experimental pending live evidence.
 #'
@@ -37,7 +37,7 @@
 #' @export
 #' @examples
 #' \dontrun{
-#' client <- xet_client_new("https://cas-cf.huggingface.co", "token")
+#' client <- xet_client_new("https://cas-server.xethub.hf.co", "token")
 #' on.exit(xet_client_close(client))
 #'
 #' # Open connection to a Parquet file
@@ -50,7 +50,7 @@
 xet_open_connection <- function(handle, file_hash, file_size) {
   .rxet_check_handle(handle)
   .rxet_check_hash(file_hash)
-  .rxet_check_file_size(file_size, in_memory = TRUE)
+  .rxet_check_file_size(file_size)
 
   # Stream file into memory
   raw_bytes <- xet_stream_raw(handle, file_hash, file_size)

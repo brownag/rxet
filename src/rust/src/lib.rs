@@ -1,12 +1,16 @@
 use extendr_api::prelude::*;
-use xet::xet_session::{XetSession, XetSessionBuilder, XetFileInfo, Sha256Policy, XetConfig};
+use xet::xet_session::{
+    Sha256Policy, XetConfig, XetDownloadStreamGroup, XetFileInfo, XetSession, XetSessionBuilder,
+};
 use std::sync::Arc;
 use std::panic;
 use uuid::Uuid;
 
+mod reader;
 mod registry;
 #[cfg(test)]
 mod tests;
+use reader::{BytesSource, RangeSource, WindowedReader};
 use registry::Registry;
 
 struct XetClient {
@@ -15,8 +19,196 @@ struct XetClient {
     token: String,
 }
 
-/// In-memory reads are capped at 2^31 - 1 bytes (decision D2).
-const MAX_IN_MEMORY_BYTES: u64 = i32::MAX as u64;
+/// Fetches ranges of one file through a download stream group, so every read
+/// shares the same connection pool and auth token.
+struct XetStreamSource {
+    group: XetDownloadStreamGroup,
+    info: XetFileInfo,
+}
+
+impl RangeSource for XetStreamSource {
+    /// Downloads one contiguous range through a new stream on the shared group.
+    fn fetch(&self, start: u64, end: u64) -> Result<Vec<u8>, String> {
+        let expected = end - start;
+        if std::env::var("RXET_DEBUG").map(|v| v == "1").unwrap_or(false) {
+            rprintln!("xet reader fetch {}..{}", start, end);
+        }
+        let mut stream = self
+            .group
+            .download_stream_blocking(self.info.clone(), Some(start..end))
+            .map_err(|e| format!("download stream error: {}", e))?;
+        stream.start();
+
+        let mut buf = Vec::with_capacity(expected as usize);
+        while let Some(chunk) = stream
+            .blocking_next()
+            .map_err(|e| format!("stream read error: {}", e))?
+        {
+            buf.extend_from_slice(&chunk);
+            if buf.len() as u64 > expected {
+                return Err(format!(
+                    "stream returned more than {expected} bytes for range {start}..{end}"
+                ));
+            }
+        }
+        Ok(buf)
+    }
+
+    fn finish(&self) -> Result<(), String> {
+        self.group.finish_blocking().map(|_| ()).map_err(|e| e.to_string())
+    }
+}
+
+extern "C" {
+    /// Builds the custom R connection declared in `src/connection.c`.
+    #[allow(improper_ctypes)]
+    fn rxet_connection_new(
+        read_fun: extendr_api::SEXP,
+        close_fun: extendr_api::SEXP,
+        size: f64,
+    ) -> extendr_api::SEXP;
+}
+
+/// Opens a reader over bytes held in memory and returns its id.
+/// Internal (no `xet_` prefix, so not exported); used by offline tests.
+/// @noRd
+#[extendr]
+fn rxet_memory_reader_open(bytes: Raw) -> extendr_api::Result<String> {
+    let data = bytes.as_slice().to_vec();
+    let size = data.len() as u64;
+    let source: Box<dyn RangeSource + Send + Sync> = Box::new(BytesSource { bytes: data });
+    let key = Uuid::new_v4().to_string();
+    READERS
+        .insert(key.clone(), WindowedReader::new(source, size))
+        .map_err(Error::Other)?;
+    Ok(key)
+}
+
+/// Opens a reader for on-demand range reads and returns its handle.
+/// @noRd
+#[extendr]
+fn rxet_open_reader(handle: &str, file_hash: &str, file_size: f64) -> extendr_api::Result<String> {
+    safe_exec(panic::AssertUnwindSafe(|| {
+        let size = whole_bytes("file_size", file_size)?;
+        let client = acquire_client(handle)?;
+
+        let group = client
+            .session
+            .new_download_stream_group()
+            .map_err(|e| Error::Other(format!("download stream group error: {}", e)))?
+            .with_endpoint(&client.endpoint)
+            .with_token_info(&client.token, u64::MAX)
+            .build_blocking()
+            .map_err(|e| Error::Other(format!("build download stream group error: {}", e)))?;
+
+        let source: Box<dyn RangeSource + Send + Sync> =
+            Box::new(XetStreamSource { group, info: XetFileInfo::new(file_hash.to_string(), size) });
+        let reader = WindowedReader::new(source, size);
+
+        let key = Uuid::new_v4().to_string();
+        READERS.insert(key.clone(), reader).map_err(Error::Other)?;
+        Ok(key)
+    }))
+}
+
+/// Reads exactly `length` bytes at `offset` from an open reader.
+/// @noRd
+#[extendr]
+fn rxet_reader_read(reader_handle: &str, offset: f64, length: f64) -> extendr_api::Result<Robj> {
+    safe_exec(panic::AssertUnwindSafe(|| {
+        let offset = whole_bytes("offset", offset)?;
+        let length = whole_bytes("length", length)?;
+        let reader = READERS
+            .acquire(reader_handle)
+            .map_err(Error::Other)?
+            .ok_or_else(|| Error::Other("invalid or closed reader handle".to_string()))?;
+        Ok(reader.read_at(offset, length).map_err(Error::Other)?.into_robj())
+    }))
+}
+
+/// Closes a reader and releases its stream group.
+/// @noRd
+#[extendr]
+fn rxet_close_reader(reader_handle: &str) -> extendr_api::Result<()> {
+    let reader = READERS
+        .remove(reader_handle)
+        .map_err(Error::Other)?
+        .ok_or_else(|| Error::Other("invalid or closed reader handle".to_string()))?;
+    let _ = reader.finish();
+    Ok(())
+}
+
+/// Wraps an open reader in a seekable R connection.
+/// `read_fun(offset, length)` must return a raw vector; `close_fun()` runs on close.
+/// The file size comes from the reader.
+/// @noRd
+#[extendr]
+fn rxet_stream_connection(read_fun: Robj, close_fun: Robj, reader_handle: &str) -> extendr_api::Result<Robj> {
+    if !read_fun.is_function() {
+        return Err(Error::Other("read_fun must be a function".to_string()));
+    }
+    if !close_fun.is_function() {
+        return Err(Error::Other("close_fun must be a function".to_string()));
+    }
+    let reader = READERS
+        .acquire(reader_handle)
+        .map_err(Error::Other)?
+        .ok_or_else(|| Error::Other("invalid or closed reader handle".to_string()))?;
+    let size = reader.file_size();
+    drop(reader);
+    let con = unsafe { rxet_connection_new(read_fun.get(), close_fun.get(), size as f64) };
+    Ok(unsafe { Robj::from_sexp(con) })
+}
+
+/// Reports whether a reader handle is still registered.
+/// @noRd
+#[extendr]
+fn rxet_reader_is_open(reader_handle: &str) -> bool {
+    matches!(READERS.acquire(reader_handle), Ok(Some(_)))
+}
+
+/// Allocates an R raw vector with room for exactly `len` bytes.
+/// Allocating first means an impossible request fails before any network call.
+fn allocate_raw(len: u64) -> extendr_api::Result<Robj> {
+    let len = usize::try_from(len).map_err(|_| {
+        Error::Other(format!("{len} bytes does not fit in memory on this platform"))
+    })?;
+    Ok(<Robj as Rinternals>::alloc_vector(
+        extendr_api::rtype_to_sxp(Rtype::Raw),
+        len,
+    ))
+}
+
+/// Fills a preallocated raw vector from a chunk source and requires exactly `len` bytes.
+/// Chunks are copied straight into the R vector, so the file is held once in memory.
+fn fill_raw<F>(out: &mut Robj, len: u64, file_hash: &str, mut next_chunk: F) -> extendr_api::Result<()>
+where
+    F: FnMut() -> extendr_api::Result<Option<Vec<u8>>>,
+{
+    let capacity = out.len();
+    let mut filled = 0usize;
+    while let Some(chunk) = next_chunk()? {
+        let end = filled
+            .checked_add(chunk.len())
+            .filter(|end| *end <= capacity)
+            .ok_or_else(|| {
+                Error::Other(format!(
+                    "stream returned more than {capacity} bytes for hash {file_hash}"
+                ))
+            })?;
+        out.as_raw_slice_mut()
+            .ok_or_else(|| Error::Other("could not write to the allocated raw vector".to_string()))?
+            [filled..end]
+            .copy_from_slice(&chunk);
+        filled = end;
+    }
+    if filled as u64 != len {
+        return Err(Error::Other(format!(
+            "stream returned {filled} bytes, expected {len} for hash {file_hash}"
+        )));
+    }
+    Ok(())
+}
 
 /// Wraps a closure in panic::catch_unwind and converts panics to readable R errors.
 fn safe_exec<F, T>(f: F) -> extendr_api::Result<T>
@@ -40,6 +232,9 @@ where
 
 lazy_static::lazy_static! {
     static ref CLIENTS: Registry<XetClient> = Registry::new();
+    // Boxed trait object so stream and memory sources share one registry.
+    // `Send + Sync` are required: this is a `static`, and `Registry` stores `Arc<T>`.
+    static ref READERS: Registry<WindowedReader<Box<dyn RangeSource + Send + Sync>>> = Registry::new();
 }
 
 /// Look up a client by handle and return an owned `Arc`.
@@ -95,8 +290,9 @@ fn build_config(
 /// Configuration starts from the HF_XET_* environment, then the optional
 /// arguments are applied (high-performance preset first, explicit values last).
 /// Returns a UUID string handle that identifies the client session.
+/// @noRd
 #[extendr]
-fn xet_init_client(
+fn rxet_init_client(
     endpoint: &str,
     token: &str,
     timeout_sec: Option<f64>,
@@ -128,8 +324,9 @@ fn xet_init_client(
 }
 
 /// Close and free a Xet storage client
+/// @noRd
 #[extendr]
-fn xet_close_client(handle: &str) -> extendr_api::Result<()> {
+fn rxet_close_client(handle: &str) -> extendr_api::Result<()> {
     CLIENTS
         .remove(handle)
         .map_err(Error::Other)?
@@ -139,20 +336,18 @@ fn xet_close_client(handle: &str) -> extendr_api::Result<()> {
 
 /// Download an entire file from Xet storage into memory without disk writes
 /// Uses xet-core's streaming API to fetch file in chunks and return as R raw vector.
+/// @noRd
 #[extendr]
-fn xet_stream_raw(
+fn rxet_stream_raw(
     handle: &str,
     file_hash: &str,
     file_size: f64,
 ) -> extendr_api::Result<Robj> {
     safe_exec(panic::AssertUnwindSafe(|| {
         let size_bytes = whole_bytes("file_size", file_size)?;
-        if size_bytes > MAX_IN_MEMORY_BYTES {
-            return Err(Error::Other(format!(
-                "in-memory read of {size_bytes} bytes exceeds the 2 GiB limit (2147483647 bytes); use xet_download_file() for larger files"
-            )));
-        }
 
+        drop(acquire_client(handle)?);
+        let mut out = allocate_raw(size_bytes)?;
         let client = acquire_client(handle)?;
 
         let info = XetFileInfo::new(file_hash.to_string(), size_bytes);
@@ -173,30 +368,22 @@ fn xet_stream_raw(
 
         stream.start();
 
-        let mut buf = Vec::new();
-        buf.try_reserve_exact(size_bytes as usize).map_err(|e| {
-            Error::Other(format!("cannot allocate {size_bytes} bytes for in-memory read: {e}"))
+        fill_raw(&mut out, size_bytes, file_hash, || {
+            stream
+                .blocking_next()
+                .map(|chunk| chunk.map(|bytes| bytes.to_vec()))
+                .map_err(|e| Error::Other(format!("stream read error: {}", e)))
         })?;
-        while let Some(chunk) = stream.blocking_next()
-            .map_err(|e| Error::Other(format!("stream read error: {}", e)))? {
-            buf.extend_from_slice(&chunk);
-        }
 
-        if buf.len() as u64 != size_bytes {
-            return Err(Error::Other(format!(
-                "stream returned {} bytes, expected {} for hash {}",
-                buf.len(), size_bytes, file_hash
-            )));
-        }
-
-        Ok(buf.into_robj())
+        Ok(out)
     }))
 }
 
 /// Stream a specific byte range of a file directly into memory as R data
 /// Downloads only the chunks needed to reconstruct the requested byte range.
+/// @noRd
 #[extendr]
-fn xet_stream_range(
+fn rxet_stream_range(
     handle: &str,
     file_hash: &str,
     total_size: f64,
@@ -214,21 +401,18 @@ fn xet_stream_range(
                 start, total
             )));
         }
-        if end < start || end > total {
+        if end <= start || end > total {
             return Err(Error::Other(format!(
-                "invalid end offset: {} (must be >= start {} and <= file size {})",
+                "invalid end offset: {} (must be > start {} and <= file size {})",
                 end, start, total
             )));
         }
         let size = end.checked_sub(start).ok_or_else(|| {
             Error::Other(format!("invalid byte range: end {end} is before start {start}"))
         })?;
-        if size > MAX_IN_MEMORY_BYTES {
-            return Err(Error::Other(format!(
-                "in-memory requested range of {size} bytes exceeds the 2 GiB limit (2147483647 bytes); use xet_download_file() for larger files"
-            )));
-        }
 
+        drop(acquire_client(handle)?);
+        let mut out = allocate_raw(size)?;
         let client = acquire_client(handle)?;
 
         // Use xet-core's download stream API with byte range
@@ -250,23 +434,14 @@ fn xet_stream_range(
 
         stream.start();
 
-        let mut buf = Vec::new();
-        buf.try_reserve_exact(size as usize).map_err(|e| {
-            Error::Other(format!("cannot allocate {size} bytes for in-memory read: {e}"))
+        fill_raw(&mut out, size, file_hash, || {
+            stream
+                .blocking_next()
+                .map(|chunk| chunk.map(|bytes| bytes.to_vec()))
+                .map_err(|e| Error::Other(format!("stream read error: {}", e)))
         })?;
-        while let Some(chunk) = stream.blocking_next()
-            .map_err(|e| Error::Other(format!("stream read error: {}", e)))? {
-            buf.extend_from_slice(&chunk);
-        }
 
-        if buf.len() as u64 != size {
-            return Err(Error::Other(format!(
-                "stream returned {} bytes, expected {} for hash {}",
-                buf.len(), size, file_hash
-            )));
-        }
-
-        Ok(buf.into_robj())
+        Ok(out)
     }))
 }
 
@@ -303,8 +478,9 @@ fn size_mismatch_message(expected: u64, err_text: &str) -> Option<String> {
 }
 
 /// Download a file from Xet storage to a local path
+/// @noRd
 #[extendr]
-fn xet_download_file(
+fn rxet_download_file(
     handle: &str,
     hash: &str,
     file_size: f64,
@@ -352,8 +528,9 @@ fn xet_download_file(
 }
 
 /// Upload a local file to Xet storage
+/// @noRd
 #[extendr]
-fn xet_upload_file(handle: &str, src_path: &str) -> extendr_api::Result<Robj> {
+fn rxet_upload_file(handle: &str, src_path: &str) -> extendr_api::Result<Robj> {
     safe_exec(panic::AssertUnwindSafe(|| {
         let client = acquire_client(handle)?;
 
@@ -399,10 +576,16 @@ fn xet_upload_file(handle: &str, src_path: &str) -> extendr_api::Result<Robj> {
 
 extendr_module! {
     mod rxet;
-    fn xet_init_client;
-    fn xet_close_client;
-    fn xet_download_file;
-    fn xet_upload_file;
-    fn xet_stream_raw;
-    fn xet_stream_range;
+    fn rxet_init_client;
+    fn rxet_close_client;
+    fn rxet_download_file;
+    fn rxet_upload_file;
+    fn rxet_stream_raw;
+    fn rxet_stream_range;
+    fn rxet_open_reader;
+    fn rxet_reader_read;
+    fn rxet_close_reader;
+    fn rxet_stream_connection;
+    fn rxet_reader_is_open;
+    fn rxet_memory_reader_open;
 }
