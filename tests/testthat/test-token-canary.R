@@ -48,8 +48,8 @@ repeat {
                    nchar(json, type = "bytes"))
     writeBin(c(charToRaw(hdr), charToRaw(json)), con)
   } else if (grepl("^GET /xorb/", req) && term_status != 200L) {
-    writeBin(charToRaw(sprintf("HTTP/1.1 %d Forbidden\r\nContent-Length: 0\r\nConnection: close\r\n\r\n", term_status)), con)
     cat("status", term_status, "\n", file = paste0(ready, ".req"), append = TRUE)
+    writeBin(charToRaw(sprintf("HTTP/1.1 %d Forbidden\r\nContent-Length: 0\r\nConnection: close\r\n\r\n", term_status)), con)
   } else if (grepl("^GET /xorb/", req)) {
     hdr <- sprintf("HTTP/1.1 200 OK\r\nContent-Length: %d\r\nConnection: close\r\n\r\n", n)
     writeBin(charToRaw(hdr), con)
