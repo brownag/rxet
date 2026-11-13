@@ -199,6 +199,7 @@ rxet/
 │   ├── download.R              # xet_download_file
 │   ├── upload.R                # xet_upload_file
 │   ├── stream.R                # xet_stream_raw, xet_stream_range
+│   ├── stream_connection.R     # xet_open_stream_connection
 │   ├── connection.R            # xet_open_connection
 │   ├── arrow.R                 # read_xet_parquet
 │   ├── spatial.R               # read_xet_raster, read_xet_vector

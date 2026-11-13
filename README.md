@@ -15,7 +15,7 @@ Every call blocks the calling R thread. There is no async API.
 
 ## Installation
 
-Needs R \>= 4.3 and Rust \>= 1.85 (from
+Needs R >= 4.3 and Rust >= 1.85 (from
 [rustup.rs](https://rustup.rs/)). The first build downloads and compiles
 the `hf-xet` crate, which takes several minutes.
 
@@ -180,9 +180,9 @@ Memory: `xet_stream_raw()`, `xet_stream_range()`, and
 and `read_xet_vector()` use it, so their bytes never enter R memory.
 `xet_open_stream_connection()` holds only its readahead windows.
 
-The lazy connection needs a custom R connection type, because R has no
-way to define one from R code. That class lives in `src/connection.c`;
-its read callback calls back into Rust through `xet_reader_read()`.
+R cannot define custom connections from R code, so `src/connection.c`
+implements the lazy connection and calls back into Rust via
+`xet_reader_read()`.
 
 ## Benchmarking
 
