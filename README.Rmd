@@ -104,7 +104,7 @@ Set timeouts, cache size, and the performance preset when you create the client:
 
 ```r
 client <- xet_client_new(
-  endpoint, token,
+  endpoint, cas_token,
   timeout_sec = 600, # network read timeout
   cache_bytes = 0,   # disable the chunk cache
   high_perf = TRUE   # hf-xet high-performance preset

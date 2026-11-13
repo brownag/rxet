@@ -38,9 +38,9 @@ It reports metadata fetch, download, and cache-write latency, each with mean, me
 
 `benchmark.R` reads the config from `models.json` and syncs into the configured `sync_dir`, so the benchmark writes real files. Clear that directory between runs if you want to measure cold downloads.
 
-### Reading the output
+### Reading the output (illustrative)
 
-The slowest phase tells you what limits the run.
+In `benchmark-extended.R`, these simulated phase breakdowns illustrate what different bottlenecks look like:
 
 - Download dominates. Normal. More workers rarely help much, because the network is already saturated.
 - Metadata dominates. Sequential round trips to the Hub are the cost. Small files and many repos make this worse.

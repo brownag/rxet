@@ -185,7 +185,7 @@ Three helpers read Xet files with an optional package. Each one is in Suggests a
 - **Parquet streams; the others do not.** `read_xet_parquet()` reads through a seekable range connection, so `col_select` reduces bytes transferred. The raster and vector helpers read the entire file before they return.
 - **No in-memory cap.** `xet_stream_raw()` and `xet_stream_range()` allocate one R `raw()` vector up front and download into it, so peak memory is one copy of the file. A request that does not fit fails before any network call.
 - **Peak memory:** `read_xet_parquet()` holds only its readahead windows plus the parsed table. `read_xet_raster()` and `read_xet_vector()` download straight to a temp file, so only the parsed object counts.
-- **Temp files:** the raster and vector helpers download one temp file with `xet_download_file()` and remove it on exit. Multi-file formats such as shapefiles are not supported, because their sidecars cannot go in one temp file.
+- **Temp files:** `read_xet_vector()` downloads one temp file with `xet_download_file()` and removes it on exit (multi-file formats such as shapefiles are not supported). `read_xet_raster()` retains its backing file in `tempdir()` when `dest_path = NULL` (or at `dest_path` when provided) so `terra::rast()` can read on demand.
 - **Reader cache:** `xet_open_stream_connection()` keeps up to 64 MiB of fetched windows per connection, aligned to 64 KiB, starting at `file_size / 32` (1 MiB to 16 MiB) and doubling while reads move forward. Set `RXET_DEBUG=1` to print each fetched range. The policy lives in src/rust/src/reader.rs behind a RangeSource trait, so it can be tested offline with an in-memory source.
 
 ---

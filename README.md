@@ -26,8 +26,9 @@ R CMD INSTALL .
 ## Authentication
 
 The CAS server rejects a raw Hub token. Call the Hub’s `xet-read-token`
-endpoint with your Hub token and pass the `accessToken` it returns,
-along with its `casUrl`. Both expire, so fetch them per session.
+endpoint (or `xet-write-token` for uploads via `xet_upload_file()`) with
+your Hub token and pass the `accessToken` it returns, along with its
+`casUrl`. Both expire, so fetch them per session.
 
 rxet never writes the token into an error message.
 
@@ -120,7 +121,7 @@ client:
 
 ``` r
 client <- xet_client_new(
-  endpoint, token,
+  endpoint, cas_token,
   timeout_sec = 600, # network read timeout
   cache_bytes = 0,   # disable the chunk cache
   high_perf = TRUE   # hf-xet high-performance preset

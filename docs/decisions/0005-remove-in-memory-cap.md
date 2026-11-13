@@ -50,6 +50,6 @@ Remove the cap. Address memory directly instead:
   longer hold the bytes in RAM.
 - A request larger than RAM reports an allocation failure rather than a size
   limit. The message does not mention a cap because there is none.
-- `read_xet_parquet()` still holds the file in memory while Arrow parses it, so
-  it needs the file plus the parsed table. `xet_download_file()` remains the
-  option when that does not fit.
+- `read_xet_parquet()` streams through `xet_open_stream_connection()`, so it
+  holds only its readahead/window cache (up to 64 MiB per connection) plus the
+  parsed table (and any Arrow pre-buffer cache), rather than the whole file.

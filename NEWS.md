@@ -5,6 +5,14 @@
   pre-4.3 C stub are removed.
 - `read_xet_raster()` gains an optional `dest_path` argument and preserves the
   downloaded file so `terra` lazy reads remain valid after the function returns.
+- New `xet_open_stream_connection()`: a seekable R connection that fetches Xet
+  byte ranges on demand, with a readahead window and a per-connection cache.
+  Needs R >= 4.3.0 for `R_new_custom_connection()`; the custom connection type
+  lives in `src/connection.c`.
+- `read_xet_parquet()` reads through that connection, so `col_select` and
+  `filters` reduce bytes transferred instead of only Arrow's work. Unselected
+  columns are not logically read, though aligned readahead may transfer some
+  bytes of them.
 
 # rxet 0.3.0
 
@@ -30,13 +38,6 @@
 - Documentation: README rewritten and shortened. Lists that did not render are
   fixed, the FAQ is removed, and `tools/README.md` drops the invented benchmark
   numbers.
-- New `xet_open_stream_connection()`: a seekable R connection that fetches Xet
-  byte ranges on demand, with a readahead window and a per-connection cache.
-  Needs R >= 4.3.0 for `R_new_custom_connection()`; the custom connection type
-  lives in `src/connection.c`.
-- `read_xet_parquet()` reads through that connection, so `col_select` and
-  `filters` reduce bytes transferred instead of only Arrow's work. Unselected
-  column chunks are never downloaded.
 - `read_xet_parquet()`, `read_xet_raster()` and `read_xet_vector()` now accept
   `file_size = 0` at the argument check. An empty file fails inside the format
   reader instead.
