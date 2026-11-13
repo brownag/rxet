@@ -346,6 +346,7 @@ fn rxet_stream_raw(
     safe_exec(panic::AssertUnwindSafe(|| {
         let size_bytes = whole_bytes("file_size", file_size)?;
 
+        drop(acquire_client(handle)?);
         let mut out = allocate_raw(size_bytes)?;
         let client = acquire_client(handle)?;
 
@@ -410,6 +411,7 @@ fn rxet_stream_range(
             Error::Other(format!("invalid byte range: end {end} is before start {start}"))
         })?;
 
+        drop(acquire_client(handle)?);
         let mut out = allocate_raw(size)?;
         let client = acquire_client(handle)?;
 
