@@ -155,6 +155,7 @@ fn rxet_stream_connection(read_fun: Robj, close_fun: Robj, reader_handle: &str) 
         .map_err(Error::Other)?
         .ok_or_else(|| Error::Other("invalid or closed reader handle".to_string()))?;
     let size = reader.file_size();
+    drop(reader);
     let con = unsafe { rxet_connection_new(read_fun.get(), close_fun.get(), size as f64) };
     Ok(unsafe { Robj::from_sexp(con) })
 }
@@ -345,8 +346,8 @@ fn rxet_stream_raw(
     safe_exec(panic::AssertUnwindSafe(|| {
         let size_bytes = whole_bytes("file_size", file_size)?;
 
-        let client = acquire_client(handle)?;
         let mut out = allocate_raw(size_bytes)?;
+        let client = acquire_client(handle)?;
 
         let info = XetFileInfo::new(file_hash.to_string(), size_bytes);
 
@@ -409,8 +410,8 @@ fn rxet_stream_range(
             Error::Other(format!("invalid byte range: end {end} is before start {start}"))
         })?;
 
-        let client = acquire_client(handle)?;
         let mut out = allocate_raw(size)?;
+        let client = acquire_client(handle)?;
 
         // Use xet-core's download stream API with byte range
         let info = XetFileInfo::new(file_hash.to_string(), total);
