@@ -42,8 +42,10 @@ though aligned readahead can transfer some bytes of them. For example, a file
 with 40 columns where you select 2 transfers primarily the footer and the
 chunks for those 2 columns.
 
-\strong{Memory:} the parsed table is the main cost. The only raw bytes held are
-the readahead window and the chunk being parsed.
+\strong{Memory:} the parsed table is the main cost. rxet retains up to 64 MiB of
+fetched windows per connection (plus the active readahead window); Arrow may
+allocate additional raw-byte buffers (such as its pre-buffer cache) during
+reads.
 
 \strong{Optional package:} \code{arrow} is in Suggests and is checked with
 \code{requireNamespace()}.

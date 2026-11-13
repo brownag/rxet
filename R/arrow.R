@@ -28,8 +28,10 @@
 #' with 40 columns where you select 2 transfers primarily the footer and the
 #' chunks for those 2 columns.
 #'
-#' **Memory:** the parsed table is the main cost. The only raw bytes held are
-#' the readahead window and the chunk being parsed.
+#' **Memory:** the parsed table is the main cost. rxet retains up to 64 MiB of
+#' fetched windows per connection (plus the active readahead window); Arrow may
+#' allocate additional raw-byte buffers (such as its pre-buffer cache) during
+#' reads.
 #'
 #' **Optional package:** `arrow` is in Suggests and is checked with
 #' `requireNamespace()`.

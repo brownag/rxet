@@ -68,7 +68,7 @@
 #' @seealso [xet_stream_range()] for manual byte-range queries,
 #'   `terra::rast()` for raster operations
 #' @export
-read_xet_raster <- function(handle, file_hash, file_size, dest_path = NULL, ...) {
+read_xet_raster <- function(handle, file_hash, file_size, ..., dest_path = NULL) {
   .rxet_require_pkg("terra", "read_xet_raster")
 
   if (!is.null(dest_path)) {

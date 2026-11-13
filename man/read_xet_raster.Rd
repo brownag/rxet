@@ -4,7 +4,7 @@
 \alias{read_xet_raster}
 \title{Read a raster file from Xet storage using terra}
 \usage{
-read_xet_raster(handle, file_hash, file_size, dest_path = NULL, ...)
+read_xet_raster(handle, file_hash, file_size, ..., dest_path = NULL)
 }
 \arguments{
 \item{handle}{Character string handle from \code{\link[=xet_client_new]{xet_client_new()}}}
@@ -13,11 +13,11 @@ read_xet_raster(handle, file_hash, file_size, dest_path = NULL, ...)
 
 \item{file_size}{Numeric scalar, total file size in bytes}
 
+\item{...}{Additional arguments passed to \code{terra::rast()}}
+
 \item{dest_path}{Optional character string, destination file path where the
 raster file will be saved. When \code{NULL} (the default), a temporary file is
 created in \code{\link[=tempdir]{tempdir()}} and kept for the duration of the R session.}
-
-\item{...}{Additional arguments passed to \code{terra::rast()}}
 }
 \value{
 A SpatRaster object
